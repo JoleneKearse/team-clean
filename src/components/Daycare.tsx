@@ -14,7 +14,7 @@ const Daycare = () => {
 
   return (
     <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg p-4">
-      <h2>Daycare Assignments 🧸</h2>
+      <h2 className="text-center">Daycare Assignments 🧸</h2>
 
       <ul className="mt-3 space-y-1">
         {assignments.map((assignment) => (

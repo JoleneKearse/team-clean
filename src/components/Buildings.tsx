@@ -7,7 +7,7 @@ const Buildings = () => {
 
   return (
     <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg p-4">
-      <h2>Building Assignments 🏗️</h2>
+      <h2 className="text-center">Building Assignments 🏗️</h2>
 
       <div className="mt-2 space-y-2">
         {BUILDINGS.map((building) => {
