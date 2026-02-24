@@ -1,4 +1,21 @@
-import type { BuildingKey, JobId } from "../types/types";
+export const DAYS = [
+  { key: "mon", label: "M" },
+  { key: "tue", label: "T" },
+  { key: "wed", label: "W" },
+  { key: "thu", label: "T" },
+  { key: "fri", label: "F" },
+] as const;
+
+export const JOBS = [
+  "Bath",
+  "Flo1",
+  "SW",
+  "Flo2",
+  "Vac",
+  "San",
+  "Flo3",
+  "Gar",
+] as const;
 
 export const BUILDINGS = [
   {
@@ -12,8 +29,17 @@ export const BUILDINGS = [
     jobIds: ["Vac", "Gar", "Flo1"],
   },
   { key: "grade1_annex", label: "Grade 1 / Annex", jobIds: ["Bath", "Flo2"] },
-] as const satisfies ReadonlyArray<{
-  key: BuildingKey;
-  label: string;
-  jobIds: readonly JobId[];
-}>;
+] as const;
+
+export const CLEANERS = [
+  "PW",
+  "JA",
+  "BM",
+  "SN",
+  "AP",
+  "D",
+  "JK",
+  "TW",
+] as const;
+
+export const ANCHOR_MONDAY = "2026-02-23" as const;

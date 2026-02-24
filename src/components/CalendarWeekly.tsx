@@ -1,4 +1,5 @@
 import { useSchedule } from "../context/ScheduleContext";
+import { DAYS, JOBS } from "../constants/consts";
 import type { DayKey } from "../types/types";
 
 type CalendarWeeklyProps = {
@@ -6,7 +7,7 @@ type CalendarWeeklyProps = {
 };
 
 const CalendarWeekly = ({ highlightedDayKey }: CalendarWeeklyProps) => {
-  const { days, jobs, weeklyAssignments } = useSchedule();
+  const { weeklyAssignments } = useSchedule();
 
   return (
     <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg text-center">
@@ -16,10 +17,14 @@ const CalendarWeekly = ({ highlightedDayKey }: CalendarWeeklyProps) => {
             <th scope="col" className="w-12 bg-pink-400">
               <span className="sr-only">Jobs</span>
             </th>
-            {days.map((day) => (
+            {DAYS.map((day) => (
               <th
                 key={day.key}
-                className={day.key === highlightedDayKey ? "bg-pink-400 border-l border-r" : "bg-pink-400"}
+                className={
+                  day.key === highlightedDayKey
+                    ? "bg-pink-400 border-l border-r"
+                    : "bg-pink-400"
+                }
               >
                 {day.label}
               </th>
@@ -28,18 +33,19 @@ const CalendarWeekly = ({ highlightedDayKey }: CalendarWeeklyProps) => {
         </thead>
 
         <tbody>
-          {jobs.map((job, jobIndex) => (
+          {JOBS.map((job, jobIndex) => (
             // highlight essential jobs for the current day, applying same styling for td highlightedDayKey in markdown below
-            <tr
-              key={job}
-              className={job.includes("Flo") ? "bg-[#f3f3f3]" : ""}
-            >
+            <tr key={job} className={job.includes("Flo") ? "bg-[#f3f3f3]" : ""}>
               <td className="sticky left-0 font-bold">{job}</td>
 
-              {days.map((day) => (
+              {DAYS.map((day) => (
                 <td
                   key={day.key}
-                  className={day.key === highlightedDayKey ? "bg-gray-100 border-l border-r" : ""}
+                  className={
+                    day.key === highlightedDayKey
+                      ? "bg-gray-100 border-l border-r"
+                      : ""
+                  }
                 >
                   {weeklyAssignments[day.key][jobIndex]}
                 </td>

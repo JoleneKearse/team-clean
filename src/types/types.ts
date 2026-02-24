@@ -1,16 +1,6 @@
-export type DayKey = "mon" | "tue" | "wed" | "thu" | "fri";
+import { BUILDINGS, CLEANERS, DAYS, JOBS } from "../constants/consts";
 
-export type JobId =
-  | "Bath"
-  | "Flo1"
-  | "SW"
-  | "Flo2"
-  | "Vac"
-  | "San"
-  | "Flo3"
-  | "Gar";
-
-export type BuildingKey =
-  | "seniors_fieldhouse_education"
-  | "grade2_social"
-  | "grade1_annex";
+export type DayKey = (typeof DAYS)[number]["key"];
+export type JobId = (typeof JOBS)[number];
+export type BuildingKey = (typeof BUILDINGS)[number]["key"];
+export type CleanerId = (typeof CLEANERS)[number];
