@@ -17,6 +17,17 @@ export const JOBS = [
   "Gar",
 ] as const;
 
+export const CLEANERS = [
+  "PW",
+  "JA",
+  "BM",
+  "SN",
+  "AP",
+  "D",
+  "JK",
+  "TW",
+] as const;
+
 export const BUILDINGS = [
   {
     key: "seniors_fieldhouse_education",
@@ -29,17 +40,6 @@ export const BUILDINGS = [
     jobIds: ["Vac", "Gar", "Flo1"],
   },
   { key: "grade1_annex", label: "Grade 1 / Annex", jobIds: ["Bath", "Flo2"] },
-] as const;
-
-export const CLEANERS = [
-  "PW",
-  "JA",
-  "BM",
-  "SN",
-  "AP",
-  "D",
-  "JK",
-  "TW",
 ] as const;
 
 export const ANCHOR_MONDAY = "2026-02-23" as const;

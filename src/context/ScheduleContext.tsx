@@ -11,6 +11,8 @@ import type { DayKey } from "../types/types";
 interface ScheduleContextType {
   todayDayKey: DayKey;
   weeklyAssignments: Record<DayKey, string[]>;
+  peopleIn: number;
+  setPeopleIn: React.Dispatch<React.SetStateAction<number>>;
   selectedDay: DayKey;
   setSelectedDay: React.Dispatch<React.SetStateAction<DayKey>>;
 }
@@ -26,10 +28,16 @@ export const ScheduleProvider = ({
   const todayDayKey = useMemo(() => getDayKeyFromDate(today), [today]);
 
   const [selectedDay, setSelectedDay] = useState<DayKey>(todayDayKey);
+  const [peopleIn, setPeopleIn] = useState<number>(CLEANERS.length);
+
+  const activeCleaners = useMemo(
+    () => CLEANERS.slice(0, Math.max(1, Math.min(CLEANERS.length, peopleIn))),
+    [peopleIn],
+  );
 
   const weeklyAssignments = useMemo(
-    () => generateWeeklyAssignments(CLEANERS, today),
-    [today],
+    () => generateWeeklyAssignments(activeCleaners, today),
+    [activeCleaners, today],
   );
 
   return (
@@ -37,6 +45,8 @@ export const ScheduleProvider = ({
       value={{
         todayDayKey,
         weeklyAssignments,
+        peopleIn,
+        setPeopleIn,
         selectedDay,
         setSelectedDay,
       }}

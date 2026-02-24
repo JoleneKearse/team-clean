@@ -24,7 +24,8 @@ const Buildings = () => {
               <ul>
                 {assignments.map((assignment) => (
                   <li key={assignment.job}>
-                    <span className="font-medium">{assignment.job}</span>: {assignment.initials}
+                    <span className="font-medium">{assignment.job}</span>:{" "}
+                    {assignment.initials}
                   </li>
                 ))}
               </ul>

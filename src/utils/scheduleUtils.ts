@@ -13,6 +13,59 @@ function rotate<T>(arr: readonly T[], shiftDown: number): T[] {
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const ROTATION_BASE_WEEK_NUMBER = 9;
 
+function normalizePeopleIn(peopleIn: number): 6 | 7 | 8 {
+  if (peopleIn <= 6) return 6;
+  if (peopleIn >= 8) return 8;
+  return 7;
+}
+
+export function getDaycareJobLabel(jobId: JobId, peopleIn: number): string {
+  const staffing = normalizePeopleIn(peopleIn);
+
+  if (jobId === "Bath") {
+    return "Bathrooms";
+  }
+
+  if (staffing > 8 && jobId === "Vac") {
+    return "P1 including lockers";
+  }
+  if (staffing > 8 && jobId === "SW") {
+    return "P2 including lockers";
+  }
+  if (staffing > 8 && jobId === "San") {
+    return "Kindergarten including lockers";
+  }
+  if (staffing === 8 && jobId === "Vac") {
+    return "P1";
+  }
+  if (staffing === 8 && jobId === "SW") {
+    return "P2";
+  }
+  if (staffing === 8 && jobId === "San") {
+    return "Kindergarten";
+  }
+  
+  if (staffing === 6 && jobId === "Gar") {
+    return "All outside";
+  }
+  if (staffing >= 7 && jobId === "Gar") {
+    return "Fill & front outside";
+  }
+
+  if (staffing === 7) {
+    if (jobId === "Flo1") return "Baby & Toddler Rooms)";
+    if (jobId === "Flo2") return "Back Outside";
+  }
+
+  if (staffing === 8) {
+    if (jobId === "Flo1") return "Baby Room + Kindergarten Lockers";
+    if (jobId === "Flo2") return "Toddler Room + P2 Lockers";
+    if (jobId === "Flo3") return "Back Outside + P1 Lockers";
+  }
+
+  return jobId;
+}
+
 export function getDayKeyFromDate(referenceDate: Date): DayKey {
   const dayMap: Partial<Record<number, DayKey>> = {
     1: "mon",
@@ -85,4 +138,21 @@ export function getBuildingAssignmentsForDay(params: {
       missing: idx < 0,
     };
   });
+}
+
+export function getDayCareAssignmentsForDay(params: {
+  day: DayKey;
+  jobs: readonly JobId[];
+  weeklyAssignments: WeeklyAssignments;
+  peopleIn: number;
+}) {
+  const { day, jobs, weeklyAssignments, peopleIn } = params;
+  const dayAssignments = weeklyAssignments[day];
+
+  return jobs.map((jobId, index) => ({
+    job: jobId,
+    initials: dayAssignments[index] ?? "",
+    label: getDaycareJobLabel(jobId, peopleIn),
+    missing: !dayAssignments[index],
+  }));
 }
