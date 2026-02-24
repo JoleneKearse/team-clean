@@ -51,7 +51,7 @@ const Buildings = () => {
                     {assignments.map((assignment) => (
                       <td
                         key={`${assignment.job}-cleaner`}
-                        className="border border-gray-400 px-2 py-1"
+                        className="border border-gray-400 bg-gray-200 px-2 py-1"
                       >
                         {assignment.initials}
                       </td>

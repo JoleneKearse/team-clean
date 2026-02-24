@@ -19,8 +19,7 @@ const Daycare = () => {
       <ul className="mt-3 space-y-1">
         {assignments.map((assignment) => (
           <li key={assignment.job}>
-            <span className="font-medium">{assignment.label}</span>:{" "}
-            {assignment.initials}
+            <span className="font-medium">{assignment.initials}</span>: {assignment.label}
           </li>
         ))}
       </ul>
