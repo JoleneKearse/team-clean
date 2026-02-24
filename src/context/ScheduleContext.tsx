@@ -1,11 +1,15 @@
 import { createContext, useContext, useMemo, useState } from "react";
 
-import { generateWeeklyAssignments } from "../utils/scheduleUtils";
+import {
+  generateWeeklyAssignments,
+  getDayKeyFromDate,
+} from "../utils/scheduleUtils";
 import { CLEANERS } from "../constants/consts";
 
 import type { DayKey } from "../types/types";
 
 interface ScheduleContextType {
+  todayDayKey: DayKey;
   weeklyAssignments: Record<DayKey, string[]>;
   selectedDay: DayKey;
   setSelectedDay: React.Dispatch<React.SetStateAction<DayKey>>;
@@ -18,16 +22,20 @@ export const ScheduleProvider = ({
 }: {
   children: React.ReactNode;
 }) => {
-  const [selectedDay, setSelectedDay] = useState<DayKey>("mon");
+  const today = useMemo(() => new Date(), []);
+  const todayDayKey = useMemo(() => getDayKeyFromDate(today), [today]);
+
+  const [selectedDay, setSelectedDay] = useState<DayKey>(todayDayKey);
 
   const weeklyAssignments = useMemo(
-    () => generateWeeklyAssignments(CLEANERS),
-    [],
+    () => generateWeeklyAssignments(CLEANERS, today),
+    [today],
   );
 
   return (
     <ScheduleContext.Provider
       value={{
+        todayDayKey,
         weeklyAssignments,
         selectedDay,
         setSelectedDay,

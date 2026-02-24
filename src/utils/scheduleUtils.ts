@@ -13,6 +13,18 @@ function rotate<T>(arr: readonly T[], shiftDown: number): T[] {
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const ROTATION_BASE_WEEK_NUMBER = 9;
 
+export function getDayKeyFromDate(referenceDate: Date): DayKey {
+  const dayMap: Partial<Record<number, DayKey>> = {
+    1: "mon",
+    2: "tue",
+    3: "wed",
+    4: "thu",
+    5: "fri",
+  };
+
+  return dayMap[referenceDate.getDay()] ?? "mon";
+}
+
 function getCalendarWeekNumber(referenceDate: Date): number {
   const date = new Date(referenceDate);
   date.setHours(0, 0, 0, 0);
