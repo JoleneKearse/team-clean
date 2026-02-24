@@ -17,11 +17,14 @@ const Daycare = () => {
       <h2 className="text-center">Daycare Assignments 🧸</h2>
 
       <ul className="mt-3 space-y-1">
-        {assignments.map((assignment) => (
-          <li key={assignment.job}>
-            <span className="font-medium">{assignment.initials}</span>: {assignment.label}
-          </li>
-        ))}
+        {assignments
+          .filter((assignment) => assignment.initials !== "")
+          .map((assignment) => (
+            <li key={assignment.job}>
+              <span className="font-medium">{assignment.initials}</span>:{" "}
+              {assignment.label}
+            </li>
+          ))}
       </ul>
     </article>
   );
