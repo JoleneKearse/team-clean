@@ -54,7 +54,9 @@ const CalendarWeekly = ({ highlightedDayKey }: CalendarWeeklyProps) => {
                     <td key={day.key} className={className}>
                       <span
                         className={
-                          isHighlightedDay && isReassigned ? "text-pink-700" : ""
+                          isHighlightedDay && isReassigned
+                            ? "text-pink-700"
+                            : ""
                         }
                       >
                         {weeklyAssignments[day.key][jobIndex]}

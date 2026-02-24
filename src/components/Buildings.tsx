@@ -9,7 +9,7 @@ const Buildings = () => {
     <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg p-4">
       <h2>Building Assignments 🏗️</h2>
 
-      <div className="mt-3 space-y-4">
+      <div className="mt-2 space-y-2">
         {BUILDINGS.map((building) => {
           const assignments = getBuildingAssignmentsForDay({
             day: selectedDay,
@@ -21,14 +21,30 @@ const Buildings = () => {
           return (
             <section key={building.key}>
               <h3 className="font-semibold">{building.label}</h3>
-              <ul>
-                {assignments.map((assignment) => (
-                  <li key={assignment.job}>
-                    <span className="font-medium">{assignment.job}</span>:{" "}
-                    {assignment.initials}
-                  </li>
-                ))}
-              </ul>
+              <table className="mt-1 w-full text-center border border-gray-400 border-collapse">
+                <tbody>
+                  <tr>
+                    {assignments.map((assignment) => (
+                      <td
+                        key={`${assignment.job}-job`}
+                        className="italic border border-gray-400 px-2 py-1"
+                      >
+                        {assignment.job}
+                      </td>
+                    ))}
+                  </tr>
+                  <tr>
+                    {assignments.map((assignment) => (
+                      <td
+                        key={`${assignment.job}-cleaner`}
+                        className="border border-gray-400 px-2 py-1"
+                      >
+                        {assignment.initials}
+                      </td>
+                    ))}
+                  </tr>
+                </tbody>
+              </table>
             </section>
           );
         })}
