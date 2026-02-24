@@ -2,17 +2,21 @@ import { createContext, useContext, useMemo, useState } from "react";
 
 import {
   generateWeeklyAssignments,
+  getWeeklyReassignmentFlags,
   getDayKeyFromDate,
+  type WeeklyReassignmentFlags,
 } from "../utils/scheduleUtils";
-import { CLEANERS } from "../constants/consts";
+import { CLEANERS, JOBS } from "../constants/consts";
 
-import type { DayKey } from "../types/types";
+import type { CleanerId, DayKey } from "../types/types";
 
 interface ScheduleContextType {
   todayDayKey: DayKey;
   weeklyAssignments: Record<DayKey, string[]>;
+  weeklyReassignmentFlags: WeeklyReassignmentFlags;
+  presentCleaners: CleanerId[];
+  setPresentCleaners: React.Dispatch<React.SetStateAction<CleanerId[]>>;
   peopleIn: number;
-  setPeopleIn: React.Dispatch<React.SetStateAction<number>>;
   selectedDay: DayKey;
   setSelectedDay: React.Dispatch<React.SetStateAction<DayKey>>;
 }
@@ -28,16 +32,61 @@ export const ScheduleProvider = ({
   const todayDayKey = useMemo(() => getDayKeyFromDate(today), [today]);
 
   const [selectedDay, setSelectedDay] = useState<DayKey>(todayDayKey);
-  const [peopleIn, setPeopleIn] = useState<number>(CLEANERS.length);
+  const [presentCleanersByDay, setPresentCleanersByDay] = useState<
+    Record<DayKey, CleanerId[]>
+  >({
+    mon: [...CLEANERS],
+    tue: [...CLEANERS],
+    wed: [...CLEANERS],
+    thu: [...CLEANERS],
+    fri: [...CLEANERS],
+  });
 
-  const activeCleaners = useMemo(
-    () => CLEANERS.slice(0, Math.max(1, Math.min(CLEANERS.length, peopleIn))),
-    [peopleIn],
-  );
+  const presentCleaners = presentCleanersByDay[selectedDay];
+
+  const setPresentCleaners: React.Dispatch<
+    React.SetStateAction<CleanerId[]>
+  > = (valueOrUpdater) => {
+    setPresentCleanersByDay((current) => {
+      const nextForSelectedDay =
+        typeof valueOrUpdater === "function"
+          ? valueOrUpdater(current[selectedDay])
+          : valueOrUpdater;
+
+      return {
+        ...current,
+        [selectedDay]: nextForSelectedDay,
+      };
+    });
+  };
+
+  const peopleIn = presentCleaners.length;
 
   const weeklyAssignments = useMemo(
-    () => generateWeeklyAssignments(activeCleaners, today),
-    [activeCleaners, today],
+    () =>
+      generateWeeklyAssignments(
+        CLEANERS,
+        today,
+        JOBS.length,
+        presentCleanersByDay,
+        JOBS,
+      ),
+    [presentCleanersByDay, today],
+  );
+
+  const baselineWeeklyAssignments = useMemo(
+    () =>
+      generateWeeklyAssignments(CLEANERS, today, JOBS.length, undefined, JOBS),
+    [today],
+  );
+
+  const weeklyReassignmentFlags = useMemo(
+    () =>
+      getWeeklyReassignmentFlags({
+        baseAssignments: baselineWeeklyAssignments,
+        adjustedAssignments: weeklyAssignments,
+      }),
+    [baselineWeeklyAssignments, weeklyAssignments],
   );
 
   return (
@@ -45,8 +94,10 @@ export const ScheduleProvider = ({
       value={{
         todayDayKey,
         weeklyAssignments,
+        weeklyReassignmentFlags,
+        presentCleaners,
+        setPresentCleaners,
         peopleIn,
-        setPeopleIn,
         selectedDay,
         setSelectedDay,
       }}

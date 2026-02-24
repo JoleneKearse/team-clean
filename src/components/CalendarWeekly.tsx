@@ -7,7 +7,7 @@ type CalendarWeeklyProps = {
 };
 
 const CalendarWeekly = ({ highlightedDayKey }: CalendarWeeklyProps) => {
-  const { weeklyAssignments } = useSchedule();
+  const { weeklyAssignments, weeklyReassignmentFlags } = useSchedule();
 
   return (
     <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg text-center">
@@ -38,18 +38,31 @@ const CalendarWeekly = ({ highlightedDayKey }: CalendarWeeklyProps) => {
             <tr key={job} className={job.includes("Flo") ? "bg-[#f3f3f3]" : ""}>
               <td className="sticky left-0 font-bold">{job}</td>
 
-              {DAYS.map((day) => (
-                <td
-                  key={day.key}
-                  className={
-                    day.key === highlightedDayKey
-                      ? "bg-gray-100 border-l border-r"
-                      : ""
-                  }
-                >
-                  {weeklyAssignments[day.key][jobIndex]}
-                </td>
-              ))}
+              {DAYS.map((day) =>
+                (() => {
+                  const isHighlightedDay = day.key === highlightedDayKey;
+                  const isReassigned = Boolean(
+                    weeklyReassignmentFlags[day.key]?.[jobIndex],
+                  );
+                  const className = [
+                    isHighlightedDay ? "bg-gray-100 border-l border-r" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ");
+
+                  return (
+                    <td key={day.key} className={className}>
+                      <span
+                        className={
+                          isHighlightedDay && isReassigned ? "text-pink-700" : ""
+                        }
+                      >
+                        {weeklyAssignments[day.key][jobIndex]}
+                      </span>
+                    </td>
+                  );
+                })(),
+              )}
             </tr>
           ))}
         </tbody>

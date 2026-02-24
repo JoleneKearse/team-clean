@@ -12,6 +12,9 @@ function rotate<T>(arr: readonly T[], shiftDown: number): T[] {
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const ROTATION_BASE_WEEK_NUMBER = 9;
+const NECESSARY_JOBS: readonly JobId[] = ["Bath", "SW", "Vac", "San", "Gar"];
+const BACKFILL_PRIORITY: readonly JobId[] = ["Flo3", "Flo2", "Flo1"];
+const FLOAT_JOBS: readonly JobId[] = ["Flo1", "Flo2", "Flo3"];
 
 function normalizePeopleIn(peopleIn: number): 6 | 7 | 8 {
   if (peopleIn <= 6) return 6;
@@ -98,23 +101,133 @@ function getCalendarWeekNumber(referenceDate: Date): number {
 export function generateWeeklyAssignments(
   cleaners: readonly string[],
   referenceDate: Date = new Date(),
+  slotCount: number = 8,
+  presentCleanersByDay?: Partial<Record<DayKey, readonly string[]>>,
+  jobs: readonly JobId[] = ["Bath", "Flo1", "SW", "Flo2", "Vac", "San", "Flo3", "Gar"],
 ) {
-  const base = cleaners;
+  const totalSlots = Math.max(0, slotCount);
+  const base =
+    cleaners.length === 0
+      ? Array.from({ length: totalSlots }, () => "")
+      : Array.from(
+          { length: totalSlots },
+          (_, index) => cleaners[index % cleaners.length],
+        );
+
   const weekNumber = getCalendarWeekNumber(referenceDate);
   const weekOffset = weekNumber - ROTATION_BASE_WEEK_NUMBER;
 
+  const rebalanceForPresence = (day: DayKey, dayAssignments: string[]) => {
+    const presentForDay = presentCleanersByDay?.[day] ?? cleaners;
+    const presentSet = new Set(presentForDay);
+    const nextAssignments = [...dayAssignments];
+
+    for (let index = 0; index < jobs.length; index += 1) {
+      const initials = nextAssignments[index] ?? "";
+      if (initials && !presentSet.has(initials)) {
+        nextAssignments[index] = "";
+      }
+    }
+
+    const missingNecessaryIndexes = jobs
+      .map((jobId, index) => ({ jobId, index }))
+      .filter(({ jobId, index }) => NECESSARY_JOBS.includes(jobId) && !nextAssignments[index]);
+
+    const donorIndexes = BACKFILL_PRIORITY.flatMap((jobId) => {
+      const index = jobs.indexOf(jobId);
+      if (index < 0) return [];
+      return nextAssignments[index] ? [index] : [];
+    });
+
+    const unfilledNecessaryIndexes = missingNecessaryIndexes.map(
+      ({ index }) => index,
+    );
+
+    donorIndexes.forEach((donorIndex) => {
+      if (unfilledNecessaryIndexes.length === 0) return;
+
+      const targetIndex = unfilledNecessaryIndexes.reduce((best, candidate) => {
+        const bestDistance = Math.abs(best - donorIndex);
+        const candidateDistance = Math.abs(candidate - donorIndex);
+
+        if (candidateDistance < bestDistance) return candidate;
+        if (candidateDistance > bestDistance) return best;
+
+        return candidate < best ? candidate : best;
+      }, unfilledNecessaryIndexes[0]);
+
+      nextAssignments[targetIndex] = nextAssignments[donorIndex];
+      nextAssignments[donorIndex] = "";
+
+      const filledIndex = unfilledNecessaryIndexes.indexOf(targetIndex);
+      unfilledNecessaryIndexes.splice(filledIndex, 1);
+    });
+
+    const allNecessaryCovered = jobs
+      .map((jobId, index) => ({ jobId, index }))
+      .filter(({ jobId }) => NECESSARY_JOBS.includes(jobId))
+      .every(({ index }) => Boolean(nextAssignments[index]));
+
+    if (allNecessaryCovered) {
+      const floatIndexes = FLOAT_JOBS.map((jobId) => jobs.indexOf(jobId)).filter(
+        (index) => index >= 0,
+      );
+
+      const presentFloatAssignments = floatIndexes
+        .map((index) => nextAssignments[index])
+        .filter((initials): initials is string => Boolean(initials));
+
+      floatIndexes.forEach((index, order) => {
+        nextAssignments[index] = presentFloatAssignments[order] ?? "";
+      });
+    }
+
+    return nextAssignments;
+  };
+
   const weekly: Record<DayKey, string[]> = {
-    mon: rotate(base, weekOffset + 0),
-    tue: rotate(base, weekOffset + 1),
-    wed: rotate(base, weekOffset + 2),
-    thu: rotate(base, weekOffset + 3),
-    fri: rotate(base, weekOffset + 4),
+    mon: rebalanceForPresence("mon", rotate(base, weekOffset + 0)),
+    tue: rebalanceForPresence("tue", rotate(base, weekOffset + 1)),
+    wed: rebalanceForPresence("wed", rotate(base, weekOffset + 2)),
+    thu: rebalanceForPresence("thu", rotate(base, weekOffset + 3)),
+    fri: rebalanceForPresence("fri", rotate(base, weekOffset + 4)),
   };
 
   return weekly;
 }
 
 type WeeklyAssignments = Record<DayKey, string[]>;
+
+export type WeeklyReassignmentFlags = Record<DayKey, boolean[]>;
+
+export function getWeeklyReassignmentFlags(params: {
+  baseAssignments: WeeklyAssignments;
+  adjustedAssignments: WeeklyAssignments;
+}) {
+  const { baseAssignments, adjustedAssignments } = params;
+
+  const flags: WeeklyReassignmentFlags = {
+    mon: [],
+    tue: [],
+    wed: [],
+    thu: [],
+    fri: [],
+  };
+
+  (Object.keys(flags) as DayKey[]).forEach((day) => {
+    const baseDay = baseAssignments[day];
+    const adjustedDay = adjustedAssignments[day];
+    const maxLen = Math.max(baseDay.length, adjustedDay.length);
+
+    flags[day] = Array.from({ length: maxLen }, (_, index) => {
+      const before = baseDay[index] ?? "";
+      const after = adjustedDay[index] ?? "";
+      return after !== "" && after !== before;
+    });
+  });
+
+  return flags;
+}
 
 /**
  * For a given day + building job list, return the initials assigned to those jobs.
