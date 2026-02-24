@@ -17,6 +17,12 @@ const Buildings = () => {
             weeklyAssignments,
             buildingJobs: building.jobIds,
           });
+          const uniqueAssignedCleaners = new Set(
+            assignments
+              .map((assignment) => assignment.initials)
+              .filter((initials) => initials !== ""),
+          );
+          const hasOnlyOneAssignedCleaner = uniqueAssignedCleaners.size === 1;
 
           return (
             <section key={building.key}>
@@ -27,7 +33,14 @@ const Buildings = () => {
                     {assignments.map((assignment) => (
                       <td
                         key={`${assignment.job}-job`}
-                        className="italic border border-gray-400 px-2 py-1"
+                        className={[
+                          "italic border border-gray-400 px-2 py-1",
+                          hasOnlyOneAssignedCleaner && assignment.initials === ""
+                            ? "text-pink-700"
+                            : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
                       >
                         {assignment.job}
                       </td>
