@@ -25,48 +25,31 @@ function normalizePeopleIn(peopleIn: number): 6 | 7 | 8 {
 export function getDaycareJobLabel(jobId: JobId, peopleIn: number): string {
   const staffing = normalizePeopleIn(peopleIn);
 
-  if (jobId === "Bath") {
-    return "Bathrooms";
+  switch (jobId) {
+    case "Bath":
+      return "Bathrooms";
+    case "Vac":
+      return "P1";
+    case "SW":
+      return "P2";
+    case "San":
+      return "Kindergarten";
+    case "Gar":
+      return staffing === 6 ? "All outside" : "Fill & front outside";
+    case "Flo1":
+      if (staffing === 8) return "Baby Room + Kindergarten Lockers";
+      if (staffing === 7) return "Baby & Toddler Rooms";
+      return "Flo1";
+    case "Flo2":
+      if (staffing === 8) return "Toddler Room + P2 Lockers";
+      if (staffing === 7) return "Back Outside";
+      return "Flo2";
+    case "Flo3":
+      if (staffing === 8) return "Back Outside + P1 Lockers";
+      return "Flo3";
+    default:
+      return jobId;
   }
-
-  if (staffing > 8 && jobId === "Vac") {
-    return "P1 including lockers";
-  }
-  if (staffing > 8 && jobId === "SW") {
-    return "P2 including lockers";
-  }
-  if (staffing > 8 && jobId === "San") {
-    return "Kindergarten including lockers";
-  }
-  if (staffing === 8 && jobId === "Vac") {
-    return "P1";
-  }
-  if (staffing === 8 && jobId === "SW") {
-    return "P2";
-  }
-  if (staffing === 8 && jobId === "San") {
-    return "Kindergarten";
-  }
-  
-  if (staffing === 6 && jobId === "Gar") {
-    return "All outside";
-  }
-  if (staffing >= 7 && jobId === "Gar") {
-    return "Fill & front outside";
-  }
-
-  if (staffing === 7) {
-    if (jobId === "Flo1") return "Baby & Toddler Rooms";
-    if (jobId === "Flo2") return "Back Outside";
-  }
-
-  if (staffing === 8) {
-    if (jobId === "Flo1") return "Baby Room + Kindergarten Lockers";
-    if (jobId === "Flo2") return "Toddler Room + P2 Lockers";
-    if (jobId === "Flo3") return "Back Outside + P1 Lockers";
-  }
-
-  return jobId;
 }
 
 export function getDayKeyFromDate(referenceDate: Date): DayKey {
