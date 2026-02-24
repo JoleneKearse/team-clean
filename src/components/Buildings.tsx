@@ -35,7 +35,8 @@ const Buildings = () => {
                         key={`${assignment.job}-job`}
                         className={[
                           "italic border border-gray-400 px-2 py-1",
-                          hasOnlyOneAssignedCleaner && assignment.initials === ""
+                          hasOnlyOneAssignedCleaner &&
+                          assignment.initials === ""
                             ? "text-pink-700"
                             : "",
                         ]

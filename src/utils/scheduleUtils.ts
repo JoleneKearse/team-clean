@@ -56,7 +56,7 @@ export function getDaycareJobLabel(jobId: JobId, peopleIn: number): string {
   }
 
   if (staffing === 7) {
-    if (jobId === "Flo1") return "Baby & Toddler Rooms)";
+    if (jobId === "Flo1") return "Baby & Toddler Rooms";
     if (jobId === "Flo2") return "Back Outside";
   }
 
