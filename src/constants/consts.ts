@@ -17,7 +17,7 @@ export const JOBS = [
   "Gar",
 ] as const;
 
-export const CLEANERS = [
+export const STAFF_CLEANERS = [
   "PW",
   "JA",
   "BM",
@@ -27,6 +27,10 @@ export const CLEANERS = [
   "JK",
   "TW",
 ] as const;
+
+export const CALL_IN_CLEANERS = ["EB", "KK", "MB", "new"] as const;
+
+export const CLEANERS = [...STAFF_CLEANERS, ...CALL_IN_CLEANERS] as const;
 
 export const BUILDINGS = [
   {

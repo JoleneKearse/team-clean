@@ -162,6 +162,7 @@ export function generateWeeklyAssignments(
     "Flo3",
     "Gar",
   ],
+  callInCleaners: readonly string[] = [],
 ) {
   const totalSlots = Math.max(0, slotCount);
   const base =
@@ -178,13 +179,28 @@ export function generateWeeklyAssignments(
   const rebalanceForPresence = (day: DayKey, dayAssignments: string[]) => {
     const presentForDay = presentCleanersByDay?.[day] ?? cleaners;
     const presentSet = new Set(presentForDay);
+    const callInSet = new Set(callInCleaners);
     const nextAssignments = [...dayAssignments];
+    const missingStaffIndexes: number[] = [];
 
     for (let index = 0; index < jobs.length; index += 1) {
       const initials = nextAssignments[index] ?? "";
       if (initials && !presentSet.has(initials)) {
         nextAssignments[index] = "";
+        missingStaffIndexes.push(index);
       }
+    }
+
+    const selectedCallIns = presentForDay.filter((initials) =>
+      callInSet.has(initials),
+    );
+
+    if (missingStaffIndexes.length > 0 && selectedCallIns.length > 0) {
+      missingStaffIndexes
+        .slice(0, selectedCallIns.length)
+        .forEach((index, replacementOrder) => {
+          nextAssignments[index] = selectedCallIns[replacementOrder] ?? "";
+        });
     }
 
     const missingNecessaryIndexes = jobs

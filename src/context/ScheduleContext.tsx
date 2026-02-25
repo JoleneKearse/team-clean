@@ -6,7 +6,11 @@ import {
   getDayKeyFromDate,
   type WeeklyReassignmentFlags,
 } from "../utils/scheduleUtils";
-import { CLEANERS, JOBS } from "../constants/consts";
+import {
+  CALL_IN_CLEANERS,
+  JOBS,
+  STAFF_CLEANERS,
+} from "../constants/consts";
 
 import type { CleanerId, DayKey } from "../types/types";
 
@@ -35,11 +39,11 @@ export const ScheduleProvider = ({
   const [presentCleanersByDay, setPresentCleanersByDay] = useState<
     Record<DayKey, CleanerId[]>
   >({
-    mon: [...CLEANERS],
-    tue: [...CLEANERS],
-    wed: [...CLEANERS],
-    thu: [...CLEANERS],
-    fri: [...CLEANERS],
+    mon: [...STAFF_CLEANERS],
+    tue: [...STAFF_CLEANERS],
+    wed: [...STAFF_CLEANERS],
+    thu: [...STAFF_CLEANERS],
+    fri: [...STAFF_CLEANERS],
   });
 
   const presentCleaners = presentCleanersByDay[selectedDay];
@@ -65,18 +69,26 @@ export const ScheduleProvider = ({
   const weeklyAssignments = useMemo(
     () =>
       generateWeeklyAssignments(
-        CLEANERS,
+        STAFF_CLEANERS,
         today,
         JOBS.length,
         presentCleanersByDay,
         JOBS,
+        CALL_IN_CLEANERS,
       ),
     [presentCleanersByDay, today],
   );
 
   const baselineWeeklyAssignments = useMemo(
     () =>
-      generateWeeklyAssignments(CLEANERS, today, JOBS.length, undefined, JOBS),
+      generateWeeklyAssignments(
+        STAFF_CLEANERS,
+        today,
+        JOBS.length,
+        undefined,
+        JOBS,
+        CALL_IN_CLEANERS,
+      ),
     [today],
   );
 
