@@ -16,10 +16,8 @@ const NECESSARY_JOBS: readonly JobId[] = ["Bath", "SW", "Vac", "San", "Gar"];
 const BACKFILL_PRIORITY: readonly JobId[] = ["Flo3", "Flo2", "Flo1"];
 const FLOAT_JOBS: readonly JobId[] = ["Flo1", "Flo2", "Flo3"];
 
-function normalizePeopleIn(peopleIn: number): 6 | 7 | 8 {
-  if (peopleIn <= 6) return 6;
-  if (peopleIn >= 8) return 8;
-  return 7;
+function normalizePeopleIn(peopleIn: number): number {
+  return Math.max(0, Math.min(8, peopleIn));
 }
 
 export function getDaycareJobLabel(jobId: JobId, peopleIn: number): string {
@@ -35,21 +33,89 @@ export function getDaycareJobLabel(jobId: JobId, peopleIn: number): string {
     case "San":
       return "Kindergarten";
     case "Gar":
-      return staffing === 6 ? "All outside" : "Fill & front outside";
+      return staffing <= 6 ? "All outside" : "Fill & front outside";
     case "Flo1":
-      if (staffing === 8) return "Baby Room & Kindergarten Lockers";
-      if (staffing <= 7) return "Baby & Toddler Rooms";
+      if (staffing >= 8) return "Baby Room & Kindergarten lockers";
+      if (staffing <= 7) return "Baby & Toddler";
       return "Flo1";
     case "Flo2":
-      if (staffing === 8) return "Toddler Room & P2 Lockers";
+      if (staffing >= 8) return "Toddler Room & P2 lockers";
       if (staffing === 7) return "Back outside";
       return "Flo2";
     case "Flo3":
-      if (staffing === 8) return "Back outside & P1 Lockers";
+      if (staffing >= 8) return "Back outside & P1 lockers";
       return "Flo3";
     default:
       return jobId;
   }
+}
+
+function getDaycareAreasForJob(jobId: JobId, peopleIn: number): string[] {
+  const staffing = normalizePeopleIn(peopleIn);
+
+  switch (jobId) {
+    case "Bath":
+      return ["Bathrooms"];
+    case "Vac":
+      return ["P1"];
+    case "SW":
+      return ["P2"];
+    case "San":
+      return ["Kindergarten"];
+    case "Gar":
+      return staffing <= 6
+        ? ["Front outside", "Back outside"]
+        : ["Front outside"];
+    case "Flo1":
+      return staffing >= 8 ? ["Baby"] : ["Baby", "Toddler"];
+    case "Flo2":
+      if (staffing >= 8) return ["Toddler"];
+      if (staffing === 7) return ["Back outside"];
+      return [];
+    case "Flo3":
+      if (staffing >= 8) return ["Back outside"];
+      return [];
+    default:
+      return [];
+  }
+}
+
+export function getRequiredDaycareAreas(peopleIn: number): string[] {
+  void peopleIn;
+  return [
+    "Bathrooms",
+    "P1",
+    "P2",
+    "Kindergarten",
+    "Baby",
+    "Toddler",
+    "Back outside",
+    "Front outside",
+  ];
+}
+
+export function getMissingDayCareAreasForDay(params: {
+  day: DayKey;
+  jobs: readonly JobId[];
+  weeklyAssignments: WeeklyAssignments;
+  peopleIn: number;
+}) {
+  const { day, jobs, weeklyAssignments, peopleIn } = params;
+  const dayAssignments = weeklyAssignments[day];
+  const coveredAreas = new Set<string>();
+
+  jobs.forEach((jobId, index) => {
+    const initials = dayAssignments[index] ?? "";
+    if (!initials) return;
+
+    getDaycareAreasForJob(jobId, peopleIn).forEach((area) => {
+      coveredAreas.add(area);
+    });
+  });
+
+  return getRequiredDaycareAreas(peopleIn).filter(
+    (area) => !coveredAreas.has(area),
+  );
 }
 
 export function getDayKeyFromDate(referenceDate: Date): DayKey {
@@ -86,7 +152,16 @@ export function generateWeeklyAssignments(
   referenceDate: Date = new Date(),
   slotCount: number = 8,
   presentCleanersByDay?: Partial<Record<DayKey, readonly string[]>>,
-  jobs: readonly JobId[] = ["Bath", "Flo1", "SW", "Flo2", "Vac", "San", "Flo3", "Gar"],
+  jobs: readonly JobId[] = [
+    "Bath",
+    "Flo1",
+    "SW",
+    "Flo2",
+    "Vac",
+    "San",
+    "Flo3",
+    "Gar",
+  ],
 ) {
   const totalSlots = Math.max(0, slotCount);
   const base =
@@ -114,7 +189,10 @@ export function generateWeeklyAssignments(
 
     const missingNecessaryIndexes = jobs
       .map((jobId, index) => ({ jobId, index }))
-      .filter(({ jobId, index }) => NECESSARY_JOBS.includes(jobId) && !nextAssignments[index]);
+      .filter(
+        ({ jobId, index }) =>
+          NECESSARY_JOBS.includes(jobId) && !nextAssignments[index],
+      );
 
     const donorIndexes = BACKFILL_PRIORITY.flatMap((jobId) => {
       const index = jobs.indexOf(jobId);
@@ -152,9 +230,9 @@ export function generateWeeklyAssignments(
       .every(({ index }) => Boolean(nextAssignments[index]));
 
     if (allNecessaryCovered) {
-      const floatIndexes = FLOAT_JOBS.map((jobId) => jobs.indexOf(jobId)).filter(
-        (index) => index >= 0,
-      );
+      const floatIndexes = FLOAT_JOBS.map((jobId) =>
+        jobs.indexOf(jobId),
+      ).filter((index) => index >= 0);
 
       const presentFloatAssignments = floatIndexes
         .map((index) => nextAssignments[index])
