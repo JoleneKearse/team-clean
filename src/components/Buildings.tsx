@@ -26,7 +26,18 @@ const Buildings = () => {
 
           return (
             <section key={building.key}>
-              <h3 className="font-semibold">{building.label}</h3>
+              <h3
+                className={[
+                  "font-semibold",
+                  hasOnlyOneAssignedCleaner ? "text-pink-700" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
+                {hasOnlyOneAssignedCleaner
+                  ? `${building.label} needs another cleaner`
+                  : building.label}
+              </h3>
               <table className="mt-1 w-full text-center border border-gray-400 border-collapse">
                 <tbody>
                   <tr>
@@ -51,7 +62,15 @@ const Buildings = () => {
                     {assignments.map((assignment) => (
                       <td
                         key={`${assignment.job}-cleaner`}
-                        className="border border-gray-400 bg-gray-200 px-2 py-1"
+                        className={[
+                          "border border-gray-400 px-2 py-1",
+                          hasOnlyOneAssignedCleaner &&
+                          assignment.initials === ""
+                            ? "bg-pink-300"
+                            : "bg-gray-200",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
                       >
                         {assignment.initials}
                       </td>

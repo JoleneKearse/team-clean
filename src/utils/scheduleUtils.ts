@@ -29,7 +29,7 @@ export function getDaycareJobLabel(jobId: JobId, peopleIn: number): string {
     case "Bath":
       return "Bathrooms";
     case "Vac":
-      return "P1";
+      return "P1 & outside doorway";
     case "SW":
       return "P2";
     case "San":
@@ -37,15 +37,15 @@ export function getDaycareJobLabel(jobId: JobId, peopleIn: number): string {
     case "Gar":
       return staffing === 6 ? "All outside" : "Fill & front outside";
     case "Flo1":
-      if (staffing === 8) return "Baby Room + Kindergarten Lockers";
-      if (staffing === 7) return "Baby & Toddler Rooms";
+      if (staffing === 8) return "Baby Room & Kindergarten Lockers";
+      if (staffing <= 7) return "Baby & Toddler Rooms";
       return "Flo1";
     case "Flo2":
-      if (staffing === 8) return "Toddler Room + P2 Lockers";
-      if (staffing === 7) return "Back Outside";
+      if (staffing === 8) return "Toddler Room & P2 Lockers";
+      if (staffing === 7) return "Back outside";
       return "Flo2";
     case "Flo3":
-      if (staffing === 8) return "Back Outside + P1 Lockers";
+      if (staffing === 8) return "Back outside & P1 Lockers";
       return "Flo3";
     default:
       return jobId;
