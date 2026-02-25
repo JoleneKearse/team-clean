@@ -22,8 +22,6 @@ function App() {
 
   return (
     <div className="flex flex-col items-center gap-4 p-4">
-      {/* <header className="text-gray-800">Team Clean 🧼</header> */}
-
       <section className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg p-4">
         <div className="flex items-center justify-between gap-4">
           <h2 className="font-semibold">Who is in today?</h2>
@@ -46,6 +44,12 @@ function App() {
             );
           })}
         </div>
+
+        {peopleIn < 8 && (
+          <p className="mt-3 font-semibold text-pink-700">
+            Please review the changes below. ⬇️
+          </p>
+        )}
       </section>
 
       <Calendar calendarView={calendarView} highlightedDayKey={selectedDay} />
