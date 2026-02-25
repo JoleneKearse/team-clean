@@ -10,7 +10,7 @@ const CalendarWeekly = ({ highlightedDayKey }: CalendarWeeklyProps) => {
   const { weeklyAssignments, weeklyReassignmentFlags } = useSchedule();
 
   return (
-    <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg text-center">
+    <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg text-center bg-gray-300">
       <table className="w-full border-spacing-32">
         <thead>
           <tr>

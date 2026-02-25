@@ -33,7 +33,7 @@ const Daycare = () => {
   const missingAreasText = formatMissingAreas(missingAreas);
 
   return (
-    <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg p-4">
+    <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg p-4 bg-gray-200">
       <h2 className="text-center">Daycare Assignments 🧸</h2>
 
       {missingAreas.length > 0 && (

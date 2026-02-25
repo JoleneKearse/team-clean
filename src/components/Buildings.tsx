@@ -6,7 +6,7 @@ const Buildings = () => {
   const { selectedDay, weeklyAssignments } = useSchedule();
 
   return (
-    <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg p-4">
+    <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg p-4 bg-gray-200">
       <h2 className="text-center">Building Assignments 🏗️</h2>
 
       <div className="mt-2 space-y-2">
@@ -66,8 +66,8 @@ const Buildings = () => {
                           "border border-gray-400 px-2 py-1",
                           hasOnlyOneAssignedCleaner &&
                           assignment.initials === ""
-                            ? "bg-pink-300"
-                            : "bg-gray-200",
+                            ? "bg-pink-100"
+                            : "bg-gray-100",
                         ]
                           .filter(Boolean)
                           .join(" ")}

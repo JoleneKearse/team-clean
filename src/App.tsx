@@ -22,7 +22,7 @@ function App() {
 
   return (
     <div className="flex flex-col items-center gap-4 p-4">
-      <section className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg p-4">
+      <section className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg p-4 bg-gray-200">
         <div className="flex items-center justify-between gap-4">
           <h2 className="font-semibold">Who is in today?</h2>
           <span className="font-semibold">Staffing: {peopleIn}</span>
