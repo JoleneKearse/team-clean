@@ -3,7 +3,8 @@ import { BUILDINGS, JOBS } from "../constants/consts";
 import { getBuildingAssignmentsForDay } from "../utils/scheduleUtils";
 
 const Buildings = () => {
-  const { selectedDay, weeklyAssignments } = useSchedule();
+  const { selectedDay, weeklyAssignments, weeklyReassignmentFlags } =
+    useSchedule();
 
   return (
     <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg p-4 bg-gray-200">
@@ -41,40 +42,60 @@ const Buildings = () => {
               <table className="mt-1 w-full text-center border border-gray-400 border-collapse">
                 <tbody>
                   <tr>
-                    {assignments.map((assignment) => (
-                      <td
-                        key={`${assignment.job}-job`}
-                        className={[
-                          "italic border border-gray-400 px-2 py-1",
-                          hasOnlyOneAssignedCleaner &&
-                          assignment.initials === ""
-                            ? "text-pink-700"
-                            : "",
-                        ]
-                          .filter(Boolean)
-                          .join(" ")}
-                      >
-                        {assignment.job}
-                      </td>
-                    ))}
+                    {assignments.map((assignment) => {
+                      const jobIndex = JOBS.indexOf(assignment.job);
+                      const isReassigned =
+                        jobIndex >= 0 &&
+                        Boolean(
+                          weeklyReassignmentFlags[selectedDay]?.[jobIndex],
+                        );
+
+                      return (
+                        <td
+                          key={`${assignment.job}-job`}
+                          className={[
+                            "italic border border-gray-400 px-2 py-1",
+                            hasOnlyOneAssignedCleaner &&
+                            assignment.initials === ""
+                              ? "text-pink-700"
+                              : "",
+                            isReassigned ? "text-pink-700" : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" ")}
+                        >
+                          {assignment.job}
+                        </td>
+                      );
+                    })}
                   </tr>
                   <tr>
-                    {assignments.map((assignment) => (
-                      <td
-                        key={`${assignment.job}-cleaner`}
-                        className={[
-                          "border border-gray-400 px-2 py-1",
-                          hasOnlyOneAssignedCleaner &&
-                          assignment.initials === ""
-                            ? "bg-pink-100"
-                            : "bg-gray-100",
-                        ]
-                          .filter(Boolean)
-                          .join(" ")}
-                      >
-                        {assignment.initials}
-                      </td>
-                    ))}
+                    {assignments.map((assignment) => {
+                      const jobIndex = JOBS.indexOf(assignment.job);
+                      const isReassigned =
+                        jobIndex >= 0 &&
+                        Boolean(
+                          weeklyReassignmentFlags[selectedDay]?.[jobIndex],
+                        );
+
+                      return (
+                        <td
+                          key={`${assignment.job}-cleaner`}
+                          className={[
+                            "border border-gray-400 px-2 py-1",
+                            hasOnlyOneAssignedCleaner &&
+                            assignment.initials === ""
+                              ? "bg-pink-100"
+                              : "bg-gray-100",
+                            isReassigned ? "text-pink-700" : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" ")}
+                        >
+                          {assignment.initials}
+                        </td>
+                      );
+                    })}
                   </tr>
                 </tbody>
               </table>

@@ -1,6 +1,7 @@
 import { useSchedule } from "../context/ScheduleContext";
 
 import {
+  getDaycareJobLabel,
   getDayCareAssignmentsForDay,
   getMissingDayCareAreasForDay,
 } from "../utils/scheduleUtils";
@@ -16,7 +17,8 @@ function formatMissingAreas(areas: string[]): string {
 }
 
 const Daycare = () => {
-  const { selectedDay, weeklyAssignments, peopleIn } = useSchedule();
+  const { selectedDay, weeklyAssignments, weeklyReassignmentFlags, peopleIn } =
+    useSchedule();
   const assignments = getDayCareAssignmentsForDay({
     day: selectedDay,
     jobs: JOBS,
@@ -46,12 +48,34 @@ const Daycare = () => {
       <ul className="mt-3 space-y-1">
         {assignments
           .filter((assignment) => assignment.initials !== "")
-          .map((assignment) => (
-            <li key={assignment.job}>
-              <span className="font-medium">{assignment.initials}</span>:{" "}
-              {assignment.label}
-            </li>
-          ))}
+          .map((assignment) => {
+            const jobIndex = JOBS.indexOf(assignment.job);
+            const isReassigned =
+              jobIndex >= 0 &&
+              Boolean(weeklyReassignmentFlags[selectedDay]?.[jobIndex]);
+            const baselineLabel = getDaycareJobLabel(assignment.job, 8);
+            const isAreaChanged = assignment.label !== baselineLabel;
+            const shouldHighlightLabel = isReassigned || isAreaChanged;
+
+            return (
+              <li key={assignment.job}>
+                <span
+                  className={[
+                    "font-medium",
+                    isReassigned ? "text-pink-700" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  {assignment.initials}
+                </span>
+                :{" "}
+                <span className={shouldHighlightLabel ? "text-pink-700" : ""}>
+                  {assignment.label}
+                </span>
+              </li>
+            );
+          })}
       </ul>
     </article>
   );

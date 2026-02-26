@@ -7,7 +7,8 @@ import type { JobId } from "../types/types";
 const HEALTH_CENTER_JOBS: readonly JobId[] = ["Flo1", "Flo2", "Flo3"];
 
 const HealthCenter = () => {
-  const { selectedDay, weeklyAssignments, peopleIn } = useSchedule();
+  const { selectedDay, weeklyAssignments, weeklyReassignmentFlags, peopleIn } =
+    useSchedule();
   const dayAssignments = weeklyAssignments[selectedDay];
 
   const assignments = HEALTH_CENTER_JOBS.map((jobId) => {
@@ -15,6 +16,7 @@ const HealthCenter = () => {
 
     return {
       jobId,
+      index,
       initials: index >= 0 ? (dayAssignments[index] ?? "") : "",
       label: getHealthCenterAssignmentsForDay(jobId, peopleIn),
     };
@@ -29,8 +31,30 @@ const HealthCenter = () => {
           .filter((assignment) => assignment.initials !== "")
           .map((assignment) => (
             <li key={assignment.jobId}>
-              <span className="font-medium">{assignment.initials}</span>:{" "}
-              {assignment.label}
+              <span
+                className={[
+                  "font-medium",
+                  assignment.index >= 0 &&
+                  weeklyReassignmentFlags[selectedDay]?.[assignment.index]
+                    ? "text-pink-700"
+                    : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
+                {assignment.initials}
+              </span>
+              :{" "}
+              <span
+                className={
+                  assignment.index >= 0 &&
+                  weeklyReassignmentFlags[selectedDay]?.[assignment.index]
+                    ? "text-pink-700"
+                    : ""
+                }
+              >
+                {assignment.label}
+              </span>
             </li>
           ))}
       </ul>

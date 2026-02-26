@@ -7,7 +7,8 @@ import type { JobId } from "../types/types";
 const BAND_OFFICE_JOBS: readonly JobId[] = ["Flo1", "Flo2", "Flo3"];
 
 const BandOffice = () => {
-  const { selectedDay, weeklyAssignments } = useSchedule();
+  const { selectedDay, weeklyAssignments, weeklyReassignmentFlags } =
+    useSchedule();
   const dayAssignments = weeklyAssignments[selectedDay];
 
   const assignments = BAND_OFFICE_JOBS.map((jobId) => {
@@ -15,6 +16,7 @@ const BandOffice = () => {
 
     return {
       jobId,
+      index,
       initials: index >= 0 ? (dayAssignments[index] ?? "") : "",
       label: getBandOfficeAssignmentsForDay(jobId),
     };
@@ -29,8 +31,30 @@ const BandOffice = () => {
           .filter((assignment) => assignment.initials !== "")
           .map((assignment) => (
             <li key={assignment.jobId}>
-              <span className="font-medium">{assignment.initials}</span>:{" "}
-              {assignment.label}
+              <span
+                className={[
+                  "font-medium",
+                  assignment.index >= 0 &&
+                  weeklyReassignmentFlags[selectedDay]?.[assignment.index]
+                    ? "text-pink-700"
+                    : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
+                {assignment.initials}
+              </span>
+              :{" "}
+              <span
+                className={
+                  assignment.index >= 0 &&
+                  weeklyReassignmentFlags[selectedDay]?.[assignment.index]
+                    ? "text-pink-700"
+                    : ""
+                }
+              >
+                {assignment.label}
+              </span>
             </li>
           ))}
       </ul>
