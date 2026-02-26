@@ -4,14 +4,18 @@ import { useSchedule } from "../context/ScheduleContext";
 import { getHealthCenterAssignmentsForDay } from "../utils/scheduleUtils";
 import type { JobId } from "../types/types";
 
-const HEALTH_CENTER_JOBS: readonly JobId[] = ["Flo1", "Flo2", "Flo3"];
+const DEFAULT_HEALTH_CENTER_JOBS: readonly JobId[] = ["Flo1", "Flo2", "Flo3"];
 
 const HealthCenter = () => {
   const { selectedDay, weeklyAssignments, weeklyReassignmentFlags, peopleIn } =
     useSchedule();
   const dayAssignments = weeklyAssignments[selectedDay];
+  const healthCenterJobs: readonly JobId[] =
+    peopleIn === 6
+      ? ["Vac", ...DEFAULT_HEALTH_CENTER_JOBS]
+      : DEFAULT_HEALTH_CENTER_JOBS;
 
-  const assignments = HEALTH_CENTER_JOBS.map((jobId) => {
+  const assignments = healthCenterJobs.map((jobId) => {
     const index = JOBS.indexOf(jobId);
 
     return {
@@ -28,35 +32,40 @@ const HealthCenter = () => {
 
       <ul className="mt-3 space-y-1">
         {assignments
-          .filter((assignment) => assignment.initials !== "")
-          .map((assignment) => (
-            <li key={assignment.jobId}>
-              <span
-                className={[
-                  "font-medium",
-                  assignment.index >= 0 &&
-                  weeklyReassignmentFlags[selectedDay]?.[assignment.index]
-                    ? "text-pink-700"
-                    : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-              >
-                {assignment.initials}
-              </span>
-              :{" "}
-              <span
-                className={
-                  assignment.index >= 0 &&
-                  weeklyReassignmentFlags[selectedDay]?.[assignment.index]
-                    ? "text-pink-700"
-                    : ""
-                }
-              >
-                {assignment.label}
-              </span>
-            </li>
-          ))}
+          .filter(
+            (assignment) =>
+              assignment.initials !== "" && Boolean(assignment.label),
+          )
+          .map((assignment) => {
+            const isReassigned =
+              assignment.index >= 0 &&
+              Boolean(weeklyReassignmentFlags[selectedDay]?.[assignment.index]);
+            const baselineLabel = getHealthCenterAssignmentsForDay(
+              assignment.jobId,
+              8,
+            );
+            const isStaffingChanged = assignment.label !== baselineLabel;
+            const shouldHighlight = isReassigned || isStaffingChanged;
+
+            return (
+              <li key={assignment.jobId}>
+                <span
+                  className={[
+                    "font-medium",
+                    shouldHighlight ? "text-pink-700" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  {assignment.initials}
+                </span>
+                :{" "}
+                <span className={shouldHighlight ? "text-pink-700" : ""}>
+                  {assignment.label}
+                </span>
+              </li>
+            );
+          })}
       </ul>
     </article>
   );
