@@ -1,8 +1,10 @@
 import { useSchedule } from "../context/ScheduleContext";
+
 import {
   getDayCareAssignmentsForDay,
   getMissingDayCareAreasForDay,
 } from "../utils/scheduleUtils";
+
 import { JOBS } from "../constants/consts";
 
 function formatMissingAreas(areas: string[]): string {
@@ -15,14 +17,13 @@ function formatMissingAreas(areas: string[]): string {
 
 const Daycare = () => {
   const { selectedDay, weeklyAssignments, peopleIn } = useSchedule();
-
   const assignments = getDayCareAssignmentsForDay({
     day: selectedDay,
     jobs: JOBS,
     weeklyAssignments,
     peopleIn,
   });
-
+  // call attention to missing areas to reassign cleaners
   const missingAreas = getMissingDayCareAreasForDay({
     day: selectedDay,
     jobs: JOBS,

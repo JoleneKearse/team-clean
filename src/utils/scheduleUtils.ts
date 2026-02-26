@@ -50,6 +50,40 @@ export function getDaycareJobLabel(jobId: JobId, peopleIn: number): string {
   }
 }
 
+export function getBandOfficeAssignmentsForDay(jobId: JobId): string {
+  switch (jobId) {
+    case "Flo1":
+      return "Chambers or basement";
+    case "Flo2":
+      return "Basement";
+    case "Flo3":
+      return "Basement bathrooms";
+    default:
+      return "Basement";
+  }
+}
+
+export function getHealthCenterAssignmentsForDay(
+  jobId: JobId,
+  peopleIn: number,
+) {
+  switch (jobId) {
+    case "Vac":
+      if (peopleIn === 6) {
+        return "Vac & big room";
+      }
+      return;
+    case "Flo1":
+      return "Medical rooms";
+    case "Flo2":
+      return "Big room";
+    case "Flo3":
+      return "Choose a wing";
+    default:
+      return "Clean something!";
+  }
+}
+
 function getDaycareAreasForJob(jobId: JobId, peopleIn: number): string[] {
   const staffing = normalizePeopleIn(peopleIn);
 

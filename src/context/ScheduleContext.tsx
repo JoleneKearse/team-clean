@@ -6,11 +6,8 @@ import {
   getDayKeyFromDate,
   type WeeklyReassignmentFlags,
 } from "../utils/scheduleUtils";
-import {
-  CALL_IN_CLEANERS,
-  JOBS,
-  STAFF_CLEANERS,
-} from "../constants/consts";
+
+import { CALL_IN_CLEANERS, JOBS, STAFF_CLEANERS } from "../constants/consts";
 
 import type { CleanerId, DayKey } from "../types/types";
 

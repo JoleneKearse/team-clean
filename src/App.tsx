@@ -1,9 +1,14 @@
+import { useSchedule } from "./context/ScheduleContext";
+
+import { CLEANERS } from "./constants/consts";
+
+import type { CleanerId } from "./types/types";
+
 import Calendar from "./components/Calendar";
 import Buildings from "./components/Buildings";
 import Daycare from "./components/Daycare";
-import { useSchedule } from "./context/ScheduleContext";
-import { CLEANERS } from "./constants/consts";
-import type { CleanerId } from "./types/types";
+import BandOffice from "./components/BandOffice";
+import HealthCenter from "./components/HealthCenter";
 
 function App() {
   const { selectedDay, peopleIn, presentCleaners, setPresentCleaners } =
@@ -28,7 +33,7 @@ function App() {
             <h2 className="font-semibold">Who is in today?</h2>
             <p className="text-sm italic">Uncheck names if necessary</p>
           </div>
-          
+
           <span className="font-semibold">Staffing: {peopleIn}</span>
         </div>
 
@@ -59,6 +64,8 @@ function App() {
       <Calendar calendarView={calendarView} highlightedDayKey={selectedDay} />
       <Buildings />
       <Daycare />
+      <BandOffice />
+      <HealthCenter />
     </div>
   );
 }
