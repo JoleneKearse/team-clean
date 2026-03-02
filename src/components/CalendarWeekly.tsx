@@ -47,7 +47,7 @@ const CalendarWeekly = ({ highlightedDayKey }: CalendarWeeklyProps) => {
                   );
                   const className = [
                     isHighlightedDay
-                      ? `${isFloJob ? "bg-gray-100" : "bg-gray-200"} border-l border-r`
+                      ? `${isFloJob ? "bg-gray-100" : "bg-[#a0a3a9]"} border-l border-r border-gray-500`
                       : "",
                   ]
                     .filter(Boolean)
