@@ -1,10 +1,47 @@
 import { useSchedule } from "../context/ScheduleContext";
 import { BUILDINGS, JOBS } from "../constants/consts";
 import { getBuildingAssignmentsForDay } from "../utils/scheduleUtils";
+import type { DayKey } from "../types/types";
+
+type DragAssignmentPayload = {
+  day: DayKey;
+  jobIndex: number;
+};
+
+const DRAG_MIME_TYPE = "application/x-team-clean-assignment";
+
+function getDragPayloadFromEvent(
+  event: React.DragEvent<HTMLElement>,
+): DragAssignmentPayload | null {
+  const rawPayload = event.dataTransfer.getData(DRAG_MIME_TYPE);
+  if (!rawPayload) return null;
+
+  try {
+    const parsed = JSON.parse(rawPayload) as DragAssignmentPayload;
+    const isValidDay =
+      parsed.day === "mon" ||
+      parsed.day === "tue" ||
+      parsed.day === "wed" ||
+      parsed.day === "thu" ||
+      parsed.day === "fri";
+
+    if (!isValidDay || !Number.isInteger(parsed.jobIndex)) {
+      return null;
+    }
+
+    return parsed;
+  } catch {
+    return null;
+  }
+}
 
 const Buildings = () => {
-  const { selectedDay, weeklyAssignments, weeklyReassignmentFlags } =
-    useSchedule();
+  const {
+    selectedDay,
+    buildingWeeklyAssignments,
+    buildingReassignmentFlags,
+    moveBuildingAssignment,
+  } = useSchedule();
 
   return (
     <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg p-4 bg-linear-to-b from-gray-500 from-12% to-gray-200 to-12%">
@@ -15,7 +52,7 @@ const Buildings = () => {
           const assignments = getBuildingAssignmentsForDay({
             day: selectedDay,
             jobs: JOBS,
-            weeklyAssignments,
+            weeklyAssignments: buildingWeeklyAssignments,
             buildingJobs: building.jobIds,
           });
           const uniqueAssignedCleaners = new Set(
@@ -47,7 +84,7 @@ const Buildings = () => {
                       const isReassigned =
                         jobIndex >= 0 &&
                         Boolean(
-                          weeklyReassignmentFlags[selectedDay]?.[jobIndex],
+                          buildingReassignmentFlags[selectedDay]?.[jobIndex],
                         );
 
                       return (
@@ -75,7 +112,7 @@ const Buildings = () => {
                       const isReassigned =
                         jobIndex >= 0 &&
                         Boolean(
-                          weeklyReassignmentFlags[selectedDay]?.[jobIndex],
+                          buildingReassignmentFlags[selectedDay]?.[jobIndex],
                         );
 
                       return (
@@ -91,8 +128,53 @@ const Buildings = () => {
                           ]
                             .filter(Boolean)
                             .join(" ")}
+                          onDragOver={(event) => {
+                            event.preventDefault();
+                          }}
+                          onDrop={(event) => {
+                            event.preventDefault();
+
+                            if (jobIndex < 0) return;
+
+                            const source = getDragPayloadFromEvent(event);
+                            if (!source || source.day !== selectedDay) return;
+
+                            const sourceInitials =
+                              buildingWeeklyAssignments[source.day][
+                                source.jobIndex
+                              ] ?? "";
+
+                            if (!sourceInitials) return;
+
+                            moveBuildingAssignment(
+                              selectedDay,
+                              source.jobIndex,
+                              jobIndex,
+                            );
+                          }}
                         >
-                          {assignment.initials}
+                          <span
+                            draggable={Boolean(assignment.initials)}
+                            onDragStart={(event) => {
+                              if (!assignment.initials || jobIndex < 0) {
+                                event.preventDefault();
+                                return;
+                              }
+
+                              const payload: DragAssignmentPayload = {
+                                day: selectedDay,
+                                jobIndex,
+                              };
+
+                              event.dataTransfer.setData(
+                                DRAG_MIME_TYPE,
+                                JSON.stringify(payload),
+                              );
+                              event.dataTransfer.effectAllowed = "move";
+                            }}
+                          >
+                            {assignment.initials}
+                          </span>
                         </td>
                       );
                     })}

@@ -6,8 +6,41 @@ type CalendarWeeklyProps = {
   highlightedDayKey: DayKey;
 };
 
+type DragAssignmentPayload = {
+  day: DayKey;
+  jobIndex: number;
+};
+
+const DRAG_MIME_TYPE = "application/x-team-clean-assignment";
+
+function getDragPayloadFromEvent(
+  event: React.DragEvent<HTMLElement>,
+): DragAssignmentPayload | null {
+  const rawPayload = event.dataTransfer.getData(DRAG_MIME_TYPE);
+  if (!rawPayload) return null;
+
+  try {
+    const parsed = JSON.parse(rawPayload) as DragAssignmentPayload;
+    const isValidDay =
+      parsed.day === "mon" ||
+      parsed.day === "tue" ||
+      parsed.day === "wed" ||
+      parsed.day === "thu" ||
+      parsed.day === "fri";
+
+    if (!isValidDay || !Number.isInteger(parsed.jobIndex)) {
+      return null;
+    }
+
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 const CalendarWeekly = ({ highlightedDayKey }: CalendarWeeklyProps) => {
-  const { weeklyAssignments, weeklyReassignmentFlags } = useSchedule();
+  const { weeklyAssignments, weeklyReassignmentFlags, swapAssignments } =
+    useSchedule();
 
   return (
     <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg text-center bg-gray-300">
@@ -42,6 +75,7 @@ const CalendarWeekly = ({ highlightedDayKey }: CalendarWeeklyProps) => {
                 (() => {
                   const isHighlightedDay = day.key === highlightedDayKey;
                   const isFloJob = job.includes("Flo");
+                  const initials = weeklyAssignments[day.key][jobIndex] ?? "";
                   const isReassigned = Boolean(
                     weeklyReassignmentFlags[day.key]?.[jobIndex],
                   );
@@ -54,15 +88,54 @@ const CalendarWeekly = ({ highlightedDayKey }: CalendarWeeklyProps) => {
                     .join(" ");
 
                   return (
-                    <td key={day.key} className={className}>
+                    <td
+                      key={day.key}
+                      className={className}
+                      onDragOver={(event) => {
+                        event.preventDefault();
+                      }}
+                      onDrop={(event) => {
+                        event.preventDefault();
+
+                        const source = getDragPayloadFromEvent(event);
+                        if (!source || source.day !== day.key) return;
+
+                        const sourceInitials =
+                          weeklyAssignments[source.day][source.jobIndex] ?? "";
+                        const targetInitials =
+                          weeklyAssignments[day.key][jobIndex] ?? "";
+
+                        if (!sourceInitials || !targetInitials) return;
+
+                        swapAssignments(day.key, source.jobIndex, jobIndex);
+                      }}
+                    >
                       <span
+                        draggable={Boolean(initials)}
+                        onDragStart={(event) => {
+                          if (!initials) {
+                            event.preventDefault();
+                            return;
+                          }
+
+                          const payload: DragAssignmentPayload = {
+                            day: day.key,
+                            jobIndex,
+                          };
+
+                          event.dataTransfer.setData(
+                            DRAG_MIME_TYPE,
+                            JSON.stringify(payload),
+                          );
+                          event.dataTransfer.effectAllowed = "move";
+                        }}
                         className={
                           isHighlightedDay && isReassigned
                             ? "text-pink-700"
                             : ""
                         }
                       >
-                        {weeklyAssignments[day.key][jobIndex]}
+                        {initials}
                       </span>
                     </td>
                   );

@@ -20,22 +20,41 @@ interface ScheduleContextType {
   todayDayKey: DayKey;
   weeklyAssignments: Record<DayKey, string[]>;
   weeklyReassignmentFlags: WeeklyReassignmentFlags;
+  buildingWeeklyAssignments: Record<DayKey, string[]>;
+  buildingReassignmentFlags: WeeklyReassignmentFlags;
   presentCleaners: CleanerId[];
   setPresentCleaners: React.Dispatch<React.SetStateAction<CleanerId[]>>;
   peopleIn: number;
   selectedDay: DayKey;
   setSelectedDay: React.Dispatch<React.SetStateAction<DayKey>>;
+  swapAssignments: (
+    day: DayKey,
+    fromJobIndex: number,
+    toJobIndex: number,
+  ) => void;
+  moveBuildingAssignment: (
+    day: DayKey,
+    fromJobIndex: number,
+    toJobIndex: number,
+  ) => void;
 }
 
 const STORAGE_KEY = "team-clean:schedule-state";
 
 type PresentCleanersByDay = Record<DayKey, CleanerId[]>;
+type SwapOperation = {
+  fromJobIndex: number;
+  toJobIndex: number;
+};
+type SwapOperationsByDay = Record<DayKey, SwapOperation[]>;
+type BuildingMoveOperationsByDay = Record<DayKey, SwapOperation[]>;
 
 interface PersistedScheduleState {
   date: string;
   selectedDay: DayKey;
   presentCleanersByDay: PresentCleanersByDay;
-  weeklyAssignments: Record<DayKey, string[]>;
+  swapOperationsByDay: SwapOperationsByDay;
+  buildingMoveOperationsByDay: BuildingMoveOperationsByDay;
 }
 
 function getDefaultPresentCleanersByDay(): PresentCleanersByDay {
@@ -45,6 +64,26 @@ function getDefaultPresentCleanersByDay(): PresentCleanersByDay {
     wed: [...STAFF_CLEANERS],
     thu: [...STAFF_CLEANERS],
     fri: [...STAFF_CLEANERS],
+  };
+}
+
+function getDefaultSwapOperationsByDay(): SwapOperationsByDay {
+  return {
+    mon: [],
+    tue: [],
+    wed: [],
+    thu: [],
+    fri: [],
+  };
+}
+
+function getDefaultBuildingMoveOperationsByDay(): BuildingMoveOperationsByDay {
+  return {
+    mon: [],
+    tue: [],
+    wed: [],
+    thu: [],
+    fri: [],
   };
 }
 
@@ -94,9 +133,90 @@ function normalizePresentCleanersByDay(value: unknown): PresentCleanersByDay {
   };
 }
 
+function normalizeSwapOperationsForDay(
+  value: unknown,
+  slotCount: number,
+): SwapOperation[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") return null;
+
+      const fromJobIndex = Number((entry as SwapOperation).fromJobIndex);
+      const toJobIndex = Number((entry as SwapOperation).toJobIndex);
+
+      if (!Number.isInteger(fromJobIndex) || !Number.isInteger(toJobIndex)) {
+        return null;
+      }
+
+      if (
+        fromJobIndex < 0 ||
+        toJobIndex < 0 ||
+        fromJobIndex >= slotCount ||
+        toJobIndex >= slotCount ||
+        fromJobIndex === toJobIndex
+      ) {
+        return null;
+      }
+
+      return { fromJobIndex, toJobIndex };
+    })
+    .filter((entry): entry is SwapOperation => Boolean(entry));
+}
+
+function normalizeSwapOperationsByDay(
+  value: unknown,
+  slotCount: number,
+): SwapOperationsByDay {
+  const source =
+    value && typeof value === "object"
+      ? (value as Partial<Record<DayKey, unknown>>)
+      : {};
+
+  return {
+    mon: normalizeSwapOperationsForDay(source.mon, slotCount),
+    tue: normalizeSwapOperationsForDay(source.tue, slotCount),
+    wed: normalizeSwapOperationsForDay(source.wed, slotCount),
+    thu: normalizeSwapOperationsForDay(source.thu, slotCount),
+    fri: normalizeSwapOperationsForDay(source.fri, slotCount),
+  };
+}
+
+function applyDaySwapOperations(
+  assignments: readonly string[],
+  swapOperations: readonly SwapOperation[],
+): string[] {
+  const nextAssignments = [...assignments];
+
+  swapOperations.forEach(({ fromJobIndex, toJobIndex }) => {
+    if (
+      fromJobIndex < 0 ||
+      toJobIndex < 0 ||
+      fromJobIndex >= nextAssignments.length ||
+      toJobIndex >= nextAssignments.length ||
+      fromJobIndex === toJobIndex
+    ) {
+      return;
+    }
+
+    const current = nextAssignments[fromJobIndex] ?? "";
+    nextAssignments[fromJobIndex] = nextAssignments[toJobIndex] ?? "";
+    nextAssignments[toJobIndex] = current;
+  });
+
+  return nextAssignments;
+}
+
 function loadPersistedScheduleState(
   todayDateKey: string,
-): Pick<PersistedScheduleState, "selectedDay" | "presentCleanersByDay"> | null {
+): Pick<
+  PersistedScheduleState,
+  | "selectedDay"
+  | "presentCleanersByDay"
+  | "swapOperationsByDay"
+  | "buildingMoveOperationsByDay"
+> | null {
   if (typeof window === "undefined") return null;
 
   const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -120,6 +240,14 @@ function loadPersistedScheduleState(
       selectedDay,
       presentCleanersByDay: normalizePresentCleanersByDay(
         parsed.presentCleanersByDay,
+      ),
+      swapOperationsByDay: normalizeSwapOperationsByDay(
+        parsed.swapOperationsByDay,
+        JOBS.length,
+      ),
+      buildingMoveOperationsByDay: normalizeSwapOperationsByDay(
+        parsed.buildingMoveOperationsByDay,
+        JOBS.length,
       ),
     };
   } catch {
@@ -151,6 +279,16 @@ export const ScheduleProvider = ({
       persistedScheduleState?.presentCleanersByDay ??
         getDefaultPresentCleanersByDay(),
     );
+  const [swapOperationsByDay, setSwapOperationsByDay] =
+    useState<SwapOperationsByDay>(
+      persistedScheduleState?.swapOperationsByDay ??
+        getDefaultSwapOperationsByDay(),
+    );
+  const [buildingMoveOperationsByDay, setBuildingMoveOperationsByDay] =
+    useState<BuildingMoveOperationsByDay>(
+      persistedScheduleState?.buildingMoveOperationsByDay ??
+        getDefaultBuildingMoveOperationsByDay(),
+    );
 
   const presentCleaners = presentCleanersByDay[selectedDay];
 
@@ -172,7 +310,7 @@ export const ScheduleProvider = ({
 
   const peopleIn = presentCleaners.length;
 
-  const weeklyAssignments = useMemo(
+  const generatedWeeklyAssignments = useMemo(
     () =>
       generateWeeklyAssignments(
         STAFF_CLEANERS,
@@ -183,6 +321,32 @@ export const ScheduleProvider = ({
         CALL_IN_CLEANERS,
       ),
     [presentCleanersByDay, today],
+  );
+
+  const weeklyAssignments = useMemo(
+    () => ({
+      mon: applyDaySwapOperations(
+        generatedWeeklyAssignments.mon,
+        swapOperationsByDay.mon,
+      ),
+      tue: applyDaySwapOperations(
+        generatedWeeklyAssignments.tue,
+        swapOperationsByDay.tue,
+      ),
+      wed: applyDaySwapOperations(
+        generatedWeeklyAssignments.wed,
+        swapOperationsByDay.wed,
+      ),
+      thu: applyDaySwapOperations(
+        generatedWeeklyAssignments.thu,
+        swapOperationsByDay.thu,
+      ),
+      fri: applyDaySwapOperations(
+        generatedWeeklyAssignments.fri,
+        swapOperationsByDay.fri,
+      ),
+    }),
+    [generatedWeeklyAssignments, swapOperationsByDay],
   );
 
   const baselineWeeklyAssignments = useMemo(
@@ -207,6 +371,87 @@ export const ScheduleProvider = ({
     [baselineWeeklyAssignments, weeklyAssignments],
   );
 
+  const buildingWeeklyAssignments = useMemo(
+    () => ({
+      mon: applyDaySwapOperations(
+        weeklyAssignments.mon,
+        buildingMoveOperationsByDay.mon,
+      ),
+      tue: applyDaySwapOperations(
+        weeklyAssignments.tue,
+        buildingMoveOperationsByDay.tue,
+      ),
+      wed: applyDaySwapOperations(
+        weeklyAssignments.wed,
+        buildingMoveOperationsByDay.wed,
+      ),
+      thu: applyDaySwapOperations(
+        weeklyAssignments.thu,
+        buildingMoveOperationsByDay.thu,
+      ),
+      fri: applyDaySwapOperations(
+        weeklyAssignments.fri,
+        buildingMoveOperationsByDay.fri,
+      ),
+    }),
+    [buildingMoveOperationsByDay, weeklyAssignments],
+  );
+
+  const buildingReassignmentFlags = useMemo(
+    () =>
+      getWeeklyReassignmentFlags({
+        baseAssignments: weeklyAssignments,
+        adjustedAssignments: buildingWeeklyAssignments,
+      }),
+    [buildingWeeklyAssignments, weeklyAssignments],
+  );
+
+  const swapAssignments = (
+    day: DayKey,
+    fromJobIndex: number,
+    toJobIndex: number,
+  ) => {
+    if (
+      !Number.isInteger(fromJobIndex) ||
+      !Number.isInteger(toJobIndex) ||
+      fromJobIndex < 0 ||
+      toJobIndex < 0 ||
+      fromJobIndex >= JOBS.length ||
+      toJobIndex >= JOBS.length ||
+      fromJobIndex === toJobIndex
+    ) {
+      return;
+    }
+
+    setSwapOperationsByDay((current) => ({
+      ...current,
+      [day]: [...current[day], { fromJobIndex, toJobIndex }],
+    }));
+  };
+
+  const moveBuildingAssignment = (
+    day: DayKey,
+    fromJobIndex: number,
+    toJobIndex: number,
+  ) => {
+    if (
+      !Number.isInteger(fromJobIndex) ||
+      !Number.isInteger(toJobIndex) ||
+      fromJobIndex < 0 ||
+      toJobIndex < 0 ||
+      fromJobIndex >= JOBS.length ||
+      toJobIndex >= JOBS.length ||
+      fromJobIndex === toJobIndex
+    ) {
+      return;
+    }
+
+    setBuildingMoveOperationsByDay((current) => ({
+      ...current,
+      [day]: [...current[day], { fromJobIndex, toJobIndex }],
+    }));
+  };
+
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -214,11 +459,18 @@ export const ScheduleProvider = ({
       date: todayDateKey,
       selectedDay,
       presentCleanersByDay,
-      weeklyAssignments,
+      swapOperationsByDay,
+      buildingMoveOperationsByDay,
     };
 
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-  }, [presentCleanersByDay, selectedDay, todayDateKey, weeklyAssignments]);
+  }, [
+    buildingMoveOperationsByDay,
+    presentCleanersByDay,
+    selectedDay,
+    swapOperationsByDay,
+    todayDateKey,
+  ]);
 
   return (
     <ScheduleContext.Provider
@@ -226,11 +478,15 @@ export const ScheduleProvider = ({
         todayDayKey,
         weeklyAssignments,
         weeklyReassignmentFlags,
+        buildingWeeklyAssignments,
+        buildingReassignmentFlags,
         presentCleaners,
         setPresentCleaners,
         peopleIn,
         selectedDay,
         setSelectedDay,
+        swapAssignments,
+        moveBuildingAssignment,
       }}
     >
       {children}
