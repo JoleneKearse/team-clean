@@ -41,11 +41,14 @@ const CalendarWeekly = ({ highlightedDayKey }: CalendarWeeklyProps) => {
               {DAYS.map((day) =>
                 (() => {
                   const isHighlightedDay = day.key === highlightedDayKey;
+                  const isFloJob = job.includes("Flo");
                   const isReassigned = Boolean(
                     weeklyReassignmentFlags[day.key]?.[jobIndex],
                   );
                   const className = [
-                    isHighlightedDay ? "bg-gray-100 border-l border-r" : "",
+                    isHighlightedDay
+                      ? `${isFloJob ? "bg-gray-100" : "bg-gray-200"} border-l border-r`
+                      : "",
                   ]
                     .filter(Boolean)
                     .join(" ");
