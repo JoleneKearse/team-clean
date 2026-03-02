@@ -11,7 +11,7 @@ const HealthCenter = () => {
     useSchedule();
   const dayAssignments = weeklyAssignments[selectedDay];
   const healthCenterJobs: readonly JobId[] =
-    peopleIn === 6
+    peopleIn <= 6
       ? ["Vac", ...DEFAULT_HEALTH_CENTER_JOBS]
       : DEFAULT_HEALTH_CENTER_JOBS;
 

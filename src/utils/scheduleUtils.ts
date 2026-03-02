@@ -1,4 +1,5 @@
 import type { DayKey, JobId } from "../types/types";
+import { ANCHOR_MONDAY } from "../constants/consts";
 
 function rotate<T>(arr: readonly T[], shiftDown: number): T[] {
   const len = arr.length;
@@ -10,8 +11,6 @@ function rotate<T>(arr: readonly T[], shiftDown: number): T[] {
   return arr.slice(len - size).concat(arr.slice(0, len - size));
 }
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
-const ROTATION_BASE_WEEK_NUMBER = 9;
 const NECESSARY_JOBS: readonly JobId[] = ["Bath", "SW", "Vac", "San", "Gar"];
 const BACKFILL_PRIORITY: readonly JobId[] = ["Flo3", "Flo2", "Flo1"];
 const FLOAT_JOBS: readonly JobId[] = ["Flo1", "Flo2", "Flo3"];
@@ -69,7 +68,7 @@ export function getHealthCenterAssignmentsForDay(
 ) {
   switch (jobId) {
     case "Vac":
-      if (peopleIn === 6) {
+      if (peopleIn <= 6) {
         return "Vac & big room";
       }
       return;
@@ -164,18 +163,59 @@ export function getDayKeyFromDate(referenceDate: Date): DayKey {
   return dayMap[referenceDate.getDay()] ?? "mon";
 }
 
-function getCalendarWeekNumber(referenceDate: Date): number {
+function parseAnchorMonday(anchorMonday: string): Date {
+  const [year, month, day] = anchorMonday
+    .split("-")
+    .map((part) => Number(part));
+
+  return new Date(year, month - 1, day);
+}
+
+function getStartOfWeekMonday(referenceDate: Date): Date {
   const date = new Date(referenceDate);
   date.setHours(0, 0, 0, 0);
 
-  const startOfYear = new Date(date.getFullYear(), 0, 1);
-  startOfYear.setHours(0, 0, 0, 0);
+  const day = date.getDay();
+  const daysFromMonday = (day + 6) % 7;
+  date.setDate(date.getDate() - daysFromMonday);
 
-  const dayOfYear =
-    Math.floor((date.getTime() - startOfYear.getTime()) / MS_PER_DAY) + 1;
-  const firstDayOfYear = startOfYear.getDay();
+  return date;
+}
 
-  return Math.ceil((dayOfYear + firstDayOfYear) / 7);
+function isWorkday(referenceDate: Date): boolean {
+  const day = referenceDate.getDay();
+  return day >= 1 && day <= 5;
+}
+
+function getElapsedWorkdays(anchorMonday: Date, untilDate: Date): number {
+  const start = new Date(anchorMonday);
+  const end = new Date(untilDate);
+  start.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+
+  if (start.getTime() === end.getTime()) return 0;
+
+  if (start < end) {
+    const cursor = new Date(start);
+    let count = 0;
+
+    while (cursor < end) {
+      if (isWorkday(cursor)) count += 1;
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    return count;
+  }
+
+  const cursor = new Date(end);
+  let count = 0;
+
+  while (cursor < start) {
+    if (isWorkday(cursor)) count += 1;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return -count;
 }
 
 /**
@@ -207,8 +247,9 @@ export function generateWeeklyAssignments(
           (_, index) => cleaners[index % cleaners.length],
         );
 
-  const weekNumber = getCalendarWeekNumber(referenceDate);
-  const weekOffset = weekNumber - ROTATION_BASE_WEEK_NUMBER;
+  const anchorMonday = parseAnchorMonday(ANCHOR_MONDAY);
+  const weekStart = getStartOfWeekMonday(referenceDate);
+  const weekOffset = getElapsedWorkdays(anchorMonday, weekStart);
 
   const rebalanceForPresence = (day: DayKey, dayAssignments: string[]) => {
     const presentForDay = presentCleanersByDay?.[day] ?? cleaners;
