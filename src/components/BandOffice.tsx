@@ -22,7 +22,7 @@ function getBandOfficeNotices(
     const bathNoticePrefix = bathInitials || "Bath";
 
     return [
-      "There is only one person cleaning the basement, so check it.",
+      "There may be only one person cleaning the basement, so check it.",
       `${bathNoticePrefix} needs to do all the bathrooms.`,
     ];
   }
@@ -50,8 +50,8 @@ const BandOffice = () => {
   });
 
   return (
-    <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg p-4 bg-gray-200">
-      <h2 className="text-center">Band Office 🏢</h2>
+    <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg p-4 bg-linear-to-b from-gray-500 from-20% to-gray-200 to-20%">
+      <h2 className="text-center font-bold text-gray-100">Band Office 🏢</h2>
 
       {notices.length > 0 && (
         <ul className="mt-3 space-y-1">

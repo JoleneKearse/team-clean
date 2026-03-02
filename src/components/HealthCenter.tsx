@@ -27,8 +27,8 @@ const HealthCenter = () => {
   });
 
   return (
-    <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg p-4 bg-gray-200">
-      <h2 className="text-center">Health Center 🩺</h2>
+    <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg p-4 bg-linear-to-b from-gray-500 from-40% to-gray-200 to-40%">
+      <h2 className="text-center font-bold text-gray-100">Health Center 🩺</h2>
 
       <ul className="mt-3 space-y-1">
         {assignments

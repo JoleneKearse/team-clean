@@ -26,12 +26,12 @@ function App() {
   };
 
   return (
-    <div className="flex flex-col items-center gap-4 p-4">
+    <div className="flex flex-col items-center gap-4 p-4 max-w-[450px] mx-auto">
       <section className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg p-4 bg-gray-200">
         <div className="flex items-center justify-between gap-4">
           <div>
             <h2 className="font-semibold">Who is in today?</h2>
-            <p className="text-sm italic">Uncheck names if necessary</p>
+            <p className="text-sm italic">(Un)Check names if necessary</p>
           </div>
 
           <span className="font-semibold">Staffing: {peopleIn}</span>
