@@ -1,3 +1,5 @@
+import { useEffect, useMemo, useState } from "react";
+
 import { useSchedule } from "./context/ScheduleContext";
 
 import { CLEANERS } from "./constants/consts";
@@ -10,10 +12,73 @@ import Daycare from "./components/Daycare";
 import BandOffice from "./components/BandOffice";
 import HealthCenter from "./components/HealthCenter";
 
+const EASTERN_TIME_ZONE = "America/Toronto";
+
+function getEasternTimeParts(referenceDate: Date) {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: EASTERN_TIME_ZONE,
+    hour12: false,
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const parts = formatter.formatToParts(referenceDate);
+  const weekday = parts.find((part) => part.type === "weekday")?.value;
+  const hour = Number(parts.find((part) => part.type === "hour")?.value);
+  const minute = Number(parts.find((part) => part.type === "minute")?.value);
+
+  return {
+    weekday,
+    minutesSinceMidnight:
+      Number.isFinite(hour) && Number.isFinite(minute) ? hour * 60 + minute : 0,
+  };
+}
+
+function getSectionVisibility(referenceDate: Date) {
+  const { weekday, minutesSinceMidnight } = getEasternTimeParts(referenceDate);
+  const isWeekday =
+    weekday === "Mon" ||
+    weekday === "Tue" ||
+    weekday === "Wed" ||
+    weekday === "Thu" ||
+    weekday === "Fri";
+
+  if (!isWeekday) {
+    return {
+      showBuildings: true,
+      showDaycare: true,
+      showBandOffice: true,
+    };
+  }
+
+  return {
+    showBuildings: minutesSinceMidnight < 18 * 60,
+    showDaycare: minutesSinceMidnight < 20 * 60 + 30,
+    showBandOffice: minutesSinceMidnight < 21 * 60 + 45,
+  };
+}
+
 function App() {
   const { selectedDay, peopleIn, presentCleaners, setPresentCleaners } =
     useSchedule();
   const calendarView = "weekly";
+  const [clockTick, setClockTick] = useState(() => Date.now());
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setClockTick(Date.now());
+    }, 15000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+  const { showBuildings, showDaycare, showBandOffice } = useMemo(
+    () => getSectionVisibility(new Date(clockTick)),
+    [clockTick],
+  );
 
   const toggleCleaner = (cleaner: CleanerId) => {
     setPresentCleaners((current) =>
@@ -62,9 +127,11 @@ function App() {
       </section>
 
       <Calendar calendarView={calendarView} highlightedDayKey={selectedDay} />
-      <Buildings />
-      <Daycare />
-      <BandOffice />
+
+      {showBuildings && <Buildings />}
+      {showDaycare && <Daycare />}
+      {showBandOffice && <BandOffice />}
+
       <HealthCenter />
     </div>
   );
