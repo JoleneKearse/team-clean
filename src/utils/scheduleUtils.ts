@@ -1,5 +1,5 @@
 import type { DayKey, JobId } from "../types/types";
-import { ANCHOR_MONDAY } from "../constants/consts";
+import { ANCHOR_MONDAY, isNecessaryJob } from "../constants/consts";
 
 function rotate<T>(arr: readonly T[], shiftDown: number): T[] {
   const len = arr.length;
@@ -11,7 +11,6 @@ function rotate<T>(arr: readonly T[], shiftDown: number): T[] {
   return arr.slice(len - size).concat(arr.slice(0, len - size));
 }
 
-const NECESSARY_JOBS: readonly JobId[] = ["Bath", "SW", "Vac", "San", "Gar"];
 const BACKFILL_PRIORITY: readonly JobId[] = ["Flo3", "Flo2", "Flo1"];
 const FLOAT_JOBS: readonly JobId[] = ["Flo1", "Flo2", "Flo3"];
 
@@ -281,8 +280,7 @@ export function generateWeeklyAssignments(
     const missingNecessaryIndexes = jobs
       .map((jobId, index) => ({ jobId, index }))
       .filter(
-        ({ jobId, index }) =>
-          NECESSARY_JOBS.includes(jobId) && !nextAssignments[index],
+        ({ jobId, index }) => isNecessaryJob(jobId) && !nextAssignments[index],
       );
 
     const donorIndexes = BACKFILL_PRIORITY.flatMap((jobId) => {
@@ -317,7 +315,7 @@ export function generateWeeklyAssignments(
 
     const allNecessaryCovered = jobs
       .map((jobId, index) => ({ jobId, index }))
-      .filter(({ jobId }) => NECESSARY_JOBS.includes(jobId))
+      .filter(({ jobId }) => isNecessaryJob(jobId))
       .every(({ index }) => Boolean(nextAssignments[index]));
 
     if (allNecessaryCovered) {

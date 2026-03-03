@@ -17,6 +17,71 @@ export const JOBS = [
   "Gar",
 ] as const;
 
+export const NECESSARY_JOBS = ["Bath", "SW", "Vac", "San", "Gar"] as const;
+
+type NecessaryJobId = (typeof NECESSARY_JOBS)[number];
+
+export const NECESSARY_JOB_STYLES = {
+  Bath: {
+    lineBgClass: "bg-orange-500/20",
+    cellBgClass: "bg-orange-500/35",
+    solidClass: "bg-orange-500 text-gray-900",
+    badgeClass: "bg-orange-500 text-gray-900",
+    textClass: "text-gray-900",
+  },
+  SW: {
+    lineBgClass: "bg-yellow-500/20",
+    cellBgClass: "bg-yellow-500/35",
+    solidClass: "bg-yellow-500 text-gray-900",
+    badgeClass: "bg-yellow-500 text-gray-900",
+    textClass: "text-gray-900",
+  },
+  Vac: {
+    lineBgClass: "bg-lime-500/20",
+    cellBgClass: "bg-lime-500/35",
+    solidClass: "bg-lime-500 text-gray-900",
+    badgeClass: "bg-lime-500 text-gray-900",
+    textClass: "text-gray-900",
+  },
+  San: {
+    lineBgClass: "bg-sky-500/20",
+    cellBgClass: "bg-sky-500/35",
+    solidClass: "bg-sky-500 text-gray-900",
+    badgeClass: "bg-sky-500 text-gray-900",
+    textClass: "text-gray-900",
+  },
+  Gar: {
+    lineBgClass: "bg-purple-500/20",
+    cellBgClass: "bg-purple-500/35",
+    solidClass: "bg-purple-500 text-gray-900",
+    badgeClass: "bg-purple-500 text-gray-900",
+    textClass: "text-gray-900",
+  },
+} as const satisfies Record<
+  NecessaryJobId,
+  {
+    lineBgClass: string;
+    cellBgClass: string;
+    solidClass: string;
+    badgeClass: string;
+    textClass: string;
+  }
+>;
+
+const NECESSARY_JOB_SET = new Set<string>(NECESSARY_JOBS);
+
+export function isNecessaryJob(jobId: string): jobId is NecessaryJobId {
+  return NECESSARY_JOB_SET.has(jobId);
+}
+
+export function getNecessaryJobStyle(jobId: string) {
+  if (!isNecessaryJob(jobId)) {
+    return null;
+  }
+
+  return NECESSARY_JOB_STYLES[jobId];
+}
+
 export const STAFF_CLEANERS = [
   "PW",
   "JA",

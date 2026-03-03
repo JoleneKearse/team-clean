@@ -1,4 +1,4 @@
-import { JOBS } from "../constants/consts";
+import { JOBS, getNecessaryJobStyle } from "../constants/consts";
 import { useSchedule } from "../context/ScheduleContext";
 
 import { getHealthCenterAssignmentsForDay } from "../utils/scheduleUtils";
@@ -46,12 +46,14 @@ const HealthCenter = () => {
             );
             const isStaffingChanged = assignment.label !== baselineLabel;
             const shouldHighlight = isReassigned || isStaffingChanged;
+            const necessaryJobStyle = getNecessaryJobStyle(assignment.jobId);
 
             return (
               <li key={assignment.jobId}>
                 <span
                   className={[
-                    "font-medium",
+                    "inline-block rounded px-1 font-medium",
+                    necessaryJobStyle ? necessaryJobStyle.badgeClass : "",
                     shouldHighlight ? "text-pink-700" : "",
                   ]
                     .filter(Boolean)
@@ -59,7 +61,7 @@ const HealthCenter = () => {
                 >
                   {assignment.initials}
                 </span>
-                :{" "}
+                {" "}
                 <span className={shouldHighlight ? "text-pink-700" : ""}>
                   {assignment.label}
                 </span>

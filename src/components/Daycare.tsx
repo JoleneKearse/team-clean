@@ -1,12 +1,11 @@
 import { useSchedule } from "../context/ScheduleContext";
+import { JOBS, getNecessaryJobStyle } from "../constants/consts";
 
 import {
   getDaycareJobLabel,
   getDayCareAssignmentsForDay,
   getMissingDayCareAreasForDay,
 } from "../utils/scheduleUtils";
-
-import { JOBS } from "../constants/consts";
 
 function formatMissingAreas(areas: string[]): string {
   if (areas.length === 0) return "";
@@ -56,12 +55,14 @@ const Daycare = () => {
             const baselineLabel = getDaycareJobLabel(assignment.job, 8);
             const isAreaChanged = assignment.label !== baselineLabel;
             const shouldHighlightLabel = isReassigned || isAreaChanged;
+            const necessaryJobStyle = getNecessaryJobStyle(assignment.job);
 
             return (
               <li key={assignment.job}>
                 <span
                   className={[
-                    "font-medium",
+                    "inline-block rounded px-1 font-medium",
+                    necessaryJobStyle ? necessaryJobStyle.badgeClass : "",
                     isReassigned ? "text-pink-700" : "",
                   ]
                     .filter(Boolean)
@@ -69,7 +70,7 @@ const Daycare = () => {
                 >
                   {assignment.initials}
                 </span>
-                :{" "}
+                {" "}
                 <span className={shouldHighlightLabel ? "text-pink-700" : ""}>
                   {assignment.label}
                 </span>

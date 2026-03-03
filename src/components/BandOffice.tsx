@@ -1,4 +1,4 @@
-import { JOBS } from "../constants/consts";
+import { JOBS, getNecessaryJobStyle } from "../constants/consts";
 import { useSchedule } from "../context/ScheduleContext";
 
 import { getBandOfficeAssignmentsForDay } from "../utils/scheduleUtils";
@@ -66,34 +66,39 @@ const BandOffice = () => {
       <ul className="mt-3 space-y-1">
         {assignments
           .filter((assignment) => assignment.initials !== "")
-          .map((assignment) => (
-            <li key={assignment.jobId}>
-              <span
-                className={[
-                  "font-medium",
-                  assignment.index >= 0 &&
-                  weeklyReassignmentFlags[selectedDay]?.[assignment.index]
-                    ? "text-pink-700"
-                    : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-              >
-                {assignment.initials}
-              </span>
-              :{" "}
-              <span
-                className={
-                  assignment.index >= 0 &&
-                  weeklyReassignmentFlags[selectedDay]?.[assignment.index]
-                    ? "text-pink-700"
-                    : ""
-                }
-              >
-                {assignment.label}
-              </span>
-            </li>
-          ))}
+          .map((assignment) => {
+            const necessaryJobStyle = getNecessaryJobStyle(assignment.jobId);
+
+            return (
+              <li key={assignment.jobId}>
+                <span
+                  className={[
+                    "inline-block rounded px-1 font-medium",
+                    necessaryJobStyle ? necessaryJobStyle.badgeClass : "",
+                    assignment.index >= 0 &&
+                    weeklyReassignmentFlags[selectedDay]?.[assignment.index]
+                      ? "text-pink-700"
+                      : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  {assignment.initials}
+                </span>
+                {" "}
+                <span
+                  className={
+                    assignment.index >= 0 &&
+                    weeklyReassignmentFlags[selectedDay]?.[assignment.index]
+                      ? "text-pink-700"
+                      : ""
+                  }
+                >
+                  {assignment.label}
+                </span>
+              </li>
+            );
+          })}
       </ul>
     </article>
   );

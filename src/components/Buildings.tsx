@@ -1,5 +1,5 @@
 import { useSchedule } from "../context/ScheduleContext";
-import { BUILDINGS, JOBS } from "../constants/consts";
+import { BUILDINGS, JOBS, getNecessaryJobStyle } from "../constants/consts";
 import { getBuildingAssignmentsForDay } from "../utils/scheduleUtils";
 import type { DayKey } from "../types/types";
 
@@ -76,111 +76,127 @@ const Buildings = () => {
                   ? `${building.label} needs another cleaner`
                   : building.label}
               </h3>
-              <table className="mt-1 w-full text-center border border-gray-400 border-collapse">
-                <tbody>
-                  <tr>
-                    {assignments.map((assignment) => {
-                      const jobIndex = JOBS.indexOf(assignment.job);
-                      const isReassigned =
-                        jobIndex >= 0 &&
-                        Boolean(
-                          buildingReassignmentFlags[selectedDay]?.[jobIndex],
+              <div className="mt-1 rounded-xl overflow-hidden border ">
+                <table className="w-full text-center border-collapse">
+                  <tbody>
+                    <tr>
+                      {assignments.map((assignment) => {
+                        const jobIndex = JOBS.indexOf(assignment.job);
+                        const necessaryJobStyle = getNecessaryJobStyle(
+                          assignment.job,
                         );
+                        const isReassigned =
+                          jobIndex >= 0 &&
+                          Boolean(
+                            buildingReassignmentFlags[selectedDay]?.[jobIndex],
+                          );
 
-                      return (
-                        <td
-                          key={`${assignment.job}-job`}
-                          className={[
-                            "italic border border-gray-400 px-2 py-1",
-                            hasOnlyOneAssignedCleaner &&
-                            assignment.initials === ""
-                              ? "text-pink-700"
-                              : "",
-                            isReassigned ? "text-pink-700" : "",
-                          ]
-                            .filter(Boolean)
-                            .join(" ")}
-                        >
-                          {assignment.job}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                  <tr>
-                    {assignments.map((assignment) => {
-                      const jobIndex = JOBS.indexOf(assignment.job);
-                      const isReassigned =
-                        jobIndex >= 0 &&
-                        Boolean(
-                          buildingReassignmentFlags[selectedDay]?.[jobIndex],
+                        return (
+                          <td
+                            key={`${assignment.job}-job`}
+                            className={[
+                              "italic border border-gray-400 px-2 py-1",
+                              necessaryJobStyle
+                                ? necessaryJobStyle.solidClass
+                                : "",
+                              hasOnlyOneAssignedCleaner &&
+                              assignment.initials === ""
+                                ? "text-pink-700"
+                                : "",
+                              isReassigned ? "text-pink-700" : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
+                          >
+                            {assignment.job}
+                          </td>
                         );
+                      })}
+                    </tr>
+                    <tr>
+                      {assignments.map((assignment) => {
+                        const jobIndex = JOBS.indexOf(assignment.job);
+                        const necessaryJobStyle = getNecessaryJobStyle(
+                          assignment.job,
+                        );
+                        const isReassigned =
+                          jobIndex >= 0 &&
+                          Boolean(
+                            buildingReassignmentFlags[selectedDay]?.[jobIndex],
+                          );
 
-                      return (
-                        <td
-                          key={`${assignment.job}-cleaner`}
-                          className={[
-                            "border border-gray-400 px-2 py-1",
-                            hasOnlyOneAssignedCleaner &&
-                            assignment.initials === ""
-                              ? "bg-pink-100"
-                              : "bg-gray-100",
-                            isReassigned ? "text-pink-700" : "",
-                          ]
-                            .filter(Boolean)
-                            .join(" ")}
-                          onDragOver={(event) => {
-                            event.preventDefault();
-                          }}
-                          onDrop={(event) => {
-                            event.preventDefault();
+                        return (
+                          <td
+                            key={`${assignment.job}-cleaner`}
+                            className={[
+                              "border border-gray-400 px-2 py-1",
+                              hasOnlyOneAssignedCleaner &&
+                              assignment.initials === ""
+                                ? "bg-pink-100"
+                                : necessaryJobStyle
+                                  ? necessaryJobStyle.lineBgClass
+                                  : "bg-gray-100",
+                              necessaryJobStyle
+                                ? necessaryJobStyle.textClass
+                                : "",
+                              isReassigned ? "text-pink-700" : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
+                            onDragOver={(event) => {
+                              event.preventDefault();
+                            }}
+                            onDrop={(event) => {
+                              event.preventDefault();
 
-                            if (jobIndex < 0) return;
+                              if (jobIndex < 0) return;
 
-                            const source = getDragPayloadFromEvent(event);
-                            if (!source || source.day !== selectedDay) return;
+                              const source = getDragPayloadFromEvent(event);
+                              if (!source || source.day !== selectedDay) return;
 
-                            const sourceInitials =
-                              buildingWeeklyAssignments[source.day][
-                                source.jobIndex
-                              ] ?? "";
+                              const sourceInitials =
+                                buildingWeeklyAssignments[source.day][
+                                  source.jobIndex
+                                ] ?? "";
 
-                            if (!sourceInitials) return;
+                              if (!sourceInitials) return;
 
-                            moveBuildingAssignment(
-                              selectedDay,
-                              source.jobIndex,
-                              jobIndex,
-                            );
-                          }}
-                        >
-                          <span
-                            draggable={Boolean(assignment.initials)}
-                            onDragStart={(event) => {
-                              if (!assignment.initials || jobIndex < 0) {
-                                event.preventDefault();
-                                return;
-                              }
-
-                              const payload: DragAssignmentPayload = {
-                                day: selectedDay,
+                              moveBuildingAssignment(
+                                selectedDay,
+                                source.jobIndex,
                                 jobIndex,
-                              };
-
-                              event.dataTransfer.setData(
-                                DRAG_MIME_TYPE,
-                                JSON.stringify(payload),
                               );
-                              event.dataTransfer.effectAllowed = "move";
                             }}
                           >
-                            {assignment.initials}
-                          </span>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                </tbody>
-              </table>
+                            <span
+                              draggable={Boolean(assignment.initials)}
+                              onDragStart={(event) => {
+                                if (!assignment.initials || jobIndex < 0) {
+                                  event.preventDefault();
+                                  return;
+                                }
+
+                                const payload: DragAssignmentPayload = {
+                                  day: selectedDay,
+                                  jobIndex,
+                                };
+
+                                event.dataTransfer.setData(
+                                  DRAG_MIME_TYPE,
+                                  JSON.stringify(payload),
+                                );
+                                event.dataTransfer.effectAllowed = "move";
+                              }}
+                            >
+                              {assignment.initials}
+                            </span>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </section>
           );
         })}
