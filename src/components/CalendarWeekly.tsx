@@ -1,3 +1,19 @@
+import { useMemo, useState } from "react";
+
+import {
+  DndContext,
+  DragOverlay,
+  MouseSensor,
+  TouchSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
+
 import { useSchedule } from "../context/ScheduleContext";
 import { DAYS, JOBS, getNecessaryJobStyle } from "../constants/consts";
 import type { DayKey } from "../types/types";
@@ -7,92 +23,263 @@ type CalendarWeeklyProps = {
 };
 
 type DragAssignmentPayload = {
+  source: "calendar";
+  day: DayKey;
+  jobIndex: number;
+  initials: string;
+};
+
+type DropPayload = {
   day: DayKey;
   jobIndex: number;
 };
 
-const DRAG_MIME_TYPE = "application/x-team-clean-assignment";
+function isDayKey(value: unknown): value is DayKey {
+  return (
+    value === "mon" ||
+    value === "tue" ||
+    value === "wed" ||
+    value === "thu" ||
+    value === "fri"
+  );
+}
 
-function getDragPayloadFromEvent(
-  event: React.DragEvent<HTMLElement>,
-): DragAssignmentPayload | null {
-  const rawPayload = event.dataTransfer.getData(DRAG_MIME_TYPE);
-  if (!rawPayload) return null;
+function parseDragPayload(payload: unknown): DragAssignmentPayload | null {
+  if (!payload || typeof payload !== "object") return null;
+  const candidate = payload as Partial<DragAssignmentPayload>;
+  const jobIndex = candidate.jobIndex;
 
-  try {
-    const parsed = JSON.parse(rawPayload) as DragAssignmentPayload;
-    const isValidDay =
-      parsed.day === "mon" ||
-      parsed.day === "tue" ||
-      parsed.day === "wed" ||
-      parsed.day === "thu" ||
-      parsed.day === "fri";
-
-    if (!isValidDay || !Number.isInteger(parsed.jobIndex)) {
-      return null;
-    }
-
-    return parsed;
-  } catch {
+  if (
+    candidate.source !== "calendar" ||
+    !isDayKey(candidate.day) ||
+    typeof jobIndex !== "number" ||
+    !Number.isInteger(jobIndex) ||
+    typeof candidate.initials !== "string"
+  ) {
     return null;
   }
+
+  return {
+    source: candidate.source,
+    day: candidate.day,
+    jobIndex,
+    initials: candidate.initials,
+  };
+}
+
+function parseDropPayload(payload: unknown): DropPayload | null {
+  if (!payload || typeof payload !== "object") return null;
+  const candidate = payload as Partial<DropPayload>;
+  const jobIndex = candidate.jobIndex;
+
+  if (
+    !isDayKey(candidate.day) ||
+    typeof jobIndex !== "number" ||
+    !Number.isInteger(jobIndex)
+  ) {
+    return null;
+  }
+
+  return {
+    day: candidate.day,
+    jobIndex,
+  };
+}
+
+type CalendarDraggableInitialsProps = {
+  day: DayKey;
+  jobIndex: number;
+  initials: string;
+  className?: string;
+};
+
+function CalendarDraggableInitials({
+  day,
+  jobIndex,
+  initials,
+  className,
+}: CalendarDraggableInitialsProps) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } =
+    useDraggable({
+      id: `calendar-drag-${day}-${jobIndex}`,
+      data: {
+        source: "calendar",
+        day,
+        jobIndex,
+        initials,
+      } as DragAssignmentPayload,
+      disabled: !initials,
+    });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    opacity: isDragging ? 0.35 : 1,
+    touchAction: "none" as const,
+  };
+
+  return (
+    <span
+      ref={setNodeRef}
+      style={style}
+      className={[
+        className ?? "",
+        initials ? "cursor-grab active:cursor-grabbing" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      {...listeners}
+      {...attributes}
+    >
+      {initials}
+    </span>
+  );
+}
+
+type CalendarDroppableCellProps = {
+  day: DayKey;
+  jobIndex: number;
+  className: string;
+  children: React.ReactNode;
+};
+
+function CalendarDroppableCell({
+  day,
+  jobIndex,
+  className,
+  children,
+}: CalendarDroppableCellProps) {
+  const { isOver, setNodeRef } = useDroppable({
+    id: `calendar-drop-${day}-${jobIndex}`,
+    data: {
+      day,
+      jobIndex,
+    } as DropPayload,
+  });
+
+  return (
+    <td
+      ref={setNodeRef}
+      className={[className, isOver ? "ring-2 ring-pink-400" : ""]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      {children}
+    </td>
+  );
 }
 
 const CalendarWeekly = ({ highlightedDayKey }: CalendarWeeklyProps) => {
   const { weeklyAssignments, weeklyReassignmentFlags, swapAssignments } =
     useSchedule();
+  const [activeInitials, setActiveInitials] = useState("");
+
+  const sensors = useSensors(
+    useSensor(MouseSensor, {
+      activationConstraint: { distance: 6 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 180,
+        tolerance: 8,
+      },
+    }),
+  );
+
+  const onDragStart = (event: DragStartEvent) => {
+    const source = parseDragPayload(event.active.data.current);
+    setActiveInitials(source?.initials ?? "");
+  };
+
+  const onDragEnd = (event: DragEndEvent) => {
+    setActiveInitials("");
+
+    if (!event.over) return;
+
+    const source = parseDragPayload(event.active.data.current);
+    const target = parseDropPayload(event.over.data.current);
+    if (!source || !target) return;
+    if (source.day !== target.day) return;
+    if (source.jobIndex === target.jobIndex) return;
+
+    const sourceInitials = weeklyAssignments[source.day][source.jobIndex] ?? "";
+    const targetInitials = weeklyAssignments[target.day][target.jobIndex] ?? "";
+
+    if (!sourceInitials || !targetInitials) return;
+
+    swapAssignments(source.day, source.jobIndex, target.jobIndex);
+  };
+
+  const onDragCancel = () => {
+    setActiveInitials("");
+  };
+
+  const overlayClassName = useMemo(
+    () =>
+      [
+        "rounded-md border border-gray-600 bg-gray-100 px-2 py-1 text-sm shadow-md",
+        activeInitials ? "opacity-95" : "opacity-0",
+      ]
+        .filter(Boolean)
+        .join(" "),
+    [activeInitials],
+  );
 
   return (
-    <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg text-center bg-gray-300">
-      <table className="w-full border-spacing-32">
-        <thead>
-          <tr>
-            <th scope="col" className="w-12 bg-gray-900 text-gray-100">
-              <span className="sr-only">Jobs</span>
-            </th>
-            {DAYS.map((day) => (
-              <th
-                key={day.key}
-                className={
-                  day.key === highlightedDayKey
-                    ? "bg-gray-900 text-gray-100 border-l border-r"
-                    : "bg-gray-900 text-gray-100"
-                }
-              >
-                {day.label}
+    <DndContext
+      sensors={sensors}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      onDragCancel={onDragCancel}
+    >
+      <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg text-center bg-gray-300">
+        <table className="w-full border-spacing-32">
+          <thead>
+            <tr>
+              <th scope="col" className="w-12 bg-gray-900 text-gray-100">
+                <span className="sr-only">Jobs</span>
               </th>
-            ))}
-          </tr>
-        </thead>
-
-        <tbody>
-          {JOBS.map((job, jobIndex) => {
-            const necessaryJobStyle = getNecessaryJobStyle(job);
-
-            return (
-              <tr
-                key={job}
-                className={
-                  necessaryJobStyle
-                    ? necessaryJobStyle.lineBgClass
-                    : job.includes("Flo")
-                      ? "bg-[#f3f3f3]"
-                      : ""
-                }
-              >
-                <td
-                  className={[
-                    "sticky left-0 font-bold",
-                    necessaryJobStyle ? necessaryJobStyle.solidClass : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
+              {DAYS.map((day) => (
+                <th
+                  key={day.key}
+                  className={
+                    day.key === highlightedDayKey
+                      ? "bg-gray-900 text-gray-100 border-l border-r"
+                      : "bg-gray-900 text-gray-100"
+                  }
                 >
-                  {job}
-                </td>
+                  {day.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
 
-                {DAYS.map((day) =>
-                  (() => {
+          <tbody>
+            {JOBS.map((job, jobIndex) => {
+              const necessaryJobStyle = getNecessaryJobStyle(job);
+
+              return (
+                <tr
+                  key={job}
+                  className={
+                    necessaryJobStyle
+                      ? necessaryJobStyle.lineBgClass
+                      : job.includes("Flo")
+                        ? "bg-[#f3f3f3]"
+                        : ""
+                  }
+                >
+                  <td
+                    className={[
+                      "sticky left-0 font-bold",
+                      necessaryJobStyle ? necessaryJobStyle.solidClass : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                  >
+                    {job}
+                  </td>
+
+                  {DAYS.map((day) => {
                     const isHighlightedDay = day.key === highlightedDayKey;
                     const isFloJob = job.includes("Flo");
                     const initials = weeklyAssignments[day.key][jobIndex] ?? "";
@@ -117,66 +304,38 @@ const CalendarWeekly = ({ highlightedDayKey }: CalendarWeeklyProps) => {
                       .join(" ");
 
                     return (
-                      <td
+                      <CalendarDroppableCell
                         key={day.key}
+                        day={day.key}
+                        jobIndex={jobIndex}
                         className={className}
-                        onDragOver={(event) => {
-                          event.preventDefault();
-                        }}
-                        onDrop={(event) => {
-                          event.preventDefault();
-
-                          const source = getDragPayloadFromEvent(event);
-                          if (!source || source.day !== day.key) return;
-
-                          const sourceInitials =
-                            weeklyAssignments[source.day][source.jobIndex] ??
-                            "";
-                          const targetInitials =
-                            weeklyAssignments[day.key][jobIndex] ?? "";
-
-                          if (!sourceInitials || !targetInitials) return;
-
-                          swapAssignments(day.key, source.jobIndex, jobIndex);
-                        }}
                       >
-                        <span
-                          draggable={Boolean(initials)}
-                          onDragStart={(event) => {
-                            if (!initials) {
-                              event.preventDefault();
-                              return;
-                            }
-
-                            const payload: DragAssignmentPayload = {
-                              day: day.key,
-                              jobIndex,
-                            };
-
-                            event.dataTransfer.setData(
-                              DRAG_MIME_TYPE,
-                              JSON.stringify(payload),
-                            );
-                            event.dataTransfer.effectAllowed = "move";
-                          }}
+                        <CalendarDraggableInitials
+                          day={day.key}
+                          jobIndex={jobIndex}
+                          initials={initials}
                           className={
                             isHighlightedDay && isReassigned
                               ? "text-pink-700"
                               : ""
                           }
-                        >
-                          {initials}
-                        </span>
-                      </td>
+                        />
+                      </CalendarDroppableCell>
                     );
-                  })(),
-                )}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </article>
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </article>
+
+      <DragOverlay>
+        {activeInitials ? (
+          <div className={overlayClassName}>{activeInitials}</div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   );
 };
 
