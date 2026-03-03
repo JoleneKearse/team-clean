@@ -29,7 +29,7 @@ const HealthCenter = () => {
   return (
     <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg bg-gray-200">
       <h2 className="bg-gray-700 px-4 py-4 text-center font-bold text-gray-100">
-        Health Center 🩺
+        Health Center 💙
       </h2>
 
       <div className="p-4">
