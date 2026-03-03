@@ -53,8 +53,14 @@ const BandOffice = () => {
 
   return (
     <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg bg-gray-200">
-      <h2 className="bg-gray-700 px-4 py-4 text-center font-bold text-gray-100">
-        Band Office 🏢
+      <h2 className="relative bg-gray-700 px-4 py-4 text-center font-bold text-gray-100">
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-3xl leading-none"
+        >
+          🏢
+        </span>
+        Band Office
       </h2>
 
       <div className="p-4">
