@@ -231,8 +231,14 @@ const CalendarWeekly = ({ highlightedDayKey }: CalendarWeeklyProps) => {
       onDragEnd={onDragEnd}
       onDragCancel={onDragCancel}
     >
-      <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg text-center bg-gray-300">
-        <table className="w-full border-spacing-32">
+      <div className="relative w-full">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -inset-1 rounded-2xl bg-[linear-gradient(to_bottom_right,var(--color-purple-500),var(--color-sky-500),var(--color-lime-500),var(--color-yellow-500),var(--color-orange-500))] opacity-75 blur-sm"
+        />
+        <div className="relative w-full rounded-xl bg-[linear-gradient(to_bottom_right,var(--color-purple-500),var(--color-sky-500),var(--color-lime-500),var(--color-yellow-500),var(--color-orange-500))] p-1.25 shadow-lg">
+          <article className="w-full overflow-hidden rounded-lg text-center bg-gray-300">
+          <table className="w-full border-spacing-32">
           <thead>
             <tr>
               <th scope="col" className="w-12 bg-gray-900 py-3 text-gray-100">
@@ -327,8 +333,10 @@ const CalendarWeekly = ({ highlightedDayKey }: CalendarWeeklyProps) => {
               );
             })}
           </tbody>
-        </table>
-      </article>
+          </table>
+          </article>
+        </div>
+      </div>
 
       <DragOverlay>
         {activeInitials ? (
