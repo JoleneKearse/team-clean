@@ -17,6 +17,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useSchedule } from "../context/ScheduleContext";
 import { JOBS, getNecessaryJobStyle } from "../constants/consts";
 import type { DayKey } from "../types/types";
+import daycareImage from "../assets/daycare.jpg";
 
 import {
   getDaycareJobLabel,
@@ -252,18 +253,18 @@ const Daycare = () => {
   const missingAreasText = formatMissingAreas(missingAreas);
 
   return (
-    <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg bg-gray-200">
-      <h2 className="relative bg-gray-700 px-4 py-4 text-center font-bold text-gray-100">
-        <span
+    <article className="w-full border border-gray-500 rounded-xl shadow-lg bg-gray-200">
+      <h2 className="relative rounded-t-xl bg-gray-700 px-4 py-4 text-center font-bold text-gray-100">
+        <img
+          src={daycareImage}
+          alt=""
           aria-hidden="true"
-          className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-3xl leading-none"
-        >
-          🧸
-        </span>
+          className="pointer-events-none absolute -left-3 top-7 h-18 w-18 -translate-y-1/2 rounded-full border-2 border-gray-700 object-cover"
+        />
         Daycare
       </h2>
 
-      <div className="p-4">
+      <div className="rounded-b-xl p-4">
         {missingAreas.length > 0 && (
           <h3 className="font-semibold text-pink-700">
             {`${missingAreasText} ${missingAreas.length === 1 ? "needs" : "need"} to be assigned`}

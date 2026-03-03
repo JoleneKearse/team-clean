@@ -3,6 +3,7 @@ import { useSchedule } from "../context/ScheduleContext";
 
 import { getBandOfficeAssignmentsForDay } from "../utils/scheduleUtils";
 import type { JobId } from "../types/types";
+import bandOfficeImage from "../assets/band-office.jpg";
 
 const BAND_OFFICE_JOBS: readonly JobId[] = ["Flo1", "Flo2", "Flo3"];
 const BATHROOM_NOTICE_SUFFIX = " needs to do all the bathrooms.";
@@ -52,18 +53,18 @@ const BandOffice = () => {
   });
 
   return (
-    <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg bg-gray-200">
-      <h2 className="relative bg-gray-700 px-4 py-4 text-center font-bold text-gray-100">
-        <span
+    <article className="w-full border border-gray-500 rounded-xl shadow-lg bg-gray-200">
+      <h2 className="relative rounded-t-xl bg-gray-700 px-4 py-4 text-center font-bold text-gray-100">
+        <img
+          src={bandOfficeImage}
+          alt=""
           aria-hidden="true"
-          className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-3xl leading-none"
-        >
-          🏢
-        </span>
+          className="pointer-events-none absolute -left-3 top-7 h-18 w-18 -translate-y-1/2 rounded-full border-2 border-gray-700 object-cover"
+        />
         Band Office
       </h2>
 
-      <div className="p-4">
+      <div className="rounded-b-xl p-4">
         {notices.length > 0 && (
           <ul className="mt-3 space-y-1">
             {notices.map((notice) => {
