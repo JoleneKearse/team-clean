@@ -316,7 +316,7 @@ const CalendarWeekly = ({ highlightedDayKey }: CalendarWeeklyProps) => {
                           initials={initials}
                           className={
                             isHighlightedDay && isReassigned
-                              ? "text-pink-700"
+                              ? "text-pink-700 pink-change-contrast"
                               : ""
                           }
                         />

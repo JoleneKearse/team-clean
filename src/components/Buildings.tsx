@@ -280,7 +280,9 @@ const Buildings = () => {
                                 assignment.initials === ""
                                   ? "text-pink-700"
                                   : "",
-                                isReassigned ? "text-pink-700" : "",
+                                isReassigned
+                                  ? "text-pink-700 pink-change-contrast"
+                                  : "",
                               ]
                                 .filter(Boolean)
                                 .join(" ")}
@@ -320,7 +322,9 @@ const Buildings = () => {
                                 necessaryJobStyle
                                   ? necessaryJobStyle.textClass
                                   : "",
-                                isReassigned ? "text-pink-700" : "",
+                                isReassigned
+                                  ? "text-pink-700 pink-change-contrast"
+                                  : "",
                               ]
                                 .filter(Boolean)
                                 .join(" ")}
