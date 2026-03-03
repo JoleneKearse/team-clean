@@ -95,7 +95,7 @@ function App() {
       <section className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg bg-gray-200">
         <div className="flex items-center justify-between gap-4 bg-gray-700 px-4 py-4 text-gray-100">
           <div>
-            <h2 className="font-semibold text-2xl">Who is in today?</h2>
+            <h2 className="font-semibold text-xl">Who is in today?</h2>
             <p className="text-sm italic text-gray-200">
               (Un)Check names if necessary
             </p>

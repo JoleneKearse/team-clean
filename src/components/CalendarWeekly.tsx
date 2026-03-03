@@ -235,7 +235,7 @@ const CalendarWeekly = ({ highlightedDayKey }: CalendarWeeklyProps) => {
         <table className="w-full border-spacing-32">
           <thead>
             <tr>
-              <th scope="col" className="w-12 bg-gray-900 text-gray-100">
+              <th scope="col" className="w-12 bg-gray-900 py-3 text-gray-100">
                 <span className="sr-only">Jobs</span>
               </th>
               {DAYS.map((day) => (
@@ -243,8 +243,8 @@ const CalendarWeekly = ({ highlightedDayKey }: CalendarWeeklyProps) => {
                   key={day.key}
                   className={
                     day.key === highlightedDayKey
-                      ? "bg-gray-900 text-gray-100 border-l border-r"
-                      : "bg-gray-900 text-gray-100"
+                      ? "border-l border-r bg-gray-900 py-3 text-gray-100"
+                      : "bg-gray-900 py-3 text-gray-100"
                   }
                 >
                   {day.label}
@@ -290,10 +290,10 @@ const CalendarWeekly = ({ highlightedDayKey }: CalendarWeeklyProps) => {
                       isHighlightedDay
                         ? `${
                             necessaryJobStyle
-                              ? necessaryJobStyle.cellBgClass
+                              ? necessaryJobStyle.solidClass
                               : isFloJob
-                                ? "bg-gray-100"
-                                : "bg-[#a0a3a9]"
+                                ? "bg-[#f3f3f3]"
+                                : ""
                           } border-l border-r border-gray-500`
                         : "",
                       !isHighlightedDay && necessaryJobStyle
