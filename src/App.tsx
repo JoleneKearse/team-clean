@@ -91,39 +91,43 @@ function App() {
   };
 
   return (
-    <div className="flex flex-col items-center gap-4 p-4 max-w-[450px] mx-auto">
-      <section className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg p-4 bg-gray-200">
-        <div className="flex items-center justify-between gap-4">
+    <div className="mx-auto flex max-w-112.5 flex-col items-center gap-4 p-4">
+      <section className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg bg-gray-200">
+        <div className="flex items-center justify-between gap-4 bg-gray-700 px-4 py-4 text-gray-100">
           <div>
-            <h2 className="font-semibold">Who is in today?</h2>
-            <p className="text-sm italic">(Un)Check names if necessary</p>
+            <h2 className="font-semibold text-2xl">Who is in today?</h2>
+            <p className="text-sm italic text-gray-200">
+              (Un)Check names if necessary
+            </p>
           </div>
 
           <span className="font-semibold">Staffing: {peopleIn}</span>
         </div>
 
-        <div className="mt-3 flex flex-wrap gap-3">
-          {CLEANERS.map((cleaner) => {
-            const checked = presentCleaners.includes(cleaner);
+        <div className="p-4">
+          <div className="mt-3 flex flex-wrap gap-3">
+            {CLEANERS.map((cleaner) => {
+              const checked = presentCleaners.includes(cleaner);
 
-            return (
-              <label key={cleaner} className="inline-flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={() => toggleCleaner(cleaner)}
-                />
-                <span>{cleaner}</span>
-              </label>
-            );
-          })}
+              return (
+                <label key={cleaner} className="inline-flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleCleaner(cleaner)}
+                  />
+                  <span>{cleaner}</span>
+                </label>
+              );
+            })}
+          </div>
+
+          {peopleIn < 8 && (
+            <p className="mt-3 font-semibold text-pink-700">
+              Please review the changes below. ⬇️
+            </p>
+          )}
         </div>
-
-        {peopleIn < 8 && (
-          <p className="mt-3 font-semibold text-pink-700">
-            Please review the changes below. ⬇️
-          </p>
-        )}
       </section>
 
       <Calendar calendarView={calendarView} highlightedDayKey={selectedDay} />

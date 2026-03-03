@@ -211,10 +211,12 @@ const Buildings = () => {
       onDragEnd={onDragEnd}
       onDragCancel={onDragCancel}
     >
-      <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg p-4 bg-linear-to-b from-gray-500 from-12% to-gray-200 to-12%">
-        <h2 className="text-center font-bold text-gray-100">Buildings 🏗️</h2>
+      <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg bg-gray-200">
+        <h2 className="bg-gray-700 px-4 py-4 text-center font-bold text-gray-100">
+          Buildings 🏗️
+        </h2>
 
-        <div className="mt-2 space-y-2">
+        <div className="space-y-2 p-4">
           {BUILDINGS.map((building) => {
             const assignments = getBuildingAssignmentsForDay({
               day: selectedDay,

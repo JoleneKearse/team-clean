@@ -52,79 +52,83 @@ const BandOffice = () => {
   });
 
   return (
-    <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg p-4 bg-linear-to-b from-gray-500 from-20% to-gray-200 to-20%">
-      <h2 className="text-center font-bold text-gray-100">Band Office 🏢</h2>
+    <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg bg-gray-200">
+      <h2 className="bg-gray-700 px-4 py-4 text-center font-bold text-gray-100">
+        Band Office 🏢
+      </h2>
 
-      {notices.length > 0 && (
-        <ul className="mt-3 space-y-1">
-          {notices.map((notice) => {
-            const hasBathroomSuffix = notice.endsWith(BATHROOM_NOTICE_SUFFIX);
+      <div className="p-4">
+        {notices.length > 0 && (
+          <ul className="mt-3 space-y-1">
+            {notices.map((notice) => {
+              const hasBathroomSuffix = notice.endsWith(BATHROOM_NOTICE_SUFFIX);
 
-            if (!hasBathroomSuffix) {
+              if (!hasBathroomSuffix) {
+                return (
+                  <li key={notice} className="font-normal text-pink-700">
+                    {notice}
+                  </li>
+                );
+              }
+
+              const prefix = notice.slice(0, -BATHROOM_NOTICE_SUFFIX.length);
+
               return (
                 <li key={notice} className="font-normal text-pink-700">
-                  {notice}
+                  <span
+                    className={[
+                      "inline-block rounded px-1 font-medium",
+                      bathBadgeStyle ? bathBadgeStyle.badgeClass : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                  >
+                    {prefix}
+                  </span>
+                  {BATHROOM_NOTICE_SUFFIX}
                 </li>
               );
-            }
+            })}
+          </ul>
+        )}
 
-            const prefix = notice.slice(0, -BATHROOM_NOTICE_SUFFIX.length);
+        <ul className="mt-3 space-y-1">
+          {assignments
+            .filter((assignment) => assignment.initials !== "")
+            .map((assignment) => {
+              const necessaryJobStyle = getNecessaryJobStyle(assignment.jobId);
 
-            return (
-              <li key={notice} className="font-normal text-pink-700">
-                <span
-                  className={[
-                    "inline-block rounded px-1 font-medium",
-                    bathBadgeStyle ? bathBadgeStyle.badgeClass : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                >
-                  {prefix}
-                </span>
-                {BATHROOM_NOTICE_SUFFIX}
-              </li>
-            );
-          })}
+              return (
+                <li key={assignment.jobId}>
+                  <span
+                    className={[
+                      "inline-block rounded px-1 font-medium",
+                      necessaryJobStyle ? necessaryJobStyle.badgeClass : "",
+                      assignment.index >= 0 &&
+                      weeklyReassignmentFlags[selectedDay]?.[assignment.index]
+                        ? "text-pink-700"
+                        : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                  >
+                    {assignment.initials}
+                  </span>{" "}
+                  <span
+                    className={
+                      assignment.index >= 0 &&
+                      weeklyReassignmentFlags[selectedDay]?.[assignment.index]
+                        ? "text-pink-700"
+                        : ""
+                    }
+                  >
+                    {assignment.label}
+                  </span>
+                </li>
+              );
+            })}
         </ul>
-      )}
-
-      <ul className="mt-3 space-y-1">
-        {assignments
-          .filter((assignment) => assignment.initials !== "")
-          .map((assignment) => {
-            const necessaryJobStyle = getNecessaryJobStyle(assignment.jobId);
-
-            return (
-              <li key={assignment.jobId}>
-                <span
-                  className={[
-                    "inline-block rounded px-1 font-medium",
-                    necessaryJobStyle ? necessaryJobStyle.badgeClass : "",
-                    assignment.index >= 0 &&
-                    weeklyReassignmentFlags[selectedDay]?.[assignment.index]
-                      ? "text-pink-700"
-                      : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                >
-                  {assignment.initials}
-                </span>{" "}
-                <span
-                  className={
-                    assignment.index >= 0 &&
-                    weeklyReassignmentFlags[selectedDay]?.[assignment.index]
-                      ? "text-pink-700"
-                      : ""
-                  }
-                >
-                  {assignment.label}
-                </span>
-              </li>
-            );
-          })}
-      </ul>
+      </div>
     </article>
   );
 };

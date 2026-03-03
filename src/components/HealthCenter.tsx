@@ -27,48 +27,53 @@ const HealthCenter = () => {
   });
 
   return (
-    <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg p-4 bg-linear-to-b from-gray-500 from-40% to-gray-200 to-40%">
-      <h2 className="text-center font-bold text-gray-100">Health Center 🩺</h2>
+    <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg bg-gray-200">
+      <h2 className="bg-gray-700 px-4 py-4 text-center font-bold text-gray-100">
+        Health Center 🩺
+      </h2>
 
-      <ul className="mt-3 space-y-1">
-        {assignments
-          .filter(
-            (assignment) =>
-              assignment.initials !== "" && Boolean(assignment.label),
-          )
-          .map((assignment) => {
-            const isReassigned =
-              assignment.index >= 0 &&
-              Boolean(weeklyReassignmentFlags[selectedDay]?.[assignment.index]);
-            const baselineLabel = getHealthCenterAssignmentsForDay(
-              assignment.jobId,
-              8,
-            );
-            const isStaffingChanged = assignment.label !== baselineLabel;
-            const shouldHighlight = isReassigned || isStaffingChanged;
-            const necessaryJobStyle = getNecessaryJobStyle(assignment.jobId);
+      <div className="p-4">
+        <ul className="mt-3 space-y-1">
+          {assignments
+            .filter(
+              (assignment) =>
+                assignment.initials !== "" && Boolean(assignment.label),
+            )
+            .map((assignment) => {
+              const isReassigned =
+                assignment.index >= 0 &&
+                Boolean(
+                  weeklyReassignmentFlags[selectedDay]?.[assignment.index],
+                );
+              const baselineLabel = getHealthCenterAssignmentsForDay(
+                assignment.jobId,
+                8,
+              );
+              const isStaffingChanged = assignment.label !== baselineLabel;
+              const shouldHighlight = isReassigned || isStaffingChanged;
+              const necessaryJobStyle = getNecessaryJobStyle(assignment.jobId);
 
-            return (
-              <li key={assignment.jobId}>
-                <span
-                  className={[
-                    "inline-block rounded px-1 font-medium",
-                    necessaryJobStyle ? necessaryJobStyle.badgeClass : "",
-                    shouldHighlight ? "text-pink-700" : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                >
-                  {assignment.initials}
-                </span>
-                {" "}
-                <span className={shouldHighlight ? "text-pink-700" : ""}>
-                  {assignment.label}
-                </span>
-              </li>
-            );
-          })}
-      </ul>
+              return (
+                <li key={assignment.jobId}>
+                  <span
+                    className={[
+                      "inline-block rounded px-1 font-medium",
+                      necessaryJobStyle ? necessaryJobStyle.badgeClass : "",
+                      shouldHighlight ? "text-pink-700" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                  >
+                    {assignment.initials}
+                  </span>{" "}
+                  <span className={shouldHighlight ? "text-pink-700" : ""}>
+                    {assignment.label}
+                  </span>
+                </li>
+              );
+            })}
+        </ul>
+      </div>
     </article>
   );
 };

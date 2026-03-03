@@ -252,84 +252,90 @@ const Daycare = () => {
   const missingAreasText = formatMissingAreas(missingAreas);
 
   return (
-    <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg p-4 bg-linear-to-b from-gray-500 from-17% to-gray-200 to-17%">
-      <h2 className="text-center font-bold text-gray-100">Daycare 🧸</h2>
+    <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg bg-gray-200">
+      <h2 className="bg-gray-700 px-4 py-4 text-center font-bold text-gray-100">
+        Daycare 🧸
+      </h2>
 
-      {missingAreas.length > 0 && (
-        <h3 className="font-semibold text-pink-700">
-          {`${missingAreasText} ${missingAreas.length === 1 ? "needs" : "need"} to be assigned`}
-        </h3>
-      )}
+      <div className="p-4">
+        {missingAreas.length > 0 && (
+          <h3 className="font-semibold text-pink-700">
+            {`${missingAreasText} ${missingAreas.length === 1 ? "needs" : "need"} to be assigned`}
+          </h3>
+        )}
 
-      <DndContext
-        sensors={sensors}
-        onDragStart={onDragStart}
-        onDragEnd={onDragEnd}
-        onDragCancel={onDragCancel}
-      >
-        <ul className="mt-3 space-y-1">
-          {assignments
-            .filter((assignment) => assignment.initials !== "")
-            .map((assignment) => {
-              const jobIndex = JOBS.indexOf(assignment.job);
-              const isReassigned =
-                jobIndex >= 0 &&
-                Boolean(daycareReassignmentFlags[selectedDay]?.[jobIndex]);
-              const baselineLabel = getDaycareJobLabel(assignment.job, 8);
-              const isAreaChanged = assignment.label !== baselineLabel;
-              const shouldHighlightLabel = isReassigned || isAreaChanged;
-              const necessaryJobStyle = getNecessaryJobStyle(assignment.job);
-              const badgeClassName = [
-                "inline-block rounded px-1 font-medium",
-                necessaryJobStyle ? necessaryJobStyle.badgeClass : "",
-                isReassigned ? "text-pink-700" : "",
-              ]
-                .filter(Boolean)
-                .join(" ");
+        <DndContext
+          sensors={sensors}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          onDragCancel={onDragCancel}
+        >
+          <ul className="mt-3 space-y-1">
+            {assignments
+              .filter((assignment) => assignment.initials !== "")
+              .map((assignment) => {
+                const jobIndex = JOBS.indexOf(assignment.job);
+                const isReassigned =
+                  jobIndex >= 0 &&
+                  Boolean(daycareReassignmentFlags[selectedDay]?.[jobIndex]);
+                const baselineLabel = getDaycareJobLabel(assignment.job, 8);
+                const isAreaChanged = assignment.label !== baselineLabel;
+                const shouldHighlightLabel = isReassigned || isAreaChanged;
+                const necessaryJobStyle = getNecessaryJobStyle(assignment.job);
+                const badgeClassName = [
+                  "inline-block rounded px-1 font-medium",
+                  necessaryJobStyle ? necessaryJobStyle.badgeClass : "",
+                  isReassigned ? "text-pink-700" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ");
 
-              if (jobIndex < 0) {
+                if (jobIndex < 0) {
+                  return (
+                    <li key={assignment.job}>
+                      <span className={badgeClassName}>
+                        {assignment.initials}
+                      </span>{" "}
+                      <span
+                        className={shouldHighlightLabel ? "text-pink-700" : ""}
+                      >
+                        {assignment.label}
+                      </span>
+                    </li>
+                  );
+                }
+
                 return (
-                  <li key={assignment.job}>
-                    <span className={badgeClassName}>
-                      {assignment.initials}
-                    </span>{" "}
+                  <DaycareDroppableRow
+                    key={assignment.job}
+                    day={selectedDay}
+                    jobIndex={jobIndex}
+                  >
+                    <DaycareDraggableBadge
+                      day={selectedDay}
+                      jobIndex={jobIndex}
+                      initials={assignment.initials}
+                      className={badgeClassName}
+                    />{" "}
                     <span
                       className={shouldHighlightLabel ? "text-pink-700" : ""}
                     >
                       {assignment.label}
                     </span>
-                  </li>
+                  </DaycareDroppableRow>
                 );
-              }
+              })}
+          </ul>
 
-              return (
-                <DaycareDroppableRow
-                  key={assignment.job}
-                  day={selectedDay}
-                  jobIndex={jobIndex}
-                >
-                  <DaycareDraggableBadge
-                    day={selectedDay}
-                    jobIndex={jobIndex}
-                    initials={assignment.initials}
-                    className={badgeClassName}
-                  />{" "}
-                  <span className={shouldHighlightLabel ? "text-pink-700" : ""}>
-                    {assignment.label}
-                  </span>
-                </DaycareDroppableRow>
-              );
-            })}
-        </ul>
-
-        <DragOverlay>
-          {activeInitials ? (
-            <div className="rounded-md border border-gray-600 bg-gray-100 px-2 py-1 text-sm shadow-md opacity-95">
-              {activeInitials}
-            </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+          <DragOverlay>
+            {activeInitials ? (
+              <div className="rounded-md border border-gray-600 bg-gray-100 px-2 py-1 text-sm shadow-md opacity-95">
+                {activeInitials}
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+      </div>
     </article>
   );
 };
