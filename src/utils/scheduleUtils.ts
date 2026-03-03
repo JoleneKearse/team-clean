@@ -12,7 +12,6 @@ function rotate<T>(arr: readonly T[], shiftDown: number): T[] {
 }
 
 const BACKFILL_PRIORITY: readonly JobId[] = ["Flo3", "Flo2", "Flo1"];
-const FLOAT_JOBS: readonly JobId[] = ["Flo1", "Flo2", "Flo3"];
 
 function normalizePeopleIn(peopleIn: number): number {
   return Math.max(0, Math.min(8, peopleIn));
@@ -25,7 +24,7 @@ export function getDaycareJobLabel(jobId: JobId, peopleIn: number): string {
     case "Bath":
       return "Bathrooms";
     case "Vac":
-      return "P1 & outside doorway";
+      return "P1 & playground doorway";
     case "SW":
       return "P2";
     case "San":
@@ -277,60 +276,49 @@ export function generateWeeklyAssignments(
         });
     }
 
-    const missingNecessaryIndexes = jobs
+    const lockedIndexes = new Set<number>();
+
+    const findDonorIndex = (targetIndex: number) => {
+      for (const jobId of BACKFILL_PRIORITY) {
+        const index = jobs.indexOf(jobId);
+        if (index < 0) continue;
+        if (index === targetIndex) continue;
+        if (lockedIndexes.has(index)) continue;
+        if (!nextAssignments[index]) continue;
+
+        return index;
+      }
+
+      return -1;
+    };
+
+    const moveFromFloatDonor = (targetIndexes: number[]) => {
+      targetIndexes.forEach((targetIndex) => {
+        if (nextAssignments[targetIndex]) return;
+
+        const donorIndex = findDonorIndex(targetIndex);
+        if (donorIndex < 0) return;
+
+        nextAssignments[targetIndex] = nextAssignments[donorIndex];
+        nextAssignments[donorIndex] = "";
+        lockedIndexes.add(targetIndex);
+      });
+    };
+
+    const floatBackfillTargetIndexes = (["Flo1", "Flo2"] as const)
+      .map((jobId) => jobs.indexOf(jobId))
+      .filter((index) => index >= 0 && !nextAssignments[index]);
+
+    moveFromFloatDonor(floatBackfillTargetIndexes);
+
+    const necessaryBackfillTargetIndexes = jobs
       .map((jobId, index) => ({ jobId, index }))
       .filter(
         ({ jobId, index }) => isNecessaryJob(jobId) && !nextAssignments[index],
-      );
+      )
+      .map(({ index }) => index);
 
-    const donorIndexes = BACKFILL_PRIORITY.flatMap((jobId) => {
-      const index = jobs.indexOf(jobId);
-      if (index < 0) return [];
-      return nextAssignments[index] ? [index] : [];
-    });
-
-    const unfilledNecessaryIndexes = missingNecessaryIndexes.map(
-      ({ index }) => index,
-    );
-
-    donorIndexes.forEach((donorIndex) => {
-      if (unfilledNecessaryIndexes.length === 0) return;
-
-      const targetIndex = unfilledNecessaryIndexes.reduce((best, candidate) => {
-        const bestDistance = Math.abs(best - donorIndex);
-        const candidateDistance = Math.abs(candidate - donorIndex);
-
-        if (candidateDistance < bestDistance) return candidate;
-        if (candidateDistance > bestDistance) return best;
-
-        return candidate < best ? candidate : best;
-      }, unfilledNecessaryIndexes[0]);
-
-      nextAssignments[targetIndex] = nextAssignments[donorIndex];
-      nextAssignments[donorIndex] = "";
-
-      const filledIndex = unfilledNecessaryIndexes.indexOf(targetIndex);
-      unfilledNecessaryIndexes.splice(filledIndex, 1);
-    });
-
-    const allNecessaryCovered = jobs
-      .map((jobId, index) => ({ jobId, index }))
-      .filter(({ jobId }) => isNecessaryJob(jobId))
-      .every(({ index }) => Boolean(nextAssignments[index]));
-
-    if (allNecessaryCovered) {
-      const floatIndexes = FLOAT_JOBS.map((jobId) =>
-        jobs.indexOf(jobId),
-      ).filter((index) => index >= 0);
-
-      const presentFloatAssignments = floatIndexes
-        .map((index) => nextAssignments[index])
-        .filter((initials): initials is string => Boolean(initials));
-
-      floatIndexes.forEach((index, order) => {
-        nextAssignments[index] = presentFloatAssignments[order] ?? "";
-      });
-    }
+    moveFromFloatDonor(necessaryBackfillTargetIndexes);
 
     return nextAssignments;
   };
