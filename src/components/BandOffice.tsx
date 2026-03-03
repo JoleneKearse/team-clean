@@ -5,6 +5,7 @@ import { getBandOfficeAssignmentsForDay } from "../utils/scheduleUtils";
 import type { JobId } from "../types/types";
 
 const BAND_OFFICE_JOBS: readonly JobId[] = ["Flo1", "Flo2", "Flo3"];
+const BATHROOM_NOTICE_SUFFIX = " needs to do all the bathrooms.";
 
 function getBandOfficeNotices(
   peopleIn: number,
@@ -37,6 +38,7 @@ const BandOffice = () => {
   const bathIndex = JOBS.indexOf("Bath");
   const bathInitials = bathIndex >= 0 ? (dayAssignments[bathIndex] ?? "") : "";
   const notices = getBandOfficeNotices(peopleIn, bathInitials);
+  const bathBadgeStyle = getNecessaryJobStyle("Bath");
 
   const assignments = BAND_OFFICE_JOBS.map((jobId) => {
     const index = JOBS.indexOf(jobId);
@@ -55,11 +57,35 @@ const BandOffice = () => {
 
       {notices.length > 0 && (
         <ul className="mt-3 space-y-1">
-          {notices.map((notice) => (
-            <li key={notice} className="font-semibold text-pink-700">
-              {notice}
-            </li>
-          ))}
+          {notices.map((notice) => {
+            const hasBathroomSuffix = notice.endsWith(BATHROOM_NOTICE_SUFFIX);
+
+            if (!hasBathroomSuffix) {
+              return (
+                <li key={notice} className="font-normal text-pink-700">
+                  {notice}
+                </li>
+              );
+            }
+
+            const prefix = notice.slice(0, -BATHROOM_NOTICE_SUFFIX.length);
+
+            return (
+              <li key={notice} className="font-normal text-pink-700">
+                <span
+                  className={[
+                    "inline-block rounded px-1 font-medium",
+                    bathBadgeStyle ? bathBadgeStyle.badgeClass : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  {prefix}
+                </span>
+                {BATHROOM_NOTICE_SUFFIX}
+              </li>
+            );
+          })}
         </ul>
       )}
 
@@ -84,8 +110,7 @@ const BandOffice = () => {
                     .join(" ")}
                 >
                   {assignment.initials}
-                </span>
-                {" "}
+                </span>{" "}
                 <span
                   className={
                     assignment.index >= 0 &&
