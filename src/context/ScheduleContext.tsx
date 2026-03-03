@@ -22,6 +22,8 @@ interface ScheduleContextType {
   weeklyReassignmentFlags: WeeklyReassignmentFlags;
   buildingWeeklyAssignments: Record<DayKey, string[]>;
   buildingReassignmentFlags: WeeklyReassignmentFlags;
+  daycareWeeklyAssignments: Record<DayKey, string[]>;
+  daycareReassignmentFlags: WeeklyReassignmentFlags;
   presentCleaners: CleanerId[];
   setPresentCleaners: React.Dispatch<React.SetStateAction<CleanerId[]>>;
   peopleIn: number;
@@ -37,6 +39,11 @@ interface ScheduleContextType {
     fromJobIndex: number,
     toJobIndex: number,
   ) => void;
+  moveDaycareAssignment: (
+    day: DayKey,
+    fromJobIndex: number,
+    toJobIndex: number,
+  ) => void;
 }
 
 const STORAGE_KEY = "team-clean:schedule-state";
@@ -48,6 +55,7 @@ type SwapOperation = {
 };
 type SwapOperationsByDay = Record<DayKey, SwapOperation[]>;
 type BuildingMoveOperationsByDay = Record<DayKey, SwapOperation[]>;
+type DaycareMoveOperationsByDay = Record<DayKey, SwapOperation[]>;
 
 interface PersistedScheduleState {
   date: string;
@@ -55,6 +63,7 @@ interface PersistedScheduleState {
   presentCleanersByDay: PresentCleanersByDay;
   swapOperationsByDay: SwapOperationsByDay;
   buildingMoveOperationsByDay: BuildingMoveOperationsByDay;
+  daycareMoveOperationsByDay: DaycareMoveOperationsByDay;
 }
 
 function getDefaultPresentCleanersByDay(): PresentCleanersByDay {
@@ -78,6 +87,16 @@ function getDefaultSwapOperationsByDay(): SwapOperationsByDay {
 }
 
 function getDefaultBuildingMoveOperationsByDay(): BuildingMoveOperationsByDay {
+  return {
+    mon: [],
+    tue: [],
+    wed: [],
+    thu: [],
+    fri: [],
+  };
+}
+
+function getDefaultDaycareMoveOperationsByDay(): DaycareMoveOperationsByDay {
   return {
     mon: [],
     tue: [],
@@ -216,6 +235,7 @@ function loadPersistedScheduleState(
   | "presentCleanersByDay"
   | "swapOperationsByDay"
   | "buildingMoveOperationsByDay"
+  | "daycareMoveOperationsByDay"
 > | null {
   if (typeof window === "undefined") return null;
 
@@ -247,6 +267,10 @@ function loadPersistedScheduleState(
       ),
       buildingMoveOperationsByDay: normalizeSwapOperationsByDay(
         parsed.buildingMoveOperationsByDay,
+        JOBS.length,
+      ),
+      daycareMoveOperationsByDay: normalizeSwapOperationsByDay(
+        parsed.daycareMoveOperationsByDay,
         JOBS.length,
       ),
     };
@@ -288,6 +312,11 @@ export const ScheduleProvider = ({
     useState<BuildingMoveOperationsByDay>(
       persistedScheduleState?.buildingMoveOperationsByDay ??
         getDefaultBuildingMoveOperationsByDay(),
+    );
+  const [daycareMoveOperationsByDay, setDaycareMoveOperationsByDay] =
+    useState<DaycareMoveOperationsByDay>(
+      persistedScheduleState?.daycareMoveOperationsByDay ??
+        getDefaultDaycareMoveOperationsByDay(),
     );
 
   const presentCleaners = presentCleanersByDay[selectedDay];
@@ -406,6 +435,41 @@ export const ScheduleProvider = ({
     [buildingWeeklyAssignments, weeklyAssignments],
   );
 
+  const daycareWeeklyAssignments = useMemo(
+    () => ({
+      mon: applyDaySwapOperations(
+        weeklyAssignments.mon,
+        daycareMoveOperationsByDay.mon,
+      ),
+      tue: applyDaySwapOperations(
+        weeklyAssignments.tue,
+        daycareMoveOperationsByDay.tue,
+      ),
+      wed: applyDaySwapOperations(
+        weeklyAssignments.wed,
+        daycareMoveOperationsByDay.wed,
+      ),
+      thu: applyDaySwapOperations(
+        weeklyAssignments.thu,
+        daycareMoveOperationsByDay.thu,
+      ),
+      fri: applyDaySwapOperations(
+        weeklyAssignments.fri,
+        daycareMoveOperationsByDay.fri,
+      ),
+    }),
+    [daycareMoveOperationsByDay, weeklyAssignments],
+  );
+
+  const daycareReassignmentFlags = useMemo(
+    () =>
+      getWeeklyReassignmentFlags({
+        baseAssignments: weeklyAssignments,
+        adjustedAssignments: daycareWeeklyAssignments,
+      }),
+    [daycareWeeklyAssignments, weeklyAssignments],
+  );
+
   const swapAssignments = (
     day: DayKey,
     fromJobIndex: number,
@@ -452,6 +516,29 @@ export const ScheduleProvider = ({
     }));
   };
 
+  const moveDaycareAssignment = (
+    day: DayKey,
+    fromJobIndex: number,
+    toJobIndex: number,
+  ) => {
+    if (
+      !Number.isInteger(fromJobIndex) ||
+      !Number.isInteger(toJobIndex) ||
+      fromJobIndex < 0 ||
+      toJobIndex < 0 ||
+      fromJobIndex >= JOBS.length ||
+      toJobIndex >= JOBS.length ||
+      fromJobIndex === toJobIndex
+    ) {
+      return;
+    }
+
+    setDaycareMoveOperationsByDay((current) => ({
+      ...current,
+      [day]: [...current[day], { fromJobIndex, toJobIndex }],
+    }));
+  };
+
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -461,11 +548,13 @@ export const ScheduleProvider = ({
       presentCleanersByDay,
       swapOperationsByDay,
       buildingMoveOperationsByDay,
+      daycareMoveOperationsByDay,
     };
 
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   }, [
     buildingMoveOperationsByDay,
+    daycareMoveOperationsByDay,
     presentCleanersByDay,
     selectedDay,
     swapOperationsByDay,
@@ -480,6 +569,8 @@ export const ScheduleProvider = ({
         weeklyReassignmentFlags,
         buildingWeeklyAssignments,
         buildingReassignmentFlags,
+        daycareWeeklyAssignments,
+        daycareReassignmentFlags,
         presentCleaners,
         setPresentCleaners,
         peopleIn,
@@ -487,6 +578,7 @@ export const ScheduleProvider = ({
         setSelectedDay,
         swapAssignments,
         moveBuildingAssignment,
+        moveDaycareAssignment,
       }}
     >
       {children}
