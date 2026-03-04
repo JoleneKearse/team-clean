@@ -44,6 +44,7 @@ interface ScheduleContextType {
     fromJobIndex: number,
     toJobIndex: number,
   ) => void;
+  resetScheduleState: () => void;
 }
 
 const STORAGE_KEY = "team-clean:schedule-state";
@@ -539,6 +540,18 @@ export const ScheduleProvider = ({
     }));
   };
 
+  const resetScheduleState = () => {
+    setSelectedDay(todayDayKey);
+    setPresentCleanersByDay(getDefaultPresentCleanersByDay());
+    setSwapOperationsByDay(getDefaultSwapOperationsByDay());
+    setBuildingMoveOperationsByDay(getDefaultBuildingMoveOperationsByDay());
+    setDaycareMoveOperationsByDay(getDefaultDaycareMoveOperationsByDay());
+
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(STORAGE_KEY);
+    }
+  };
+
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -579,6 +592,7 @@ export const ScheduleProvider = ({
         swapAssignments,
         moveBuildingAssignment,
         moveDaycareAssignment,
+        resetScheduleState,
       }}
     >
       {children}

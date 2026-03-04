@@ -87,12 +87,14 @@ type BuildingDraggableInitialsProps = {
   day: DayKey;
   jobIndex: number;
   initials: string;
+  isEditMode: boolean;
 };
 
 function BuildingDraggableInitials({
   day,
   jobIndex,
   initials,
+  isEditMode,
 }: BuildingDraggableInitialsProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
@@ -103,7 +105,7 @@ function BuildingDraggableInitials({
         jobIndex,
         initials,
       } as DragAssignmentPayload,
-      disabled: !initials,
+      disabled: !initials || !isEditMode,
     });
 
   return (
@@ -112,9 +114,13 @@ function BuildingDraggableInitials({
       style={{
         transform: CSS.Transform.toString(transform),
         opacity: isDragging ? 0.35 : 1,
-        touchAction: "none",
+        touchAction: isEditMode ? "none" : "auto",
       }}
-      className={initials ? "cursor-grab active:cursor-grabbing" : undefined}
+      className={
+        initials && isEditMode
+          ? "cursor-grab active:cursor-grabbing"
+          : undefined
+      }
       {...listeners}
       {...attributes}
     >
@@ -126,6 +132,7 @@ function BuildingDraggableInitials({
 type BuildingDroppableCellProps = {
   day: DayKey;
   jobIndex: number;
+  isEditMode: boolean;
   className: string;
   children: React.ReactNode;
 };
@@ -133,6 +140,7 @@ type BuildingDroppableCellProps = {
 function BuildingDroppableCell({
   day,
   jobIndex,
+  isEditMode,
   className,
   children,
 }: BuildingDroppableCellProps) {
@@ -142,6 +150,7 @@ function BuildingDroppableCell({
       day,
       jobIndex,
     } as DropPayload,
+    disabled: !isEditMode,
   });
 
   return (
@@ -156,7 +165,11 @@ function BuildingDroppableCell({
   );
 }
 
-const Buildings = () => {
+type BuildingsProps = {
+  isEditMode: boolean;
+};
+
+const Buildings = ({ isEditMode }: BuildingsProps) => {
   const {
     selectedDay,
     buildingWeeklyAssignments,
@@ -178,12 +191,15 @@ const Buildings = () => {
   );
 
   const onDragStart = (event: DragStartEvent) => {
+    if (!isEditMode) return;
+
     const source = parseDragPayload(event.active.data.current);
     setActiveInitials(source?.initials ?? "");
   };
 
   const onDragEnd = (event: DragEndEvent) => {
     setActiveInitials("");
+    if (!isEditMode) return;
 
     if (!event.over) return;
 
@@ -211,148 +227,153 @@ const Buildings = () => {
       onDragEnd={onDragEnd}
       onDragCancel={onDragCancel}
     >
-      <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg bg-gray-200">
-        <h2 className="relative bg-gray-700 px-4 py-4 text-center font-bold text-gray-100">
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-3xl leading-none"
-          >
-            🏗️
-          </span>
-          Buildings
-        </h2>
+      <div className="relative w-full">
+        <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg bg-gray-200">
+          <h2 className="relative bg-gray-700 px-4 py-4 text-center font-bold text-gray-100">
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-3xl leading-none"
+            >
+              🏗️
+            </span>
+            Buildings
+          </h2>
 
-        <div className="space-y-2 p-4">
-          {BUILDINGS.map((building) => {
-            const assignments = getBuildingAssignmentsForDay({
-              day: selectedDay,
-              jobs: JOBS,
-              weeklyAssignments: buildingWeeklyAssignments,
-              buildingJobs: building.jobIds,
-            });
-            const uniqueAssignedCleaners = new Set(
-              assignments
-                .map((assignment) => assignment.initials)
-                .filter((initials) => initials !== ""),
-            );
-            const hasOnlyOneAssignedCleaner = uniqueAssignedCleaners.size === 1;
+          <div className="space-y-2 p-4">
+            {BUILDINGS.map((building) => {
+              const assignments = getBuildingAssignmentsForDay({
+                day: selectedDay,
+                jobs: JOBS,
+                weeklyAssignments: buildingWeeklyAssignments,
+                buildingJobs: building.jobIds,
+              });
+              const uniqueAssignedCleaners = new Set(
+                assignments
+                  .map((assignment) => assignment.initials)
+                  .filter((initials) => initials !== ""),
+              );
+              const hasOnlyOneAssignedCleaner =
+                uniqueAssignedCleaners.size === 1;
 
-            return (
-              <section key={building.key}>
-                <h3
-                  className={[
-                    "font-semibold",
-                    hasOnlyOneAssignedCleaner ? "text-pink-700" : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                >
-                  {hasOnlyOneAssignedCleaner
-                    ? `${building.label} needs another cleaner`
-                    : building.label}
-                </h3>
-                <div className="mt-1 rounded-xl overflow-hidden border ">
-                  <table className="w-full text-center border-collapse">
-                    <tbody>
-                      <tr>
-                        {assignments.map((assignment) => {
-                          const jobIndex = JOBS.indexOf(assignment.job);
-                          const necessaryJobStyle = getNecessaryJobStyle(
-                            assignment.job,
-                          );
-                          const isReassigned =
-                            jobIndex >= 0 &&
-                            Boolean(
-                              buildingReassignmentFlags[selectedDay]?.[
-                                jobIndex
-                              ],
+              return (
+                <section key={building.key}>
+                  <h3
+                    className={[
+                      "font-semibold",
+                      hasOnlyOneAssignedCleaner ? "text-pink-700" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                  >
+                    {hasOnlyOneAssignedCleaner
+                      ? `${building.label} needs another cleaner`
+                      : building.label}
+                  </h3>
+                  <div className="mt-1 rounded-xl overflow-hidden border ">
+                    <table className="w-full text-center border-collapse">
+                      <tbody>
+                        <tr>
+                          {assignments.map((assignment) => {
+                            const jobIndex = JOBS.indexOf(assignment.job);
+                            const necessaryJobStyle = getNecessaryJobStyle(
+                              assignment.job,
                             );
+                            const isReassigned =
+                              jobIndex >= 0 &&
+                              Boolean(
+                                buildingReassignmentFlags[selectedDay]?.[
+                                  jobIndex
+                                ],
+                              );
 
-                          return (
-                            <td
-                              key={`${assignment.job}-job`}
-                              className={[
-                                "italic border border-gray-400 px-2 py-1",
-                                necessaryJobStyle
-                                  ? necessaryJobStyle.solidClass
-                                  : "",
-                                hasOnlyOneAssignedCleaner &&
-                                assignment.initials === ""
-                                  ? "text-pink-700"
-                                  : "",
-                                isReassigned
-                                  ? "text-pink-700 pink-change-contrast"
-                                  : "",
-                              ]
-                                .filter(Boolean)
-                                .join(" ")}
-                            >
-                              {assignment.job}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                      <tr>
-                        {assignments.map((assignment) => {
-                          const jobIndex = JOBS.indexOf(assignment.job);
-                          const necessaryJobStyle = getNecessaryJobStyle(
-                            assignment.job,
-                          );
-                          const isReassigned =
-                            jobIndex >= 0 &&
-                            Boolean(
-                              buildingReassignmentFlags[selectedDay]?.[
-                                jobIndex
-                              ],
+                            return (
+                              <td
+                                key={`${assignment.job}-job`}
+                                className={[
+                                  "italic border border-gray-400 px-2 py-1",
+                                  necessaryJobStyle
+                                    ? necessaryJobStyle.solidClass
+                                    : "",
+                                  hasOnlyOneAssignedCleaner &&
+                                  assignment.initials === ""
+                                    ? "text-pink-700"
+                                    : "",
+                                  isReassigned
+                                    ? "text-pink-700 pink-change-contrast"
+                                    : "",
+                                ]
+                                  .filter(Boolean)
+                                  .join(" ")}
+                              >
+                                {assignment.job}
+                              </td>
                             );
+                          })}
+                        </tr>
+                        <tr>
+                          {assignments.map((assignment) => {
+                            const jobIndex = JOBS.indexOf(assignment.job);
+                            const necessaryJobStyle = getNecessaryJobStyle(
+                              assignment.job,
+                            );
+                            const isReassigned =
+                              jobIndex >= 0 &&
+                              Boolean(
+                                buildingReassignmentFlags[selectedDay]?.[
+                                  jobIndex
+                                ],
+                              );
 
-                          return (
-                            <BuildingDroppableCell
-                              key={`${assignment.job}-cleaner`}
-                              day={selectedDay}
-                              jobIndex={jobIndex}
-                              className={[
-                                "border border-gray-400 px-2 py-1",
-                                hasOnlyOneAssignedCleaner &&
-                                assignment.initials === ""
-                                  ? "bg-pink-100"
-                                  : necessaryJobStyle
-                                    ? necessaryJobStyle.lineBgClass
-                                    : "bg-gray-100",
-                                necessaryJobStyle
-                                  ? necessaryJobStyle.textClass
-                                  : "",
-                                isReassigned
-                                  ? "text-pink-700 pink-change-contrast"
-                                  : "",
-                              ]
-                                .filter(Boolean)
-                                .join(" ")}
-                            >
-                              {jobIndex >= 0 ? (
-                                <BuildingDraggableInitials
-                                  day={selectedDay}
-                                  jobIndex={jobIndex}
-                                  initials={assignment.initials}
-                                />
-                              ) : (
-                                assignment.initials
-                              )}
-                            </BuildingDroppableCell>
-                          );
-                        })}
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            );
-          })}
-        </div>
-      </article>
+                            return (
+                              <BuildingDroppableCell
+                                key={`${assignment.job}-cleaner`}
+                                day={selectedDay}
+                                jobIndex={jobIndex}
+                                isEditMode={isEditMode}
+                                className={[
+                                  "border border-gray-400 px-2 py-1",
+                                  hasOnlyOneAssignedCleaner &&
+                                  assignment.initials === ""
+                                    ? "bg-pink-100"
+                                    : necessaryJobStyle
+                                      ? necessaryJobStyle.lineBgClass
+                                      : "bg-gray-100",
+                                  necessaryJobStyle
+                                    ? necessaryJobStyle.textClass
+                                    : "",
+                                  isReassigned
+                                    ? "text-pink-700 pink-change-contrast"
+                                    : "",
+                                ]
+                                  .filter(Boolean)
+                                  .join(" ")}
+                              >
+                                {jobIndex >= 0 ? (
+                                  <BuildingDraggableInitials
+                                    day={selectedDay}
+                                    jobIndex={jobIndex}
+                                    initials={assignment.initials}
+                                    isEditMode={isEditMode}
+                                  />
+                                ) : (
+                                  assignment.initials
+                                )}
+                              </BuildingDroppableCell>
+                            );
+                          })}
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        </article>
+      </div>
 
       <DragOverlay>
-        {activeInitials ? (
+        {isEditMode && activeInitials ? (
           <div className="rounded-md border border-gray-600 bg-gray-100 px-2 py-1 text-sm shadow-md opacity-95">
             {activeInitials}
           </div>

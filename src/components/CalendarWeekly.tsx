@@ -20,6 +20,7 @@ import type { DayKey } from "../types/types";
 
 type CalendarWeeklyProps = {
   highlightedDayKey: DayKey;
+  isEditMode: boolean;
 };
 
 type DragAssignmentPayload = {
@@ -90,6 +91,7 @@ type CalendarDraggableInitialsProps = {
   day: DayKey;
   jobIndex: number;
   initials: string;
+  isEditMode: boolean;
   className?: string;
 };
 
@@ -97,6 +99,7 @@ function CalendarDraggableInitials({
   day,
   jobIndex,
   initials,
+  isEditMode,
   className,
 }: CalendarDraggableInitialsProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
@@ -108,13 +111,13 @@ function CalendarDraggableInitials({
         jobIndex,
         initials,
       } as DragAssignmentPayload,
-      disabled: !initials,
+      disabled: !initials || !isEditMode,
     });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     opacity: isDragging ? 0.35 : 1,
-    touchAction: "none" as const,
+    touchAction: isEditMode ? ("none" as const) : ("auto" as const),
   };
 
   return (
@@ -123,7 +126,7 @@ function CalendarDraggableInitials({
       style={style}
       className={[
         className ?? "",
-        initials ? "cursor-grab active:cursor-grabbing" : "",
+        initials && isEditMode ? "cursor-grab active:cursor-grabbing" : "",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -138,6 +141,7 @@ function CalendarDraggableInitials({
 type CalendarDroppableCellProps = {
   day: DayKey;
   jobIndex: number;
+  isEditMode: boolean;
   className: string;
   children: React.ReactNode;
 };
@@ -145,6 +149,7 @@ type CalendarDroppableCellProps = {
 function CalendarDroppableCell({
   day,
   jobIndex,
+  isEditMode,
   className,
   children,
 }: CalendarDroppableCellProps) {
@@ -154,6 +159,7 @@ function CalendarDroppableCell({
       day,
       jobIndex,
     } as DropPayload,
+    disabled: !isEditMode,
   });
 
   return (
@@ -168,7 +174,10 @@ function CalendarDroppableCell({
   );
 }
 
-const CalendarWeekly = ({ highlightedDayKey }: CalendarWeeklyProps) => {
+const CalendarWeekly = ({
+  highlightedDayKey,
+  isEditMode,
+}: CalendarWeeklyProps) => {
   const { weeklyAssignments, weeklyReassignmentFlags, swapAssignments } =
     useSchedule();
   const [activeInitials, setActiveInitials] = useState("");
@@ -186,12 +195,15 @@ const CalendarWeekly = ({ highlightedDayKey }: CalendarWeeklyProps) => {
   );
 
   const onDragStart = (event: DragStartEvent) => {
+    if (!isEditMode) return;
+
     const source = parseDragPayload(event.active.data.current);
     setActiveInitials(source?.initials ?? "");
   };
 
   const onDragEnd = (event: DragEndEvent) => {
     setActiveInitials("");
+    if (!isEditMode) return;
 
     if (!event.over) return;
 
@@ -238,108 +250,114 @@ const CalendarWeekly = ({ highlightedDayKey }: CalendarWeeklyProps) => {
         />
         <div className="relative w-full rounded-xl bg-[linear-gradient(to_bottom_right,var(--color-purple-500),var(--color-sky-500),var(--color-lime-500),var(--color-yellow-500),var(--color-orange-500))] p-1.25 shadow-lg">
           <article className="w-full overflow-hidden rounded-lg text-center bg-gray-300">
-          <table className="w-full border-spacing-32">
-          <thead>
-            <tr>
-              <th scope="col" className="w-12 bg-gray-900 py-3 text-gray-100">
-                <span className="sr-only">Jobs</span>
-              </th>
-              {DAYS.map((day) => (
-                <th
-                  key={day.key}
-                  className={
-                    day.key === highlightedDayKey
-                      ? "border-l border-r bg-gray-900 py-3 text-gray-100"
-                      : "bg-gray-900 py-3 text-gray-100"
-                  }
-                >
-                  {day.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-
-          <tbody>
-            {JOBS.map((job, jobIndex) => {
-              const necessaryJobStyle = getNecessaryJobStyle(job);
-
-              return (
-                <tr
-                  key={job}
-                  className={
-                    necessaryJobStyle
-                      ? necessaryJobStyle.lineBgClass
-                      : job.includes("Flo")
-                        ? "bg-[#f3f3f3]"
-                        : ""
-                  }
-                >
-                  <td
-                    className={[
-                      "sticky left-0 font-bold",
-                      necessaryJobStyle ? necessaryJobStyle.solidClass : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
+            <table className="w-full border-spacing-32">
+              <thead>
+                <tr>
+                  <th
+                    scope="col"
+                    className="w-12 bg-gray-900 py-3 text-gray-100"
                   >
-                    {job}
-                  </td>
-
-                  {DAYS.map((day) => {
-                    const isHighlightedDay = day.key === highlightedDayKey;
-                    const isFloJob = job.includes("Flo");
-                    const initials = weeklyAssignments[day.key][jobIndex] ?? "";
-                    const isReassigned = Boolean(
-                      weeklyReassignmentFlags[day.key]?.[jobIndex],
-                    );
-                    const className = [
-                      isHighlightedDay
-                        ? `${
-                            necessaryJobStyle
-                              ? necessaryJobStyle.solidClass
-                              : isFloJob
-                                ? "bg-[#f3f3f3]"
-                                : ""
-                          } border-l border-r border-gray-500`
-                        : "",
-                      !isHighlightedDay && necessaryJobStyle
-                        ? necessaryJobStyle.lineBgClass
-                        : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ");
-
-                    return (
-                      <CalendarDroppableCell
-                        key={day.key}
-                        day={day.key}
-                        jobIndex={jobIndex}
-                        className={className}
-                      >
-                        <CalendarDraggableInitials
-                          day={day.key}
-                          jobIndex={jobIndex}
-                          initials={initials}
-                          className={
-                            isHighlightedDay && isReassigned
-                              ? "text-pink-700 pink-change-contrast"
-                              : ""
-                          }
-                        />
-                      </CalendarDroppableCell>
-                    );
-                  })}
+                    <span className="sr-only">Jobs</span>
+                  </th>
+                  {DAYS.map((day) => (
+                    <th
+                      key={day.key}
+                      className={
+                        day.key === highlightedDayKey
+                          ? "border-l border-r bg-gray-900 py-3 text-gray-100"
+                          : "bg-gray-900 py-3 text-gray-100"
+                      }
+                    >
+                      {day.label}
+                    </th>
+                  ))}
                 </tr>
-              );
-            })}
-          </tbody>
-          </table>
+              </thead>
+
+              <tbody>
+                {JOBS.map((job, jobIndex) => {
+                  const necessaryJobStyle = getNecessaryJobStyle(job);
+
+                  return (
+                    <tr
+                      key={job}
+                      className={
+                        necessaryJobStyle
+                          ? necessaryJobStyle.lineBgClass
+                          : job.includes("Flo")
+                            ? "bg-[#f3f3f3]"
+                            : ""
+                      }
+                    >
+                      <td
+                        className={[
+                          "sticky left-0 font-bold",
+                          necessaryJobStyle ? necessaryJobStyle.solidClass : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                      >
+                        {job}
+                      </td>
+
+                      {DAYS.map((day) => {
+                        const isHighlightedDay = day.key === highlightedDayKey;
+                        const isFloJob = job.includes("Flo");
+                        const initials =
+                          weeklyAssignments[day.key][jobIndex] ?? "";
+                        const isReassigned = Boolean(
+                          weeklyReassignmentFlags[day.key]?.[jobIndex],
+                        );
+                        const className = [
+                          isHighlightedDay
+                            ? `${
+                                necessaryJobStyle
+                                  ? necessaryJobStyle.solidClass
+                                  : isFloJob
+                                    ? "bg-[#f3f3f3]"
+                                    : ""
+                              } border-l border-r border-gray-500`
+                            : "",
+                          !isHighlightedDay && necessaryJobStyle
+                            ? necessaryJobStyle.lineBgClass
+                            : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ");
+
+                        return (
+                          <CalendarDroppableCell
+                            key={day.key}
+                            day={day.key}
+                            jobIndex={jobIndex}
+                            isEditMode={isEditMode}
+                            className={className}
+                          >
+                            <CalendarDraggableInitials
+                              day={day.key}
+                              jobIndex={jobIndex}
+                              initials={initials}
+                              isEditMode={isEditMode}
+                              className={
+                                isHighlightedDay && isReassigned
+                                  ? "text-pink-700 pink-change-contrast"
+                                  : ""
+                              }
+                            />
+                          </CalendarDroppableCell>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </article>
         </div>
       </div>
 
       <DragOverlay>
-        {activeInitials ? (
+        {isEditMode && activeInitials ? (
           <div className={overlayClassName}>{activeInitials}</div>
         ) : null}
       </DragOverlay>

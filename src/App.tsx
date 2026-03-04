@@ -11,6 +11,7 @@ import Buildings from "./components/Buildings";
 import Daycare from "./components/Daycare";
 import BandOffice from "./components/BandOffice";
 import HealthCenter from "./components/HealthCenter";
+import Button from "./components/Button";
 
 const EASTERN_TIME_ZONE = "America/Toronto";
 
@@ -60,10 +61,16 @@ function getSectionVisibility(referenceDate: Date) {
 }
 
 function App() {
-  const { selectedDay, peopleIn, presentCleaners, setPresentCleaners } =
-    useSchedule();
+  const {
+    selectedDay,
+    peopleIn,
+    presentCleaners,
+    setPresentCleaners,
+    resetScheduleState,
+  } = useSchedule();
   const calendarView = "weekly";
   const [clockTick, setClockTick] = useState(() => Date.now());
+  const [isEditMode, setIsEditMode] = useState(false);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -88,6 +95,15 @@ function App() {
             [...current, cleaner].includes(initials),
           ),
     );
+  };
+
+  const handleEditSchedule = () => {
+    setIsEditMode((current) => !current);
+  };
+
+  const handleResetSchedule = () => {
+    resetScheduleState();
+    setIsEditMode(false);
   };
 
   return (
@@ -129,11 +145,19 @@ function App() {
           )}
         </div>
       </section>
-
-      <Calendar calendarView={calendarView} highlightedDayKey={selectedDay} />
-
-      {showBuildings && <Buildings />}
-      {showDaycare && <Daycare />}
+      <Calendar
+        calendarView={calendarView}
+        highlightedDayKey={selectedDay}
+        isEditMode={isEditMode}
+        /><div className="flex justify-center items-center gap-6 pb-2">
+          <Button
+            label={isEditMode ? "Confirm ✓" : "Edit ✎"}
+            onClick={handleEditSchedule}
+          />
+          <Button label="Reset 🔄" onClick={handleResetSchedule} />
+        </div>
+      {showBuildings && <Buildings isEditMode={isEditMode} />}
+      {showDaycare && <Daycare isEditMode={isEditMode} />}
       {showBandOffice && <BandOffice />}
 
       <HealthCenter />

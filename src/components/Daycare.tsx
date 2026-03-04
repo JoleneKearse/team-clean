@@ -105,6 +105,7 @@ type DaycareDraggableBadgeProps = {
   day: DayKey;
   jobIndex: number;
   initials: string;
+  isEditMode: boolean;
   className: string;
 };
 
@@ -112,6 +113,7 @@ function DaycareDraggableBadge({
   day,
   jobIndex,
   initials,
+  isEditMode,
   className,
 }: DaycareDraggableBadgeProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
@@ -123,7 +125,7 @@ function DaycareDraggableBadge({
         jobIndex,
         initials,
       } as DaycareDragPayload,
-      disabled: !initials,
+      disabled: !initials || !isEditMode,
     });
 
   return (
@@ -132,11 +134,11 @@ function DaycareDraggableBadge({
       style={{
         transform: CSS.Transform.toString(transform),
         opacity: isDragging ? 0.35 : 1,
-        touchAction: "none",
+        touchAction: isEditMode ? "none" : "auto",
       }}
       className={[
         className,
-        initials ? "cursor-grab active:cursor-grabbing" : "",
+        initials && isEditMode ? "cursor-grab active:cursor-grabbing" : "",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -151,6 +153,7 @@ function DaycareDraggableBadge({
 type DaycareDroppableRowProps = {
   day: DayKey;
   jobIndex: number;
+  isEditMode: boolean;
   className?: string;
   children: React.ReactNode;
 };
@@ -158,6 +161,7 @@ type DaycareDroppableRowProps = {
 function DaycareDroppableRow({
   day,
   jobIndex,
+  isEditMode,
   className,
   children,
 }: DaycareDroppableRowProps) {
@@ -167,6 +171,7 @@ function DaycareDroppableRow({
       day,
       jobIndex,
     } as DaycareDropPayload,
+    disabled: !isEditMode,
   });
 
   return (
@@ -184,7 +189,11 @@ function DaycareDroppableRow({
   );
 }
 
-const Daycare = () => {
+type DaycareProps = {
+  isEditMode: boolean;
+};
+
+const Daycare = ({ isEditMode }: DaycareProps) => {
   const {
     selectedDay,
     daycareWeeklyAssignments,
@@ -207,12 +216,15 @@ const Daycare = () => {
   );
 
   const onDragStart = (event: DragStartEvent) => {
+    if (!isEditMode) return;
+
     const source = parseDaycareDragPayload(event.active.data.current);
     setActiveInitials(source?.initials ?? "");
   };
 
   const onDragEnd = (event: DragEndEvent) => {
     setActiveInitials("");
+    if (!isEditMode) return;
 
     if (!event.over) return;
 
@@ -317,11 +329,13 @@ const Daycare = () => {
                     key={assignment.job}
                     day={selectedDay}
                     jobIndex={jobIndex}
+                    isEditMode={isEditMode}
                   >
                     <DaycareDraggableBadge
                       day={selectedDay}
                       jobIndex={jobIndex}
                       initials={assignment.initials}
+                      isEditMode={isEditMode}
                       className={badgeClassName}
                     />{" "}
                     <span
@@ -335,7 +349,7 @@ const Daycare = () => {
           </ul>
 
           <DragOverlay>
-            {activeInitials ? (
+            {isEditMode && activeInitials ? (
               <div className="rounded-md border border-gray-600 bg-gray-100 px-2 py-1 text-sm shadow-md opacity-95">
                 {activeInitials}
               </div>
