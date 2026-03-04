@@ -166,7 +166,7 @@ function App() {
       </section>
 
       <div className="relative w-full">
-        <div className="absolute left-0 top-1/2 -translate-y-1/2">
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 mt-1">
           <button
             type="button"
             onClick={handleToggleHelp}
@@ -255,7 +255,7 @@ function App() {
           <p>
             To change{" "}
             <b>{selectedDay[0].toUpperCase() + selectedDay.slice(1)}</b>{" "}
-            calendar, <b>buildings</b>, or <b>daycare assignments</b>:
+            calendar, <b>buildings</b>, or <b>daycare</b> assignments:
           </p>
           <ol className="mt-1 list-inside list-decimal space-y-1 pl-3">
             <li>
@@ -268,7 +268,7 @@ function App() {
               Click <b>Confirm</b> to save changes.
             </li>
           </ol>
-          <p className="mt-2">
+          <p className="my-2">
             Click <b>Reset</b> to revert all changes to{" "}
             {selectedDay[0].toUpperCase() + selectedDay.slice(1)}'s defaults.
           </p>
