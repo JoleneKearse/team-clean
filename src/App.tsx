@@ -149,7 +149,7 @@ function App() {
         calendarView={calendarView}
         highlightedDayKey={selectedDay}
         isEditMode={isEditMode}
-        /><div className="flex justify-center items-center gap-6 pb-2">
+        /><div className="flex justify-center items-center gap-6 p-2">
           <Button
             label={isEditMode ? "Confirm ✓" : "Edit ✎"}
             onClick={handleEditSchedule}

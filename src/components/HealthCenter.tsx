@@ -3,6 +3,7 @@ import { useSchedule } from "../context/ScheduleContext";
 
 import { getHealthCenterAssignmentsForDay } from "../utils/scheduleUtils";
 import type { JobId } from "../types/types";
+import healthCenterImage from "../assets/health-center.png";
 
 const DEFAULT_HEALTH_CENTER_JOBS: readonly JobId[] = ["Flo1", "Flo2", "Flo3"];
 
@@ -27,14 +28,14 @@ const HealthCenter = () => {
   });
 
   return (
-    <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg bg-gray-200">
-      <h2 className="relative bg-gray-700 px-4 py-4 text-center font-bold text-gray-100">
-        <span
+    <article className="w-full border border-gray-500 rounded-xl shadow-lg bg-gray-200">
+      <h2 className="relative rounded-t-xl bg-gray-700 px-4 py-4 text-center font-bold text-gray-100">
+        <img
+          src={healthCenterImage}
+          alt="health center"
           aria-hidden="true"
-          className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-3xl leading-none"
-        >
-          💙
-        </span>
+          className="pointer-events-none absolute -left-3 top-7 h-18 w-18 -translate-y-1/2 rounded-full border-2 border-gray-700 object-cover"
+        />
         Health Center
       </h2>
 

@@ -269,7 +269,7 @@ const Daycare = ({ isEditMode }: DaycareProps) => {
       <h2 className="relative rounded-t-xl bg-gray-700 px-4 py-4 text-center font-bold text-gray-100">
         <img
           src={daycareImage}
-          alt=""
+          alt="daycare"
           aria-hidden="true"
           className="pointer-events-none absolute -left-3 top-7 h-18 w-18 -translate-y-1/2 rounded-full border-2 border-gray-700 object-cover"
         />
