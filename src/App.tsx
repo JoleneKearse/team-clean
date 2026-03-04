@@ -262,7 +262,7 @@ function App() {
               Click the <b>Edit</b> button.
             </li>
             <li>
-              Drag the <b>initials</b> to reassign tasks.
+              Long-press the <b>initials</b> and drag to new job to reassign tasks. Initials will automatically swap.
             </li>
             <li>
               Click <b>Confirm</b> to save changes.
