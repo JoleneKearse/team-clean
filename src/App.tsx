@@ -274,13 +274,22 @@ function App() {
           </p>
         </div>
       )}
-      <Calendar
-        calendarView={calendarView}
-        highlightedDayKey={selectedDay}
-        isEditMode={isEditMode}
-      />
-      {showBuildings && <Buildings isEditMode={isEditMode} />}
-      {showDaycare && <Daycare isEditMode={isEditMode} />}
+      <div
+        className={[
+          "w-full space-y-4 rounded-xl transition-colors",
+          isEditMode ? "bg-pink-200/40 p-2" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        <Calendar
+          calendarView={calendarView}
+          highlightedDayKey={selectedDay}
+          isEditMode={isEditMode}
+        />
+        {showBuildings && <Buildings isEditMode={isEditMode} />}
+        {showDaycare && <Daycare isEditMode={isEditMode} />}
+      </div>
       {showBandOffice && <BandOffice />}
 
       <HealthCenter />
