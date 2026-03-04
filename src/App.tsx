@@ -71,6 +71,7 @@ function App() {
   const calendarView = "weekly";
   const [clockTick, setClockTick] = useState(() => Date.now());
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -106,6 +107,10 @@ function App() {
     setIsEditMode(false);
   };
 
+  const handleToggleHelp = () => {
+    setIsHelpOpen((current) => !current);
+  };
+
   return (
     <div className="mx-auto flex max-w-112.5 flex-col items-center gap-4 p-4">
       <section className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg bg-gray-200">
@@ -139,23 +144,141 @@ function App() {
           </div>
 
           {peopleIn < 8 && (
-            <p className="mt-3 font-semibold text-pink-700">
-              Please review the changes below. ⬇️
-            </p>
+            <div className="mt-3 flex items-center justify-center gap-2 text-pink-700">
+              <p className="font-semibold">Please review the changes below.</p>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                className="size-6 shrink-0"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M19.5 13.5 12 21m0 0-7.5-7.5M12 21V3"
+                />
+              </svg>
+            </div>
           )}
         </div>
       </section>
+
+      <div className="relative w-full">
+        <div className="absolute left-0 top-1/2 -translate-y-1/2">
+          <button
+            type="button"
+            onClick={handleToggleHelp}
+            aria-label={isHelpOpen ? "Hide help" : "Show help"}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2.5}
+              stroke="currentColor"
+              className="size-8"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <div className="flex items-center justify-center gap-6 p-2">
+          <Button
+            label={isEditMode ? "Confirm" : "Edit"}
+            onClick={handleEditSchedule}
+            icon={
+              isEditMode ? (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2.5}
+                  stroke="currentColor"
+                  className="size-8"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="m4.5 12.75 6 6 9-13.5"
+                  />
+                </svg>
+              ) : (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="currentColor"
+                  className="size-5"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"
+                  />
+                </svg>
+              )
+            }
+          />
+          <Button
+            label="Reset"
+            onClick={handleResetSchedule}
+            icon={
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                className="size-6"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"
+                />
+              </svg>
+            }
+          />
+        </div>
+      </div>
+
+      {isHelpOpen && (
+        <div>
+          <p>
+            To change{" "}
+            <b>{selectedDay[0].toUpperCase() + selectedDay.slice(1)}</b>{" "}
+            calendar, <b>buildings</b>, or <b>daycare assignments</b>:
+          </p>
+          <ol className="mt-1 list-inside list-decimal space-y-1 pl-3">
+            <li>
+              Click the <b>Edit</b> button.
+            </li>
+            <li>
+              Drag the <b>initials</b> to reassign tasks.
+            </li>
+            <li>
+              Click <b>Confirm</b> to save changes.
+            </li>
+          </ol>
+          <p className="mt-2">
+            Click <b>Reset</b> to revert all changes to{" "}
+            {selectedDay[0].toUpperCase() + selectedDay.slice(1)}'s defaults.
+          </p>
+        </div>
+      )}
       <Calendar
         calendarView={calendarView}
         highlightedDayKey={selectedDay}
         isEditMode={isEditMode}
-        /><div className="flex justify-center items-center gap-6 p-2">
-          <Button
-            label={isEditMode ? "Confirm ✓" : "Edit ✎"}
-            onClick={handleEditSchedule}
-          />
-          <Button label="Reset 🔄" onClick={handleResetSchedule} />
-        </div>
+      />
       {showBuildings && <Buildings isEditMode={isEditMode} />}
       {showDaycare && <Daycare isEditMode={isEditMode} />}
       {showBandOffice && <BandOffice />}

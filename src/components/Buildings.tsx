@@ -230,12 +230,21 @@ const Buildings = ({ isEditMode }: BuildingsProps) => {
       <div className="relative w-full">
         <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg bg-gray-200">
           <h2 className="relative bg-gray-700 px-4 py-4 text-center font-bold text-gray-100">
-            <span
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+              className="pointer-events-none absolute left-4 top-1/2 size-8 -translate-y-1/2"
               aria-hidden="true"
-              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-3xl leading-none"
             >
-              🏗️
-            </span>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21"
+              />
+            </svg>
             Buildings
           </h2>
 
