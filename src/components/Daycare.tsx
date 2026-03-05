@@ -195,7 +195,7 @@ type DaycareProps = {
 
 const Daycare = ({ isEditMode }: DaycareProps) => {
   const {
-    selectedDay,
+    currentDay,
     daycareWeeklyAssignments,
     daycareReassignmentFlags,
     moveDaycareAssignment,
@@ -249,14 +249,14 @@ const Daycare = ({ isEditMode }: DaycareProps) => {
   };
 
   const assignments = getDayCareAssignmentsForDay({
-    day: selectedDay,
+    day: currentDay,
     jobs: JOBS,
     weeklyAssignments: daycareWeeklyAssignments,
     peopleIn,
   });
   // call attention to missing areas to reassign cleaners
   const missingAreas = getMissingDayCareAreasForDay({
-    day: selectedDay,
+    day: currentDay,
     jobs: JOBS,
     weeklyAssignments: daycareWeeklyAssignments,
     peopleIn,
@@ -296,7 +296,7 @@ const Daycare = ({ isEditMode }: DaycareProps) => {
                 const jobIndex = JOBS.indexOf(assignment.job);
                 const isReassigned =
                   jobIndex >= 0 &&
-                  Boolean(daycareReassignmentFlags[selectedDay]?.[jobIndex]);
+                  Boolean(daycareReassignmentFlags[currentDay]?.[jobIndex]);
                 const baselineLabel = getDaycareJobLabel(assignment.job, 8);
                 const isAreaChanged = assignment.label !== baselineLabel;
                 const shouldHighlightLabel = isReassigned || isAreaChanged;
@@ -327,12 +327,12 @@ const Daycare = ({ isEditMode }: DaycareProps) => {
                 return (
                   <DaycareDroppableRow
                     key={assignment.job}
-                    day={selectedDay}
+                    day={currentDay}
                     jobIndex={jobIndex}
                     isEditMode={isEditMode}
                   >
                     <DaycareDraggableBadge
-                      day={selectedDay}
+                      day={currentDay}
                       jobIndex={jobIndex}
                       initials={assignment.initials}
                       isEditMode={isEditMode}

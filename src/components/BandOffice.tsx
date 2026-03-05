@@ -33,9 +33,9 @@ function getBandOfficeNotices(
 }
 
 const BandOffice = () => {
-  const { selectedDay, weeklyAssignments, weeklyReassignmentFlags, peopleIn } =
+  const { currentDay, weeklyAssignments, weeklyReassignmentFlags, peopleIn } =
     useSchedule();
-  const dayAssignments = weeklyAssignments[selectedDay];
+  const dayAssignments = weeklyAssignments[currentDay];
   const bathIndex = JOBS.indexOf("Bath");
   const bathInitials = bathIndex >= 0 ? (dayAssignments[bathIndex] ?? "") : "";
   const notices = getBandOfficeNotices(peopleIn, bathInitials);
@@ -112,7 +112,7 @@ const BandOffice = () => {
                       "inline-block rounded px-1 font-medium",
                       necessaryJobStyle ? necessaryJobStyle.badgeClass : "",
                       assignment.index >= 0 &&
-                      weeklyReassignmentFlags[selectedDay]?.[assignment.index]
+                      weeklyReassignmentFlags[currentDay]?.[assignment.index]
                         ? "text-pink-700"
                         : "",
                     ]
@@ -124,7 +124,7 @@ const BandOffice = () => {
                   <span
                     className={
                       assignment.index >= 0 &&
-                      weeklyReassignmentFlags[selectedDay]?.[assignment.index]
+                      weeklyReassignmentFlags[currentDay]?.[assignment.index]
                         ? "text-pink-700"
                         : ""
                     }

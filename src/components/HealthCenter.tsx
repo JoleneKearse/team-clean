@@ -8,9 +8,9 @@ import healthCenterImage from "../assets/health-center.png";
 const DEFAULT_HEALTH_CENTER_JOBS: readonly JobId[] = ["Flo1", "Flo2", "Flo3"];
 
 const HealthCenter = () => {
-  const { selectedDay, weeklyAssignments, weeklyReassignmentFlags, peopleIn } =
+  const { currentDay, weeklyAssignments, weeklyReassignmentFlags, peopleIn } =
     useSchedule();
-  const dayAssignments = weeklyAssignments[selectedDay];
+  const dayAssignments = weeklyAssignments[currentDay];
   const healthCenterJobs: readonly JobId[] =
     peopleIn <= 6
       ? ["Vac", ...DEFAULT_HEALTH_CENTER_JOBS]
@@ -50,7 +50,7 @@ const HealthCenter = () => {
               const isReassigned =
                 assignment.index >= 0 &&
                 Boolean(
-                  weeklyReassignmentFlags[selectedDay]?.[assignment.index],
+                  weeklyReassignmentFlags[currentDay]?.[assignment.index],
                 );
               const baselineLabel = getHealthCenterAssignmentsForDay(
                 assignment.jobId,

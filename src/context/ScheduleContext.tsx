@@ -27,8 +27,8 @@ interface ScheduleContextType {
   presentCleaners: CleanerId[];
   setPresentCleaners: React.Dispatch<React.SetStateAction<CleanerId[]>>;
   peopleIn: number;
-  selectedDay: DayKey;
-  setSelectedDay: React.Dispatch<React.SetStateAction<DayKey>>;
+  currentDay: DayKey;
+  setCurrentDay: React.Dispatch<React.SetStateAction<DayKey>>;
   swapAssignments: (
     day: DayKey,
     fromJobIndex: number,
@@ -60,7 +60,7 @@ type DaycareMoveOperationsByDay = Record<DayKey, SwapOperation[]>;
 
 interface PersistedScheduleState {
   date: string;
-  selectedDay: DayKey;
+  currentDay: DayKey;
   presentCleanersByDay: PresentCleanersByDay;
   swapOperationsByDay: SwapOperationsByDay;
   buildingMoveOperationsByDay: BuildingMoveOperationsByDay;
@@ -232,7 +232,7 @@ function loadPersistedScheduleState(
   todayDateKey: string,
 ): Pick<
   PersistedScheduleState,
-  | "selectedDay"
+  | "currentDay"
   | "presentCleanersByDay"
   | "swapOperationsByDay"
   | "buildingMoveOperationsByDay"
@@ -251,14 +251,14 @@ function loadPersistedScheduleState(
       return null;
     }
 
-    const selectedDay = isDayKey(parsed.selectedDay)
-      ? parsed.selectedDay
+    const currentDay = isDayKey(parsed.currentDay)
+      ? parsed.currentDay
       : null;
 
-    if (!selectedDay) return null;
+    if (!currentDay) return null;
 
     return {
-      selectedDay,
+      currentDay,
       presentCleanersByDay: normalizePresentCleanersByDay(
         parsed.presentCleanersByDay,
       ),
@@ -296,8 +296,8 @@ export const ScheduleProvider = ({
     [todayDateKey],
   );
 
-  const [selectedDay, setSelectedDay] = useState<DayKey>(
-    persistedScheduleState?.selectedDay ?? todayDayKey,
+  const [currentDay, setCurrentDay] = useState<DayKey>(
+    persistedScheduleState?.currentDay ?? todayDayKey,
   );
   const [presentCleanersByDay, setPresentCleanersByDay] =
     useState<PresentCleanersByDay>(
@@ -320,20 +320,20 @@ export const ScheduleProvider = ({
         getDefaultDaycareMoveOperationsByDay(),
     );
 
-  const presentCleaners = presentCleanersByDay[selectedDay];
+  const presentCleaners = presentCleanersByDay[currentDay];
 
   const setPresentCleaners: React.Dispatch<
     React.SetStateAction<CleanerId[]>
   > = (valueOrUpdater) => {
     setPresentCleanersByDay((current) => {
-      const nextForSelectedDay =
+      const nextForCurrentDay =
         typeof valueOrUpdater === "function"
-          ? valueOrUpdater(current[selectedDay])
+          ? valueOrUpdater(current[currentDay])
           : valueOrUpdater;
 
       return {
         ...current,
-        [selectedDay]: nextForSelectedDay,
+        [currentDay]: nextForCurrentDay,
       };
     });
   };
@@ -541,7 +541,7 @@ export const ScheduleProvider = ({
   };
 
   const resetScheduleState = () => {
-    setSelectedDay(todayDayKey);
+    setCurrentDay(todayDayKey);
     setPresentCleanersByDay(getDefaultPresentCleanersByDay());
     setSwapOperationsByDay(getDefaultSwapOperationsByDay());
     setBuildingMoveOperationsByDay(getDefaultBuildingMoveOperationsByDay());
@@ -557,7 +557,7 @@ export const ScheduleProvider = ({
 
     const payload: PersistedScheduleState = {
       date: todayDateKey,
-      selectedDay,
+      currentDay,
       presentCleanersByDay,
       swapOperationsByDay,
       buildingMoveOperationsByDay,
@@ -569,7 +569,7 @@ export const ScheduleProvider = ({
     buildingMoveOperationsByDay,
     daycareMoveOperationsByDay,
     presentCleanersByDay,
-    selectedDay,
+    currentDay,
     swapOperationsByDay,
     todayDateKey,
   ]);
@@ -587,8 +587,8 @@ export const ScheduleProvider = ({
         presentCleaners,
         setPresentCleaners,
         peopleIn,
-        selectedDay,
-        setSelectedDay,
+        currentDay,
+        setCurrentDay,
         swapAssignments,
         moveBuildingAssignment,
         moveDaycareAssignment,

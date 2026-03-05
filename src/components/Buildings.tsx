@@ -171,7 +171,7 @@ type BuildingsProps = {
 
 const Buildings = ({ isEditMode }: BuildingsProps) => {
   const {
-    selectedDay,
+    currentDay,
     buildingWeeklyAssignments,
     buildingReassignmentFlags,
     moveBuildingAssignment,
@@ -251,7 +251,7 @@ const Buildings = ({ isEditMode }: BuildingsProps) => {
           <div className="space-y-2 p-4">
             {BUILDINGS.map((building) => {
               const assignments = getBuildingAssignmentsForDay({
-                day: selectedDay,
+                day: currentDay,
                 jobs: JOBS,
                 weeklyAssignments: buildingWeeklyAssignments,
                 buildingJobs: building.jobIds,
@@ -290,7 +290,7 @@ const Buildings = ({ isEditMode }: BuildingsProps) => {
                             const isReassigned =
                               jobIndex >= 0 &&
                               Boolean(
-                                buildingReassignmentFlags[selectedDay]?.[
+                                buildingReassignmentFlags[currentDay]?.[
                                   jobIndex
                                 ],
                               );
@@ -328,7 +328,7 @@ const Buildings = ({ isEditMode }: BuildingsProps) => {
                             const isReassigned =
                               jobIndex >= 0 &&
                               Boolean(
-                                buildingReassignmentFlags[selectedDay]?.[
+                                buildingReassignmentFlags[currentDay]?.[
                                   jobIndex
                                 ],
                               );
@@ -336,7 +336,7 @@ const Buildings = ({ isEditMode }: BuildingsProps) => {
                             return (
                               <BuildingDroppableCell
                                 key={`${assignment.job}-cleaner`}
-                                day={selectedDay}
+                                day={currentDay}
                                 jobIndex={jobIndex}
                                 isEditMode={isEditMode}
                                 className={[
@@ -359,7 +359,7 @@ const Buildings = ({ isEditMode }: BuildingsProps) => {
                               >
                                 {jobIndex >= 0 ? (
                                   <BuildingDraggableInitials
-                                    day={selectedDay}
+                                    day={currentDay}
                                     jobIndex={jobIndex}
                                     initials={assignment.initials}
                                     isEditMode={isEditMode}

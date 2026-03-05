@@ -62,7 +62,7 @@ function getSectionVisibility(referenceDate: Date) {
 
 function App() {
   const {
-    selectedDay,
+    currentDay,
     peopleIn,
     presentCleaners,
     setPresentCleaners,
@@ -254,7 +254,7 @@ function App() {
         <div>
           <p>
             To change{" "}
-            <b>{selectedDay[0].toUpperCase() + selectedDay.slice(1)}</b>{" "}
+            <b>{currentDay[0].toUpperCase() + currentDay.slice(1)}</b>{" "}
             calendar, <b>buildings</b>, or <b>daycare</b> assignments:
           </p>
           <ol className="mt-1 list-inside list-decimal space-y-1 pl-3">
@@ -270,7 +270,7 @@ function App() {
           </ol>
           <p className="my-2">
             Click <b>Reset</b> to revert all changes to{" "}
-            {selectedDay[0].toUpperCase() + selectedDay.slice(1)}'s defaults.
+            {currentDay[0].toUpperCase() + currentDay.slice(1)}'s defaults.
           </p>
         </div>
       )}
@@ -284,7 +284,7 @@ function App() {
       >
         <Calendar
           calendarView={calendarView}
-          highlightedDayKey={selectedDay}
+          highlightedDayKey={currentDay}
           isEditMode={isEditMode}
         />
         {showBuildings && <Buildings isEditMode={isEditMode} />}
