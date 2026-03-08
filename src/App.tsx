@@ -182,7 +182,13 @@ function App() {
               </p>
             </div>
 
-            <span className="font-semibold">Staffing: {peopleIn}</span>
+            <span
+              className={
+                peopleIn === 8 ? "font-semibold" : "font-bold text-pink-400"
+              }
+            >
+              Staffing: {peopleIn}
+            </span>
           </div>
 
           <div className="p-4">
