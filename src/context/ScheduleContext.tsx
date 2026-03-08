@@ -41,6 +41,8 @@ interface ScheduleContextType {
     fromJobIndex: number,
     toJobIndex: number,
   ) => void;
+  flo1AtAnnex: boolean;
+  setFlo1AtAnnexForDay: (day: DayKey, value: boolean) => void;
   moveDaycareAssignment: (
     day: DayKey,
     fromJobIndex: number,
@@ -63,6 +65,7 @@ type SwapOperation = {
 type SwapOperationsByDay = Record<DayKey, SwapOperation[]>;
 type BuildingMoveOperationsByDay = Record<DayKey, SwapOperation[]>;
 type DaycareMoveOperationsByDay = Record<DayKey, SwapOperation[]>;
+type Flo1AtAnnexByDay = Record<DayKey, boolean>;
 
 interface PersistedScheduleState {
   date: string;
@@ -70,6 +73,7 @@ interface PersistedScheduleState {
   presentCleanersByDay: PresentCleanersByDay;
   swapOperationsByDay: SwapOperationsByDay;
   buildingMoveOperationsByDay: BuildingMoveOperationsByDay;
+  flo1AtAnnexByDay: Flo1AtAnnexByDay;
   daycareMoveOperationsByDay: DaycareMoveOperationsByDay;
 }
 
@@ -78,6 +82,7 @@ interface ScheduleSnapshot {
   presentCleanersByDay: PresentCleanersByDay;
   swapOperationsByDay: SwapOperationsByDay;
   buildingMoveOperationsByDay: BuildingMoveOperationsByDay;
+  flo1AtAnnexByDay: Flo1AtAnnexByDay;
   daycareMoveOperationsByDay: DaycareMoveOperationsByDay;
 }
 
@@ -118,6 +123,16 @@ function getDefaultDaycareMoveOperationsByDay(): DaycareMoveOperationsByDay {
     wed: [],
     thu: [],
     fri: [],
+  };
+}
+
+function getDefaultFlo1AtAnnexByDay(): Flo1AtAnnexByDay {
+  return {
+    mon: false,
+    tue: false,
+    wed: false,
+    thu: false,
+    fri: false,
   };
 }
 
@@ -164,6 +179,21 @@ function normalizePresentCleanersByDay(value: unknown): PresentCleanersByDay {
     wed: normalizeCleanersForDay(source.wed),
     thu: normalizeCleanersForDay(source.thu),
     fri: normalizeCleanersForDay(source.fri),
+  };
+}
+
+function normalizeFlo1AtAnnexByDay(value: unknown): Flo1AtAnnexByDay {
+  const source =
+    value && typeof value === "object"
+      ? (value as Partial<Record<DayKey, unknown>>)
+      : {};
+
+  return {
+    mon: source.mon === true,
+    tue: source.tue === true,
+    wed: source.wed === true,
+    thu: source.thu === true,
+    fri: source.fri === true,
   };
 }
 
@@ -250,6 +280,7 @@ function loadPersistedScheduleState(
   | "presentCleanersByDay"
   | "swapOperationsByDay"
   | "buildingMoveOperationsByDay"
+  | "flo1AtAnnexByDay"
   | "daycareMoveOperationsByDay"
 > | null {
   if (typeof window === "undefined") return null;
@@ -282,6 +313,7 @@ function loadPersistedScheduleState(
         parsed.buildingMoveOperationsByDay,
         JOBS.length,
       ),
+      flo1AtAnnexByDay: normalizeFlo1AtAnnexByDay(parsed.flo1AtAnnexByDay),
       daycareMoveOperationsByDay: normalizeSwapOperationsByDay(
         parsed.daycareMoveOperationsByDay,
         JOBS.length,
@@ -319,6 +351,7 @@ function getScheduleSnapshotFromFirestoreData(
       source.buildingMoveOperationsByDay,
       JOBS.length,
     ),
+    flo1AtAnnexByDay: normalizeFlo1AtAnnexByDay(source.flo1AtAnnexByDay),
     daycareMoveOperationsByDay: normalizeSwapOperationsByDay(
       source.daycareMoveOperationsByDay,
       JOBS.length,
@@ -376,6 +409,9 @@ export const ScheduleProvider = ({
       persistedScheduleState?.buildingMoveOperationsByDay ??
         getDefaultBuildingMoveOperationsByDay(),
     );
+  const [flo1AtAnnexByDay, setFlo1AtAnnexByDay] = useState<Flo1AtAnnexByDay>(
+    persistedScheduleState?.flo1AtAnnexByDay ?? getDefaultFlo1AtAnnexByDay(),
+  );
   const [daycareMoveOperationsByDay, setDaycareMoveOperationsByDay] =
     useState<DaycareMoveOperationsByDay>(
       persistedScheduleState?.daycareMoveOperationsByDay ??
@@ -388,6 +424,7 @@ export const ScheduleProvider = ({
   const [lastSavedToCloudAt, setLastSavedToCloudAt] = useState<string | null>(
     null,
   );
+  const flo1AtAnnex = flo1AtAnnexByDay[currentDay];
 
   const presentCleaners = presentCleanersByDay[currentDay];
 
@@ -672,6 +709,13 @@ export const ScheduleProvider = ({
     }));
   };
 
+  const setFlo1AtAnnexForDay = (day: DayKey, value: boolean) => {
+    setFlo1AtAnnexByDay((current) => ({
+      ...current,
+      [day]: value,
+    }));
+  };
+
   const moveDaycareAssignment = (
     day: DayKey,
     fromJobIndex: number,
@@ -719,6 +763,7 @@ export const ScheduleProvider = ({
           presentCleanersByDay: snapshot.presentCleanersByDay,
           swapOperationsByDay: snapshot.swapOperationsByDay,
           buildingMoveOperationsByDay: snapshot.buildingMoveOperationsByDay,
+          flo1AtAnnexByDay: snapshot.flo1AtAnnexByDay,
           daycareMoveOperationsByDay: snapshot.daycareMoveOperationsByDay,
           weeklyAssignments: snapshotWeeklyAssignments,
           buildingWeeklyAssignments: snapshotBuildingWeeklyAssignments,
@@ -748,6 +793,7 @@ export const ScheduleProvider = ({
       presentCleanersByDay,
       swapOperationsByDay,
       buildingMoveOperationsByDay,
+      flo1AtAnnexByDay,
       daycareMoveOperationsByDay,
     });
   };
@@ -758,6 +804,7 @@ export const ScheduleProvider = ({
       presentCleanersByDay: getDefaultPresentCleanersByDay(),
       swapOperationsByDay: getDefaultSwapOperationsByDay(),
       buildingMoveOperationsByDay: getDefaultBuildingMoveOperationsByDay(),
+      flo1AtAnnexByDay: getDefaultFlo1AtAnnexByDay(),
       daycareMoveOperationsByDay: getDefaultDaycareMoveOperationsByDay(),
     };
 
@@ -765,6 +812,7 @@ export const ScheduleProvider = ({
     setPresentCleanersByDay(snapshot.presentCleanersByDay);
     setSwapOperationsByDay(snapshot.swapOperationsByDay);
     setBuildingMoveOperationsByDay(snapshot.buildingMoveOperationsByDay);
+    setFlo1AtAnnexByDay(snapshot.flo1AtAnnexByDay);
     setDaycareMoveOperationsByDay(snapshot.daycareMoveOperationsByDay);
 
     if (typeof window !== "undefined") {
@@ -796,6 +844,7 @@ export const ScheduleProvider = ({
         setBuildingMoveOperationsByDay(
           syncedSnapshot.buildingMoveOperationsByDay,
         );
+        setFlo1AtAnnexByDay(syncedSnapshot.flo1AtAnnexByDay);
         setDaycareMoveOperationsByDay(
           syncedSnapshot.daycareMoveOperationsByDay,
         );
@@ -831,12 +880,14 @@ export const ScheduleProvider = ({
       presentCleanersByDay,
       swapOperationsByDay,
       buildingMoveOperationsByDay,
+      flo1AtAnnexByDay,
       daycareMoveOperationsByDay,
     };
 
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   }, [
     buildingMoveOperationsByDay,
+    flo1AtAnnexByDay,
     daycareMoveOperationsByDay,
     presentCleanersByDay,
     currentDay,
@@ -861,6 +912,8 @@ export const ScheduleProvider = ({
         setCurrentDay,
         swapAssignments,
         moveBuildingAssignment,
+        flo1AtAnnex,
+        setFlo1AtAnnexForDay,
         moveDaycareAssignment,
         saveScheduleToFirestore,
         isSavingSchedule,

@@ -19,17 +19,25 @@ import { BUILDINGS, JOBS, getNecessaryJobStyle } from "../constants/consts";
 import { getBuildingAssignmentsForDay } from "../utils/scheduleUtils";
 import type { DayKey } from "../types/types";
 
+type BuildingSlotId = "default" | "annex-flo1";
+
 type DragAssignmentPayload = {
   source: "buildings";
   day: DayKey;
   jobIndex: number;
   initials: string;
+  slotId: BuildingSlotId;
 };
 
 type DropPayload = {
   day: DayKey;
   jobIndex: number;
+  slotId: BuildingSlotId;
 };
+
+function isBuildingSlotId(value: unknown): value is BuildingSlotId {
+  return value === "default" || value === "annex-flo1";
+}
 
 function isDayKey(value: unknown): value is DayKey {
   return (
@@ -51,7 +59,8 @@ function parseDragPayload(payload: unknown): DragAssignmentPayload | null {
     !isDayKey(candidate.day) ||
     typeof jobIndex !== "number" ||
     !Number.isInteger(jobIndex) ||
-    typeof candidate.initials !== "string"
+    typeof candidate.initials !== "string" ||
+    !isBuildingSlotId(candidate.slotId)
   ) {
     return null;
   }
@@ -61,6 +70,7 @@ function parseDragPayload(payload: unknown): DragAssignmentPayload | null {
     day: candidate.day,
     jobIndex,
     initials: candidate.initials,
+    slotId: candidate.slotId,
   };
 }
 
@@ -72,7 +82,8 @@ function parseDropPayload(payload: unknown): DropPayload | null {
   if (
     !isDayKey(candidate.day) ||
     typeof jobIndex !== "number" ||
-    !Number.isInteger(jobIndex)
+    !Number.isInteger(jobIndex) ||
+    !isBuildingSlotId(candidate.slotId)
   ) {
     return null;
   }
@@ -80,6 +91,7 @@ function parseDropPayload(payload: unknown): DropPayload | null {
   return {
     day: candidate.day,
     jobIndex,
+    slotId: candidate.slotId,
   };
 }
 
@@ -88,6 +100,7 @@ type BuildingDraggableInitialsProps = {
   jobIndex: number;
   initials: string;
   isEditMode: boolean;
+  slotId: BuildingSlotId;
 };
 
 function BuildingDraggableInitials({
@@ -95,15 +108,17 @@ function BuildingDraggableInitials({
   jobIndex,
   initials,
   isEditMode,
+  slotId,
 }: BuildingDraggableInitialsProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
-      id: `buildings-drag-${day}-${jobIndex}`,
+      id: `buildings-drag-${day}-${slotId}-${jobIndex}`,
       data: {
         source: "buildings",
         day,
         jobIndex,
         initials,
+        slotId,
       } as DragAssignmentPayload,
       disabled: !initials || !isEditMode,
     });
@@ -134,6 +149,7 @@ type BuildingDroppableCellProps = {
   jobIndex: number;
   isEditMode: boolean;
   className: string;
+  slotId: BuildingSlotId;
   children: React.ReactNode;
 };
 
@@ -142,13 +158,15 @@ function BuildingDroppableCell({
   jobIndex,
   isEditMode,
   className,
+  slotId,
   children,
 }: BuildingDroppableCellProps) {
   const { isOver, setNodeRef } = useDroppable({
-    id: `buildings-drop-${day}-${jobIndex}`,
+    id: `buildings-drop-${day}-${slotId}-${jobIndex}`,
     data: {
       day,
       jobIndex,
+      slotId,
     } as DropPayload,
     disabled: !isEditMode,
   });
@@ -175,8 +193,15 @@ const Buildings = ({ isEditMode }: BuildingsProps) => {
     buildingWeeklyAssignments,
     buildingReassignmentFlags,
     moveBuildingAssignment,
+    flo1AtAnnex,
+    setFlo1AtAnnexForDay,
   } = useSchedule();
   const [activeInitials, setActiveInitials] = useState("");
+  const flo1JobIndex = JOBS.indexOf("Flo1");
+  const flo1Initials =
+    flo1JobIndex >= 0
+      ? (buildingWeeklyAssignments[currentDay][flo1JobIndex] ?? "")
+      : "";
 
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -207,6 +232,27 @@ const Buildings = ({ isEditMode }: BuildingsProps) => {
     const target = parseDropPayload(event.over.data.current);
     if (!source || !target) return;
     if (source.day !== target.day) return;
+    const isSourceAnnexSlot = source.slotId === "annex-flo1";
+    const isTargetAnnexSlot = target.slotId === "annex-flo1";
+
+    if (isSourceAnnexSlot || isTargetAnnexSlot) {
+      if (flo1JobIndex < 0) return;
+      if (
+        source.jobIndex !== flo1JobIndex ||
+        target.jobIndex !== flo1JobIndex
+      ) {
+        return;
+      }
+
+      if (isTargetAnnexSlot && !isSourceAnnexSlot) {
+        setFlo1AtAnnexForDay(source.day, true);
+      } else if (isSourceAnnexSlot && !isTargetAnnexSlot) {
+        setFlo1AtAnnexForDay(source.day, false);
+      }
+
+      return;
+    }
+
     if (source.jobIndex === target.jobIndex) return;
 
     const sourceInitials =
@@ -250,12 +296,36 @@ const Buildings = ({ isEditMode }: BuildingsProps) => {
 
           <div className="space-y-2 p-4">
             {BUILDINGS.map((building) => {
-              const assignments = getBuildingAssignmentsForDay({
+              const baseAssignments = getBuildingAssignmentsForDay({
                 day: currentDay,
                 jobs: JOBS,
                 weeklyAssignments: buildingWeeklyAssignments,
                 buildingJobs: building.jobIds,
               });
+              const assignments = [
+                ...baseAssignments.map((assignment) => ({
+                  ...assignment,
+                  initials:
+                    building.key === "grade2_social" &&
+                    assignment.job === "Flo1" &&
+                    flo1JobIndex >= 0
+                      ? flo1AtAnnex
+                        ? ""
+                        : flo1Initials
+                      : assignment.initials,
+                  slotId: "default" as const,
+                })),
+                ...(building.key === "grade1_annex" && flo1JobIndex >= 0
+                  ? [
+                      {
+                        job: "Flo1" as const,
+                        initials: flo1AtAnnex ? flo1Initials : "",
+                        missing: false,
+                        slotId: "annex-flo1" as const,
+                      },
+                    ]
+                  : []),
+              ];
               const uniqueAssignedCleaners = new Set(
                 assignments
                   .map((assignment) => assignment.initials)
@@ -279,11 +349,15 @@ const Buildings = ({ isEditMode }: BuildingsProps) => {
                       : building.label}
                   </h3>
                   <div className="mt-1 rounded-xl overflow-hidden border ">
-                    <table className="w-full text-center border-collapse">
+                    <table className="w-full table-fixed text-center border-collapse">
                       <tbody>
                         <tr>
                           {assignments.map((assignment) => {
                             const jobIndex = JOBS.indexOf(assignment.job);
+                            const jobLabel =
+                              assignment.slotId === "annex-flo1"
+                                ? ""
+                                : assignment.job;
                             const necessaryJobStyle = getNecessaryJobStyle(
                               assignment.job,
                             );
@@ -297,9 +371,9 @@ const Buildings = ({ isEditMode }: BuildingsProps) => {
 
                             return (
                               <td
-                                key={`${assignment.job}-job`}
+                                key={`${assignment.job}-${assignment.slotId}-job`}
                                 className={[
-                                  "italic border border-gray-400 px-2 py-1",
+                                  "min-w-20 italic border border-gray-400 px-2 py-1",
                                   necessaryJobStyle
                                     ? necessaryJobStyle.solidClass
                                     : "",
@@ -314,7 +388,7 @@ const Buildings = ({ isEditMode }: BuildingsProps) => {
                                   .filter(Boolean)
                                   .join(" ")}
                               >
-                                {assignment.job}
+                                {jobLabel}
                               </td>
                             );
                           })}
@@ -335,12 +409,13 @@ const Buildings = ({ isEditMode }: BuildingsProps) => {
 
                             return (
                               <BuildingDroppableCell
-                                key={`${assignment.job}-cleaner`}
+                                key={`${assignment.job}-${assignment.slotId}-cleaner`}
                                 day={currentDay}
                                 jobIndex={jobIndex}
+                                slotId={assignment.slotId}
                                 isEditMode={isEditMode}
                                 className={[
-                                  "border border-gray-400 px-2 py-1",
+                                  "min-w-20 border border-gray-400 px-2 py-1",
                                   hasOnlyOneAssignedCleaner &&
                                   assignment.initials === ""
                                     ? "bg-pink-100"
@@ -363,6 +438,7 @@ const Buildings = ({ isEditMode }: BuildingsProps) => {
                                     jobIndex={jobIndex}
                                     initials={assignment.initials}
                                     isEditMode={isEditMode}
+                                    slotId={assignment.slotId}
                                   />
                                 ) : (
                                   assignment.initials
