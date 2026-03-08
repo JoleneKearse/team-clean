@@ -214,9 +214,7 @@ const CalendarWeekly = ({
     if (source.jobIndex === target.jobIndex) return;
 
     const sourceInitials = weeklyAssignments[source.day][source.jobIndex] ?? "";
-    const targetInitials = weeklyAssignments[target.day][target.jobIndex] ?? "";
-
-    if (!sourceInitials || !targetInitials) return;
+    if (!sourceInitials) return;
 
     swapAssignments(source.day, source.jobIndex, target.jobIndex);
   };
