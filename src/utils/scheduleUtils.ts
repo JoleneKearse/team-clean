@@ -185,6 +185,18 @@ function isWorkday(referenceDate: Date): boolean {
   return day >= 1 && day <= 5;
 }
 
+function getRotationReferenceDate(referenceDate: Date): Date {
+  const date = new Date(referenceDate);
+  date.setHours(0, 0, 0, 0);
+
+  // On weekends we preview the upcoming work week.
+  while (!isWorkday(date)) {
+    date.setDate(date.getDate() + 1);
+  }
+
+  return date;
+}
+
 function getElapsedWorkdays(anchorMonday: Date, untilDate: Date): number {
   const start = new Date(anchorMonday);
   const end = new Date(untilDate);
@@ -246,7 +258,8 @@ export function generateWeeklyAssignments(
         );
 
   const anchorMonday = parseAnchorMonday(ANCHOR_MONDAY);
-  const weekStart = getStartOfWeekMonday(referenceDate);
+  const rotationReferenceDate = getRotationReferenceDate(referenceDate);
+  const weekStart = getStartOfWeekMonday(rotationReferenceDate);
   const weekOffset = getElapsedWorkdays(anchorMonday, weekStart);
 
   const rebalanceForPresence = (day: DayKey, dayAssignments: string[]) => {
