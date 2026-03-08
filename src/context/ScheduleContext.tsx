@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 
 import {
   generateWeeklyAssignments,
@@ -15,6 +16,7 @@ import {
 } from "../constants/consts";
 
 import type { CleanerId, DayKey } from "../types/types";
+import { db } from "../lib/firebase";
 
 interface ScheduleContextType {
   todayDayKey: DayKey;
@@ -44,7 +46,11 @@ interface ScheduleContextType {
     fromJobIndex: number,
     toJobIndex: number,
   ) => void;
-  resetScheduleState: () => void;
+  saveScheduleToFirestore: () => Promise<void>;
+  isSavingSchedule: boolean;
+  saveScheduleError: string | null;
+  lastSavedToCloudAt: string | null;
+  resetScheduleState: () => Promise<void>;
 }
 
 const STORAGE_KEY = "team-clean:schedule-state";
@@ -60,6 +66,14 @@ type DaycareMoveOperationsByDay = Record<DayKey, SwapOperation[]>;
 
 interface PersistedScheduleState {
   date: string;
+  currentDay: DayKey;
+  presentCleanersByDay: PresentCleanersByDay;
+  swapOperationsByDay: SwapOperationsByDay;
+  buildingMoveOperationsByDay: BuildingMoveOperationsByDay;
+  daycareMoveOperationsByDay: DaycareMoveOperationsByDay;
+}
+
+interface ScheduleSnapshot {
   currentDay: DayKey;
   presentCleanersByDay: PresentCleanersByDay;
   swapOperationsByDay: SwapOperationsByDay;
@@ -251,9 +265,7 @@ function loadPersistedScheduleState(
       return null;
     }
 
-    const currentDay = isDayKey(parsed.currentDay)
-      ? parsed.currentDay
-      : null;
+    const currentDay = isDayKey(parsed.currentDay) ? parsed.currentDay : null;
 
     if (!currentDay) return null;
 
@@ -279,6 +291,56 @@ function loadPersistedScheduleState(
     window.localStorage.removeItem(STORAGE_KEY);
     return null;
   }
+}
+
+function getScheduleSnapshotFromFirestoreData(
+  value: unknown,
+  fallbackCurrentDay: DayKey,
+): ScheduleSnapshot | null {
+  const source =
+    value && typeof value === "object"
+      ? (value as Partial<Record<string, unknown>>)
+      : null;
+
+  if (!source) return null;
+
+  return {
+    currentDay: isDayKey(source.currentDay)
+      ? source.currentDay
+      : fallbackCurrentDay,
+    presentCleanersByDay: normalizePresentCleanersByDay(
+      source.presentCleanersByDay,
+    ),
+    swapOperationsByDay: normalizeSwapOperationsByDay(
+      source.swapOperationsByDay,
+      JOBS.length,
+    ),
+    buildingMoveOperationsByDay: normalizeSwapOperationsByDay(
+      source.buildingMoveOperationsByDay,
+      JOBS.length,
+    ),
+    daycareMoveOperationsByDay: normalizeSwapOperationsByDay(
+      source.daycareMoveOperationsByDay,
+      JOBS.length,
+    ),
+  };
+}
+
+function getIsoDateFromFirestoreTimestamp(value: unknown): string | null {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (
+    value &&
+    typeof value === "object" &&
+    "toDate" in value &&
+    typeof (value as { toDate: () => Date }).toDate === "function"
+  ) {
+    return (value as { toDate: () => Date }).toDate().toISOString();
+  }
+
+  return null;
 }
 
 const ScheduleContext = createContext<ScheduleContextType | null>(null);
@@ -319,6 +381,13 @@ export const ScheduleProvider = ({
       persistedScheduleState?.daycareMoveOperationsByDay ??
         getDefaultDaycareMoveOperationsByDay(),
     );
+  const [isSavingSchedule, setIsSavingSchedule] = useState(false);
+  const [saveScheduleError, setSaveScheduleError] = useState<string | null>(
+    null,
+  );
+  const [lastSavedToCloudAt, setLastSavedToCloudAt] = useState<string | null>(
+    null,
+  );
 
   const presentCleaners = presentCleanersByDay[currentDay];
 
@@ -471,6 +540,92 @@ export const ScheduleProvider = ({
     [daycareWeeklyAssignments, weeklyAssignments],
   );
 
+  const getDerivedAssignmentsForSnapshot = (snapshot: ScheduleSnapshot) => {
+    const generatedWeeklyAssignments = generateWeeklyAssignments(
+      STAFF_CLEANERS,
+      today,
+      JOBS.length,
+      snapshot.presentCleanersByDay,
+      JOBS,
+      CALL_IN_CLEANERS,
+    );
+
+    const snapshotWeeklyAssignments = {
+      mon: applyDaySwapOperations(
+        generatedWeeklyAssignments.mon,
+        snapshot.swapOperationsByDay.mon,
+      ),
+      tue: applyDaySwapOperations(
+        generatedWeeklyAssignments.tue,
+        snapshot.swapOperationsByDay.tue,
+      ),
+      wed: applyDaySwapOperations(
+        generatedWeeklyAssignments.wed,
+        snapshot.swapOperationsByDay.wed,
+      ),
+      thu: applyDaySwapOperations(
+        generatedWeeklyAssignments.thu,
+        snapshot.swapOperationsByDay.thu,
+      ),
+      fri: applyDaySwapOperations(
+        generatedWeeklyAssignments.fri,
+        snapshot.swapOperationsByDay.fri,
+      ),
+    };
+
+    const snapshotBuildingWeeklyAssignments = {
+      mon: applyDaySwapOperations(
+        snapshotWeeklyAssignments.mon,
+        snapshot.buildingMoveOperationsByDay.mon,
+      ),
+      tue: applyDaySwapOperations(
+        snapshotWeeklyAssignments.tue,
+        snapshot.buildingMoveOperationsByDay.tue,
+      ),
+      wed: applyDaySwapOperations(
+        snapshotWeeklyAssignments.wed,
+        snapshot.buildingMoveOperationsByDay.wed,
+      ),
+      thu: applyDaySwapOperations(
+        snapshotWeeklyAssignments.thu,
+        snapshot.buildingMoveOperationsByDay.thu,
+      ),
+      fri: applyDaySwapOperations(
+        snapshotWeeklyAssignments.fri,
+        snapshot.buildingMoveOperationsByDay.fri,
+      ),
+    };
+
+    const snapshotDaycareWeeklyAssignments = {
+      mon: applyDaySwapOperations(
+        snapshotWeeklyAssignments.mon,
+        snapshot.daycareMoveOperationsByDay.mon,
+      ),
+      tue: applyDaySwapOperations(
+        snapshotWeeklyAssignments.tue,
+        snapshot.daycareMoveOperationsByDay.tue,
+      ),
+      wed: applyDaySwapOperations(
+        snapshotWeeklyAssignments.wed,
+        snapshot.daycareMoveOperationsByDay.wed,
+      ),
+      thu: applyDaySwapOperations(
+        snapshotWeeklyAssignments.thu,
+        snapshot.daycareMoveOperationsByDay.thu,
+      ),
+      fri: applyDaySwapOperations(
+        snapshotWeeklyAssignments.fri,
+        snapshot.daycareMoveOperationsByDay.fri,
+      ),
+    };
+
+    return {
+      snapshotWeeklyAssignments,
+      snapshotBuildingWeeklyAssignments,
+      snapshotDaycareWeeklyAssignments,
+    };
+  };
+
   const swapAssignments = (
     day: DayKey,
     fromJobIndex: number,
@@ -540,17 +695,132 @@ export const ScheduleProvider = ({
     }));
   };
 
-  const resetScheduleState = () => {
-    setCurrentDay(todayDayKey);
-    setPresentCleanersByDay(getDefaultPresentCleanersByDay());
-    setSwapOperationsByDay(getDefaultSwapOperationsByDay());
-    setBuildingMoveOperationsByDay(getDefaultBuildingMoveOperationsByDay());
-    setDaycareMoveOperationsByDay(getDefaultDaycareMoveOperationsByDay());
+  const persistScheduleSnapshotToFirestore = async (
+    snapshot: ScheduleSnapshot,
+  ) => {
+    if (isSavingSchedule) return;
+
+    setIsSavingSchedule(true);
+    setSaveScheduleError(null);
+
+    const {
+      snapshotWeeklyAssignments,
+      snapshotBuildingWeeklyAssignments,
+      snapshotDaycareWeeklyAssignments,
+    } = getDerivedAssignmentsForSnapshot(snapshot);
+
+    try {
+      await setDoc(
+        doc(db, "dailySchedules", todayDateKey),
+        {
+          date: todayDateKey,
+          todayDayKey,
+          currentDay: snapshot.currentDay,
+          presentCleanersByDay: snapshot.presentCleanersByDay,
+          swapOperationsByDay: snapshot.swapOperationsByDay,
+          buildingMoveOperationsByDay: snapshot.buildingMoveOperationsByDay,
+          daycareMoveOperationsByDay: snapshot.daycareMoveOperationsByDay,
+          weeklyAssignments: snapshotWeeklyAssignments,
+          buildingWeeklyAssignments: snapshotBuildingWeeklyAssignments,
+          daycareWeeklyAssignments: snapshotDaycareWeeklyAssignments,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      );
+
+      setLastSavedToCloudAt(new Date().toISOString());
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to save schedule to Firestore.";
+
+      setSaveScheduleError(message);
+      throw error;
+    } finally {
+      setIsSavingSchedule(false);
+    }
+  };
+
+  const saveScheduleToFirestore = async () => {
+    await persistScheduleSnapshotToFirestore({
+      currentDay,
+      presentCleanersByDay,
+      swapOperationsByDay,
+      buildingMoveOperationsByDay,
+      daycareMoveOperationsByDay,
+    });
+  };
+
+  const resetScheduleState = async () => {
+    const snapshot: ScheduleSnapshot = {
+      currentDay: todayDayKey,
+      presentCleanersByDay: getDefaultPresentCleanersByDay(),
+      swapOperationsByDay: getDefaultSwapOperationsByDay(),
+      buildingMoveOperationsByDay: getDefaultBuildingMoveOperationsByDay(),
+      daycareMoveOperationsByDay: getDefaultDaycareMoveOperationsByDay(),
+    };
+
+    setCurrentDay(snapshot.currentDay);
+    setPresentCleanersByDay(snapshot.presentCleanersByDay);
+    setSwapOperationsByDay(snapshot.swapOperationsByDay);
+    setBuildingMoveOperationsByDay(snapshot.buildingMoveOperationsByDay);
+    setDaycareMoveOperationsByDay(snapshot.daycareMoveOperationsByDay);
 
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(STORAGE_KEY);
     }
+
+    await persistScheduleSnapshotToFirestore(snapshot);
   };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const unsubscribe = onSnapshot(
+      doc(db, "dailySchedules", todayDateKey),
+      (snapshot) => {
+        if (!snapshot.exists()) return;
+
+        const data = snapshot.data();
+        const syncedSnapshot = getScheduleSnapshotFromFirestoreData(
+          data,
+          todayDayKey,
+        );
+
+        if (!syncedSnapshot) return;
+
+        setCurrentDay(syncedSnapshot.currentDay);
+        setPresentCleanersByDay(syncedSnapshot.presentCleanersByDay);
+        setSwapOperationsByDay(syncedSnapshot.swapOperationsByDay);
+        setBuildingMoveOperationsByDay(
+          syncedSnapshot.buildingMoveOperationsByDay,
+        );
+        setDaycareMoveOperationsByDay(
+          syncedSnapshot.daycareMoveOperationsByDay,
+        );
+
+        const updatedAtIso = getIsoDateFromFirestoreTimestamp(data.updatedAt);
+        if (updatedAtIso) {
+          setLastSavedToCloudAt(updatedAtIso);
+        }
+
+        setSaveScheduleError(null);
+      },
+      (error) => {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Failed to sync schedule from Firestore.";
+
+        setSaveScheduleError(message);
+      },
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [todayDateKey, todayDayKey]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -592,6 +862,10 @@ export const ScheduleProvider = ({
         swapAssignments,
         moveBuildingAssignment,
         moveDaycareAssignment,
+        saveScheduleToFirestore,
+        isSavingSchedule,
+        saveScheduleError,
+        lastSavedToCloudAt,
         resetScheduleState,
       }}
     >
