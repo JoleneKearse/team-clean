@@ -267,6 +267,7 @@ function App() {
               label={editButtonLabel}
               onClick={handleEditSchedule}
               disabled={isSavingSchedule}
+              className={editButtonLabel === "Confirm" ? "text-pink-400" : ""}
               icon={
                 isEditMode ? (
                   <svg
