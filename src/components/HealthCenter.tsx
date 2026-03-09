@@ -3,7 +3,7 @@ import { useSchedule } from "../context/ScheduleContext";
 
 import { getHealthCenterAssignmentsForDay } from "../utils/scheduleUtils";
 import type { JobId } from "../types/types";
-import healthCenterImage from "../assets/health-center.png";
+import healthCenterImage from "../assets/health-center.webp";
 
 const DEFAULT_HEALTH_CENTER_JOBS: readonly JobId[] = ["Flo1", "Flo2", "Flo3"];
 

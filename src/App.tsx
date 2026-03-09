@@ -11,7 +11,11 @@ import Buildings from "./components/Buildings";
 import Daycare from "./components/Daycare";
 import BandOffice from "./components/BandOffice";
 import HealthCenter from "./components/HealthCenter";
+import CommunityCenter from "./components/CommunityCenter";
+import DropInCenter from "./components/DropInCenter";
+import Church from "./components/Church";
 import Button from "./components/Button";
+import Closures from "./components/Closures";
 
 const EASTERN_TIME_ZONE = "America/Toronto";
 
@@ -63,6 +67,7 @@ function getSectionVisibility(referenceDate: Date) {
 function App() {
   const {
     currentDay,
+    closedItems,
     peopleIn,
     presentCleaners,
     setPresentCleaners,
@@ -75,6 +80,7 @@ function App() {
   const [clockTick, setClockTick] = useState(() => Date.now());
   const [isEditMode, setIsEditMode] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [isClosuresOpen, setIsClosuresOpen] = useState(false);
   const [showSaveSuccessMessage, setShowSaveSuccessMessage] = useState(false);
   const [saveSuccessMessageTick, setSaveSuccessMessageTick] = useState(0);
 
@@ -109,6 +115,15 @@ function App() {
     () => getSectionVisibility(new Date(clockTick)),
     [clockTick],
   );
+  const closedItemSet = useMemo(() => new Set(closedItems), [closedItems]);
+  const isEditUiActive = isEditMode || isClosuresOpen;
+  const showDaycareSection = showDaycare && !closedItemSet.has("Daycare");
+  const showBandOfficeSection =
+    showBandOffice && !closedItemSet.has("Band Office");
+  const showHealthCenterSection = !closedItemSet.has("Health Center");
+  const showCommunityCenterSection = !closedItemSet.has("Community Center");
+  const showDropInCenterSection = !closedItemSet.has("Drop-in Center");
+  const showChurchSection = !closedItemSet.has("Church");
 
   const toggleCleaner = (cleaner: CleanerId) => {
     setIsEditMode(true);
@@ -127,7 +142,7 @@ function App() {
       return;
     }
 
-    if (!isEditMode) {
+    if (!isEditUiActive) {
       setIsEditMode(true);
       return;
     }
@@ -146,18 +161,27 @@ function App() {
     void resetScheduleState()
       .then(() => {
         triggerSaveSuccessMessage();
+        setIsEditMode(false);
+        setIsClosuresOpen(false);
       })
       .catch(() => {
         // Error is already tracked in context and shown in the UI.
       });
-    setIsEditMode(false);
   };
 
   const handleToggleHelp = () => {
     setIsHelpOpen((current) => !current);
   };
 
-  const editButtonLabel = isEditMode
+  const handleToggleClosures = () => {
+    setIsClosuresOpen((current) => !current);
+  };
+
+  const handleToggleClosureItem = () => {
+    setIsEditMode(true);
+  };
+
+  const editButtonLabel = isEditUiActive
     ? isSavingSchedule
       ? "Saving..."
       : "Confirm"
@@ -168,7 +192,7 @@ function App() {
       <div
         className={[
           "w-full space-y-4 rounded-xl transition-colors",
-          isEditMode ? "bg-pink-200/40 p-2" : "",
+          isEditUiActive ? "bg-pink-200/40 p-2" : "",
         ]
           .filter(Boolean)
           .join(" ")}
@@ -238,7 +262,7 @@ function App() {
 
         <div className="relative w-full">
           <div
-            className={`absolute ${isEditMode ? "-left-1" : "left-0"} top-1/2 -translate-y-1/2 mt-1`}
+            className={`absolute ${isEditUiActive ? "-left-1" : "left-0"} top-1/2 -translate-y-1/2 mt-1`}
           >
             <button
               type="button"
@@ -262,6 +286,31 @@ function App() {
             </button>
           </div>
 
+          <div
+            className={`absolute ${isEditUiActive ? "-right-1" : "right-0"} top-1/2 -translate-y-1/2 mt-1`}
+          >
+            <button
+              type="button"
+              onClick={handleToggleClosures}
+              aria-label={isClosuresOpen ? "Hide closures" : "Show closures"}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2.5}
+                stroke="currentColor"
+                className="size-8"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 0 1 6.208.682l.108.054a9 9 0 0 0 6.086.71l3.114-.732a48.524 48.524 0 0 1-.005-10.499l-3.11.732a9 9 0 0 1-6.085-.711l-.108-.054a9 9 0 0 0-6.208-.682L3 4.5M3 15V4.5"
+                />
+              </svg>
+            </button>
+          </div>
+
           <div className="flex items-center justify-center gap-6 p-2">
             <Button
               label={editButtonLabel}
@@ -269,7 +318,7 @@ function App() {
               disabled={isSavingSchedule}
               className={editButtonLabel === "Confirm" ? "text-pink-400" : ""}
               icon={
-                isEditMode ? (
+                isEditUiActive ? (
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
@@ -335,6 +384,7 @@ function App() {
             Changes sent to everyone.
           </p>
         )}
+        {isClosuresOpen && <Closures onToggleItem={handleToggleClosureItem} />}
 
         {isHelpOpen && (
           <div>
@@ -367,12 +417,17 @@ function App() {
           highlightedDayKey={currentDay}
           isEditMode={isEditMode}
         />
-        {showBuildings && <Buildings isEditMode={isEditMode} />}
-        {showDaycare && <Daycare isEditMode={isEditMode} />}
+        {showBuildings && (
+          <Buildings isEditMode={isEditMode} closedItems={closedItems} />
+        )}
+        {showDaycareSection && <Daycare isEditMode={isEditMode} />}
       </div>
-      {showBandOffice && <BandOffice />}
+      {showBandOfficeSection && <BandOffice />}
 
-      <HealthCenter />
+      {showHealthCenterSection && <HealthCenter />}
+      {showCommunityCenterSection && <CommunityCenter />}
+      {showDropInCenterSection && <DropInCenter />}
+      {showChurchSection && <Church />}
     </div>
   );
 }

@@ -97,18 +97,65 @@ export const CALL_IN_CLEANERS = ["EB", "KK", "MB", "new"] as const;
 
 export const CLEANERS = [...STAFF_CLEANERS, ...CALL_IN_CLEANERS] as const;
 
+export const CLOSURE_OPTIONS = [
+  { id: "Seniors", label: "Seniors", colorClass: "bg-blue-300" },
+  { id: "Grade 1", label: "Grade 1", colorClass: "bg-blue-300" },
+  { id: "Grade 2", label: "Grade 2", colorClass: "bg-blue-300" },
+  { id: "Daycare", label: "Daycare", colorClass: "bg-blue-300" },
+  { id: "Education", label: "Education", colorClass: "bg-red-300" },
+  { id: "Fieldhouse", label: "Fieldhouse", colorClass: "bg-red-300" },
+  { id: "Social", label: "Social", colorClass: "bg-red-300" },
+  { id: "Annex", label: "Annex", colorClass: "bg-red-300" },
+  { id: "Band Office", label: "Band Office", colorClass: "bg-red-300" },
+  {
+    id: "Health Center",
+    label: "Health Center",
+    colorClass: "bg-green-300",
+  },
+  {
+    id: "Community Center",
+    label: "Community Center",
+    colorClass: "bg-blue-300",
+  },
+  {
+    id: "Drop-in Center",
+    label: "Drop-in Center",
+    colorClass: "bg-red-300",
+  },
+  {
+    id: "Church",
+    label: "Church",
+    colorClass: "bg-red-300",
+  },
+] as const;
+
+const CLOSURE_LABEL_BY_ID = Object.fromEntries(
+  CLOSURE_OPTIONS.map((option) => [option.id, option.label]),
+) as Record<string, string>;
+
+export function getClosureLabelById(closureId: string): string {
+  return CLOSURE_LABEL_BY_ID[closureId] ?? closureId;
+}
+
 export const BUILDINGS = [
   {
     key: "seniors_fieldhouse_education",
     label: "Seniors / Fieldhouse / Education",
+    closureSegmentIds: ["Seniors", "Fieldhouse", "Education"],
     jobIds: ["SW", "San", "Flo3"],
   },
   {
     key: "grade2_social",
     label: "Grade 2 / Social",
+    closureSegmentIds: ["Grade 2", "Social"],
     jobIds: ["Vac", "Gar", "Flo1"],
   },
-  { key: "grade1_annex", label: "Grade 1 / Annex", jobIds: ["Bath", "Flo2"] },
+  {
+    key: "grade1_annex",
+    label: "Grade 1 / Annex",
+    closureSegmentIds: ["Grade 1", "Annex"],
+    jobIds: ["Bath", "Flo2"],
+  },
 ] as const;
 
 export const ANCHOR_MONDAY = "2026-02-23" as const;

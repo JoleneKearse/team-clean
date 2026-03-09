@@ -11,11 +11,12 @@ import {
 import {
   CALL_IN_CLEANERS,
   CLEANERS,
+  CLOSURE_OPTIONS,
   JOBS,
   STAFF_CLEANERS,
 } from "../constants/consts";
 
-import type { CleanerId, DayKey } from "../types/types";
+import type { CleanerId, ClosureId, DayKey } from "../types/types";
 import { db } from "../lib/firebase";
 
 interface ScheduleContextType {
@@ -26,6 +27,8 @@ interface ScheduleContextType {
   buildingReassignmentFlags: WeeklyReassignmentFlags;
   daycareWeeklyAssignments: Record<DayKey, string[]>;
   daycareReassignmentFlags: WeeklyReassignmentFlags;
+  closedItems: ClosureId[];
+  toggleClosedItem: (closureId: ClosureId) => void;
   presentCleaners: CleanerId[];
   setPresentCleaners: React.Dispatch<React.SetStateAction<CleanerId[]>>;
   peopleIn: number;
@@ -56,6 +59,7 @@ interface ScheduleContextType {
 }
 
 const STORAGE_KEY = "team-clean:schedule-state";
+const CLOSED_ITEMS_DEFAULTS_VERSION = 2;
 
 type PresentCleanersByDay = Record<DayKey, CleanerId[]>;
 type SwapOperation = {
@@ -66,15 +70,27 @@ type SwapOperationsByDay = Record<DayKey, SwapOperation[]>;
 type BuildingMoveOperationsByDay = Record<DayKey, SwapOperation[]>;
 type DaycareMoveOperationsByDay = Record<DayKey, SwapOperation[]>;
 type Flo1AtAnnexByDay = Record<DayKey, boolean>;
+type ClosedItemsByDay = Record<DayKey, ClosureId[]>;
+
+const CLOSURE_IDS = CLOSURE_OPTIONS.map((option) => option.id) as ClosureId[];
+const CLOSURE_ID_SET = new Set<string>(CLOSURE_IDS);
+const DEFAULT_CLOSED_ITEMS = CLOSURE_IDS.filter(
+  (closureId) =>
+    closureId === "Community Center" ||
+    closureId === "Drop-in Center" ||
+    closureId === "Church",
+);
 
 interface PersistedScheduleState {
   date: string;
+  closedItemsDefaultsVersion: number;
   currentDay: DayKey;
   presentCleanersByDay: PresentCleanersByDay;
   swapOperationsByDay: SwapOperationsByDay;
   buildingMoveOperationsByDay: BuildingMoveOperationsByDay;
   flo1AtAnnexByDay: Flo1AtAnnexByDay;
   daycareMoveOperationsByDay: DaycareMoveOperationsByDay;
+  closedItemsByDay: ClosedItemsByDay;
 }
 
 interface ScheduleSnapshot {
@@ -84,6 +100,7 @@ interface ScheduleSnapshot {
   buildingMoveOperationsByDay: BuildingMoveOperationsByDay;
   flo1AtAnnexByDay: Flo1AtAnnexByDay;
   daycareMoveOperationsByDay: DaycareMoveOperationsByDay;
+  closedItemsByDay: ClosedItemsByDay;
 }
 
 function getDefaultPresentCleanersByDay(): PresentCleanersByDay {
@@ -133,6 +150,16 @@ function getDefaultFlo1AtAnnexByDay(): Flo1AtAnnexByDay {
     wed: false,
     thu: false,
     fri: false,
+  };
+}
+
+function getDefaultClosedItemsByDay(): ClosedItemsByDay {
+  return {
+    mon: [...DEFAULT_CLOSED_ITEMS],
+    tue: [...DEFAULT_CLOSED_ITEMS],
+    wed: [...DEFAULT_CLOSED_ITEMS],
+    thu: [...DEFAULT_CLOSED_ITEMS],
+    fri: [...DEFAULT_CLOSED_ITEMS],
   };
 }
 
@@ -194,6 +221,47 @@ function normalizeFlo1AtAnnexByDay(value: unknown): Flo1AtAnnexByDay {
     wed: source.wed === true,
     thu: source.thu === true,
     fri: source.fri === true,
+  };
+}
+
+function isClosureId(value: unknown): value is ClosureId {
+  return typeof value === "string" && CLOSURE_ID_SET.has(value);
+}
+
+function normalizeClosedItemsForDay(
+  value: unknown,
+  backfillDefaultWhenEmpty: boolean,
+): ClosureId[] {
+  if (!Array.isArray(value)) return [...DEFAULT_CLOSED_ITEMS];
+  if (backfillDefaultWhenEmpty && value.length === 0) {
+    return [...DEFAULT_CLOSED_ITEMS];
+  }
+
+  const selected = new Set(value.filter(isClosureId));
+
+  // Legacy schedules (v1 and earlier) never had Church, so default it to closed.
+  if (backfillDefaultWhenEmpty) {
+    selected.add("Church");
+  }
+
+  return CLOSURE_IDS.filter((closureId) => selected.has(closureId));
+}
+
+function normalizeClosedItemsByDay(
+  value: unknown,
+  backfillDefaultWhenEmpty = false,
+): ClosedItemsByDay {
+  const source =
+    value && typeof value === "object"
+      ? (value as Partial<Record<DayKey, unknown>>)
+      : {};
+
+  return {
+    mon: normalizeClosedItemsForDay(source.mon, backfillDefaultWhenEmpty),
+    tue: normalizeClosedItemsForDay(source.tue, backfillDefaultWhenEmpty),
+    wed: normalizeClosedItemsForDay(source.wed, backfillDefaultWhenEmpty),
+    thu: normalizeClosedItemsForDay(source.thu, backfillDefaultWhenEmpty),
+    fri: normalizeClosedItemsForDay(source.fri, backfillDefaultWhenEmpty),
   };
 }
 
@@ -282,6 +350,7 @@ function loadPersistedScheduleState(
   | "buildingMoveOperationsByDay"
   | "flo1AtAnnexByDay"
   | "daycareMoveOperationsByDay"
+  | "closedItemsByDay"
 > | null {
   if (typeof window === "undefined") return null;
 
@@ -290,6 +359,8 @@ function loadPersistedScheduleState(
 
   try {
     const parsed = JSON.parse(raw) as Partial<PersistedScheduleState>;
+    const backfillDefaultWhenEmpty =
+      parsed.closedItemsDefaultsVersion !== CLOSED_ITEMS_DEFAULTS_VERSION;
 
     if (parsed.date !== todayDateKey) {
       window.localStorage.removeItem(STORAGE_KEY);
@@ -318,6 +389,10 @@ function loadPersistedScheduleState(
         parsed.daycareMoveOperationsByDay,
         JOBS.length,
       ),
+      closedItemsByDay: normalizeClosedItemsByDay(
+        parsed.closedItemsByDay,
+        backfillDefaultWhenEmpty,
+      ),
     };
   } catch {
     window.localStorage.removeItem(STORAGE_KEY);
@@ -335,6 +410,9 @@ function getScheduleSnapshotFromFirestoreData(
       : null;
 
   if (!source) return null;
+
+  const backfillDefaultWhenEmpty =
+    source.closedItemsDefaultsVersion !== CLOSED_ITEMS_DEFAULTS_VERSION;
 
   return {
     currentDay: isDayKey(source.currentDay)
@@ -355,6 +433,10 @@ function getScheduleSnapshotFromFirestoreData(
     daycareMoveOperationsByDay: normalizeSwapOperationsByDay(
       source.daycareMoveOperationsByDay,
       JOBS.length,
+    ),
+    closedItemsByDay: normalizeClosedItemsByDay(
+      source.closedItemsByDay,
+      backfillDefaultWhenEmpty,
     ),
   };
 }
@@ -417,6 +499,9 @@ export const ScheduleProvider = ({
       persistedScheduleState?.daycareMoveOperationsByDay ??
         getDefaultDaycareMoveOperationsByDay(),
     );
+  const [closedItemsByDay, setClosedItemsByDay] = useState<ClosedItemsByDay>(
+    persistedScheduleState?.closedItemsByDay ?? getDefaultClosedItemsByDay(),
+  );
   const [isSavingSchedule, setIsSavingSchedule] = useState(false);
   const [saveScheduleError, setSaveScheduleError] = useState<string | null>(
     null,
@@ -427,6 +512,7 @@ export const ScheduleProvider = ({
   const flo1AtAnnex = flo1AtAnnexByDay[currentDay];
 
   const presentCleaners = presentCleanersByDay[currentDay];
+  const closedItems = closedItemsByDay[currentDay];
 
   const setPresentCleaners: React.Dispatch<
     React.SetStateAction<CleanerId[]>
@@ -440,6 +526,23 @@ export const ScheduleProvider = ({
       return {
         ...current,
         [currentDay]: nextForCurrentDay,
+      };
+    });
+  };
+
+  const toggleClosedItem = (closureId: ClosureId) => {
+    setClosedItemsByDay((current) => {
+      const nextSelection = new Set(current[currentDay]);
+
+      if (nextSelection.has(closureId)) {
+        nextSelection.delete(closureId);
+      } else {
+        nextSelection.add(closureId);
+      }
+
+      return {
+        ...current,
+        [currentDay]: CLOSURE_IDS.filter((id) => nextSelection.has(id)),
       };
     });
   };
@@ -758,6 +861,7 @@ export const ScheduleProvider = ({
         doc(db, "dailySchedules", todayDateKey),
         {
           date: todayDateKey,
+          closedItemsDefaultsVersion: CLOSED_ITEMS_DEFAULTS_VERSION,
           todayDayKey,
           currentDay: snapshot.currentDay,
           presentCleanersByDay: snapshot.presentCleanersByDay,
@@ -765,6 +869,7 @@ export const ScheduleProvider = ({
           buildingMoveOperationsByDay: snapshot.buildingMoveOperationsByDay,
           flo1AtAnnexByDay: snapshot.flo1AtAnnexByDay,
           daycareMoveOperationsByDay: snapshot.daycareMoveOperationsByDay,
+          closedItemsByDay: snapshot.closedItemsByDay,
           weeklyAssignments: snapshotWeeklyAssignments,
           buildingWeeklyAssignments: snapshotBuildingWeeklyAssignments,
           daycareWeeklyAssignments: snapshotDaycareWeeklyAssignments,
@@ -795,6 +900,7 @@ export const ScheduleProvider = ({
       buildingMoveOperationsByDay,
       flo1AtAnnexByDay,
       daycareMoveOperationsByDay,
+      closedItemsByDay,
     });
   };
 
@@ -806,6 +912,7 @@ export const ScheduleProvider = ({
       buildingMoveOperationsByDay: getDefaultBuildingMoveOperationsByDay(),
       flo1AtAnnexByDay: getDefaultFlo1AtAnnexByDay(),
       daycareMoveOperationsByDay: getDefaultDaycareMoveOperationsByDay(),
+      closedItemsByDay: getDefaultClosedItemsByDay(),
     };
 
     setCurrentDay(snapshot.currentDay);
@@ -814,6 +921,7 @@ export const ScheduleProvider = ({
     setBuildingMoveOperationsByDay(snapshot.buildingMoveOperationsByDay);
     setFlo1AtAnnexByDay(snapshot.flo1AtAnnexByDay);
     setDaycareMoveOperationsByDay(snapshot.daycareMoveOperationsByDay);
+    setClosedItemsByDay(snapshot.closedItemsByDay);
 
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(STORAGE_KEY);
@@ -848,6 +956,7 @@ export const ScheduleProvider = ({
         setDaycareMoveOperationsByDay(
           syncedSnapshot.daycareMoveOperationsByDay,
         );
+        setClosedItemsByDay(syncedSnapshot.closedItemsByDay);
 
         const updatedAtIso = getIsoDateFromFirestoreTimestamp(data.updatedAt);
         if (updatedAtIso) {
@@ -876,17 +985,20 @@ export const ScheduleProvider = ({
 
     const payload: PersistedScheduleState = {
       date: todayDateKey,
+      closedItemsDefaultsVersion: CLOSED_ITEMS_DEFAULTS_VERSION,
       currentDay,
       presentCleanersByDay,
       swapOperationsByDay,
       buildingMoveOperationsByDay,
       flo1AtAnnexByDay,
       daycareMoveOperationsByDay,
+      closedItemsByDay,
     };
 
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   }, [
     buildingMoveOperationsByDay,
+    closedItemsByDay,
     flo1AtAnnexByDay,
     daycareMoveOperationsByDay,
     presentCleanersByDay,
@@ -905,6 +1017,8 @@ export const ScheduleProvider = ({
         buildingReassignmentFlags,
         daycareWeeklyAssignments,
         daycareReassignmentFlags,
+        closedItems,
+        toggleClosedItem,
         presentCleaners,
         setPresentCleaners,
         peopleIn,

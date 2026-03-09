@@ -3,7 +3,7 @@ import { useSchedule } from "../context/ScheduleContext";
 
 import { getBandOfficeAssignmentsForDay } from "../utils/scheduleUtils";
 import type { JobId } from "../types/types";
-import bandOfficeImage from "../assets/band-office.jpg";
+import bandOfficeImage from "../assets/band-office.webp";
 
 const BAND_OFFICE_JOBS: readonly JobId[] = ["Flo1", "Flo2", "Flo3"];
 const BATHROOM_NOTICE_SUFFIX = " needs to do all the bathrooms.";

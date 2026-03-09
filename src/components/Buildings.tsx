@@ -15,9 +15,14 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 import { useSchedule } from "../context/ScheduleContext";
-import { BUILDINGS, JOBS, getNecessaryJobStyle } from "../constants/consts";
+import {
+  BUILDINGS,
+  JOBS,
+  getClosureLabelById,
+  getNecessaryJobStyle,
+} from "../constants/consts";
 import { getBuildingAssignmentsForDay } from "../utils/scheduleUtils";
-import type { DayKey } from "../types/types";
+import type { ClosureId, DayKey } from "../types/types";
 
 type BuildingSlotId = "default" | "annex-flo1";
 
@@ -185,9 +190,10 @@ function BuildingDroppableCell({
 
 type BuildingsProps = {
   isEditMode: boolean;
+  closedItems: ClosureId[];
 };
 
-const Buildings = ({ isEditMode }: BuildingsProps) => {
+const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
   const {
     currentDay,
     buildingWeeklyAssignments,
@@ -202,6 +208,23 @@ const Buildings = ({ isEditMode }: BuildingsProps) => {
     flo1JobIndex >= 0
       ? (buildingWeeklyAssignments[currentDay][flo1JobIndex] ?? "")
       : "";
+  const closedSet = new Set(closedItems);
+  const visibleBuildings = BUILDINGS.flatMap((building) => {
+    const visibleLabelSegments = building.closureSegmentIds
+      .filter((segmentId) => !closedSet.has(segmentId))
+      .map((segmentId) => getClosureLabelById(segmentId));
+
+    if (visibleLabelSegments.length === 0) {
+      return [];
+    }
+
+    return [
+      {
+        building,
+        label: visibleLabelSegments.join(" / "),
+      },
+    ];
+  });
 
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -214,6 +237,10 @@ const Buildings = ({ isEditMode }: BuildingsProps) => {
       },
     }),
   );
+
+  if (visibleBuildings.length === 0) {
+    return null;
+  }
 
   const onDragStart = (event: DragStartEvent) => {
     if (!isEditMode) return;
@@ -295,7 +322,7 @@ const Buildings = ({ isEditMode }: BuildingsProps) => {
           </h2>
 
           <div className="space-y-2 p-4">
-            {BUILDINGS.map((building) => {
+            {visibleBuildings.map(({ building, label }) => {
               const baseAssignments = getBuildingAssignmentsForDay({
                 day: currentDay,
                 jobs: JOBS,
@@ -345,8 +372,8 @@ const Buildings = ({ isEditMode }: BuildingsProps) => {
                       .join(" ")}
                   >
                     {hasOnlyOneAssignedCleaner
-                      ? `${building.label} needs another cleaner`
-                      : building.label}
+                      ? `${label} needs another cleaner`
+                      : label}
                   </h3>
                   <div className="mt-1 rounded-xl overflow-hidden border ">
                     <table className="w-full table-fixed text-center border-collapse">
