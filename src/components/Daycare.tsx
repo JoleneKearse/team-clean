@@ -17,7 +17,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useSchedule } from "../context/ScheduleContext";
 import { JOBS, getNecessaryJobStyle } from "../constants/consts";
 import type { DayKey } from "../types/types";
-import daycareImage from "../assets/daycare.jpg";
+import daycareImage from "../assets/daycare.webp";
 
 import {
   getDaycareJobLabel,
