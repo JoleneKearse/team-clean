@@ -142,6 +142,7 @@ type CalendarDroppableCellProps = {
   day: DayKey;
   jobIndex: number;
   isEditMode: boolean;
+  isDisabled?: boolean;
   className: string;
   children: React.ReactNode;
 };
@@ -150,6 +151,7 @@ function CalendarDroppableCell({
   day,
   jobIndex,
   isEditMode,
+  isDisabled = false,
   className,
   children,
 }: CalendarDroppableCellProps) {
@@ -159,7 +161,7 @@ function CalendarDroppableCell({
       day,
       jobIndex,
     } as DropPayload,
-    disabled: !isEditMode,
+    disabled: !isEditMode || isDisabled,
   });
 
   return (
@@ -178,8 +180,12 @@ const CalendarWeekly = ({
   highlightedDayKey,
   isEditMode,
 }: CalendarWeeklyProps) => {
-  const { weeklyAssignments, weeklyReassignmentFlags, swapAssignments } =
-    useSchedule();
+  const {
+    weeklyAssignments,
+    weeklyPublicHolidays,
+    weeklyReassignmentFlags,
+    swapAssignments,
+  } = useSchedule();
   const [activeInitials, setActiveInitials] = useState("");
 
   const sensors = useSensors(
@@ -211,6 +217,8 @@ const CalendarWeekly = ({
     const target = parseDropPayload(event.over.data.current);
     if (!source || !target) return;
     if (source.day !== target.day) return;
+    if (weeklyPublicHolidays[source.day]) return;
+    if (weeklyPublicHolidays[target.day]) return;
     if (source.jobIndex === target.jobIndex) return;
 
     const sourceInitials = weeklyAssignments[source.day][source.jobIndex] ?? "";
@@ -300,6 +308,8 @@ const CalendarWeekly = ({
 
                       {DAYS.map((day) => {
                         const isHighlightedDay = day.key === highlightedDayKey;
+                        const holiday = weeklyPublicHolidays[day.key] ?? null;
+                        const isHoliday = Boolean(holiday);
                         const isFloJob = job.includes("Flo");
                         const initials =
                           weeklyAssignments[day.key][jobIndex] ?? "";
@@ -319,6 +329,7 @@ const CalendarWeekly = ({
                           !isHighlightedDay && necessaryJobStyle
                             ? necessaryJobStyle.lineBgClass
                             : "",
+                          isHoliday ? "bg-gray-100/80" : "",
                         ]
                           .filter(Boolean)
                           .join(" ");
@@ -329,19 +340,31 @@ const CalendarWeekly = ({
                             day={day.key}
                             jobIndex={jobIndex}
                             isEditMode={isEditMode}
+                            isDisabled={isHoliday}
                             className={className}
                           >
-                            <CalendarDraggableInitials
-                              day={day.key}
-                              jobIndex={jobIndex}
-                              initials={initials}
-                              isEditMode={isEditMode}
-                              className={
-                                isHighlightedDay && isReassigned
-                                  ? "text-pink-700 pink-change-contrast"
-                                  : ""
-                              }
-                            />
+                            {holiday ? (
+                              <span
+                                role="img"
+                                aria-label={holiday.name}
+                                title={holiday.name}
+                                className="text-lg"
+                              >
+                                {holiday.icon}
+                              </span>
+                            ) : (
+                              <CalendarDraggableInitials
+                                day={day.key}
+                                jobIndex={jobIndex}
+                                initials={initials}
+                                isEditMode={isEditMode}
+                                className={
+                                  isHighlightedDay && isReassigned
+                                    ? "text-pink-700 pink-change-contrast"
+                                    : ""
+                                }
+                              />
+                            )}
                           </CalendarDroppableCell>
                         );
                       })}

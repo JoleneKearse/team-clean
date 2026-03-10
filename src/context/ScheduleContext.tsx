@@ -7,6 +7,10 @@ import {
   getDayKeyFromDate,
   type WeeklyReassignmentFlags,
 } from "../utils/scheduleUtils";
+import {
+  getOntarioPublicHolidaysByDayForWeek,
+  type OntarioPublicHoliday,
+} from "../utils/holidayUtils";
 
 import {
   CALL_IN_CLEANERS,
@@ -21,6 +25,7 @@ import { db } from "../lib/firebase";
 
 interface ScheduleContextType {
   todayDayKey: DayKey;
+  weeklyPublicHolidays: Partial<Record<DayKey, OntarioPublicHoliday>>;
   weeklyAssignments: Record<DayKey, string[]>;
   weeklyReassignmentFlags: WeeklyReassignmentFlags;
   buildingWeeklyAssignments: Record<DayKey, string[]>;
@@ -468,6 +473,10 @@ export const ScheduleProvider = ({
   const today = useMemo(() => new Date(), []);
   const todayDateKey = useMemo(() => getLocalDateKey(today), [today]);
   const todayDayKey = useMemo(() => getDayKeyFromDate(today), [today]);
+  const weeklyPublicHolidays = useMemo(
+    () => getOntarioPublicHolidaysByDayForWeek(today),
+    [today],
+  );
   const persistedScheduleState = useMemo(
     () => loadPersistedScheduleState(todayDateKey),
     [todayDateKey],
@@ -1011,6 +1020,7 @@ export const ScheduleProvider = ({
     <ScheduleContext.Provider
       value={{
         todayDayKey,
+        weeklyPublicHolidays,
         weeklyAssignments,
         weeklyReassignmentFlags,
         buildingWeeklyAssignments,

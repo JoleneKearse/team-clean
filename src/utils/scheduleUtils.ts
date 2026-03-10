@@ -1,5 +1,6 @@
 import type { DayKey, JobId } from "../types/types";
 import { ANCHOR_MONDAY, isNecessaryJob } from "../constants/consts";
+import { getOntarioPublicHolidayOnDate } from "./holidayUtils";
 
 function rotate<T>(arr: readonly T[], shiftDown: number): T[] {
   const len = arr.length;
@@ -12,6 +13,7 @@ function rotate<T>(arr: readonly T[], shiftDown: number): T[] {
 }
 
 const BACKFILL_PRIORITY: readonly JobId[] = ["Flo3", "Flo2", "Flo1"];
+const WEEK_DAY_KEYS: readonly DayKey[] = ["mon", "tue", "wed", "thu", "fri"];
 
 function normalizePeopleIn(peopleIn: number): number {
   return Math.max(0, Math.min(8, peopleIn));
@@ -210,7 +212,9 @@ function getElapsedWorkdays(anchorMonday: Date, untilDate: Date): number {
     let count = 0;
 
     while (cursor < end) {
-      if (isWorkday(cursor)) count += 1;
+      if (isWorkday(cursor) && !getOntarioPublicHolidayOnDate(cursor)) {
+        count += 1;
+      }
       cursor.setDate(cursor.getDate() + 1);
     }
 
@@ -221,7 +225,9 @@ function getElapsedWorkdays(anchorMonday: Date, untilDate: Date): number {
   let count = 0;
 
   while (cursor < start) {
-    if (isWorkday(cursor)) count += 1;
+    if (isWorkday(cursor) && !getOntarioPublicHolidayOnDate(cursor)) {
+      count += 1;
+    }
     cursor.setDate(cursor.getDate() + 1);
   }
 
@@ -261,6 +267,7 @@ export function generateWeeklyAssignments(
   const rotationReferenceDate = getRotationReferenceDate(referenceDate);
   const weekStart = getStartOfWeekMonday(rotationReferenceDate);
   const weekOffset = getElapsedWorkdays(anchorMonday, weekStart);
+  const emptyAssignments = Array.from({ length: totalSlots }, () => "");
 
   const rebalanceForPresence = (day: DayKey, dayAssignments: string[]) => {
     const presentForDay = presentCleanersByDay?.[day] ?? cleaners;
@@ -337,12 +344,30 @@ export function generateWeeklyAssignments(
   };
 
   const weekly: Record<DayKey, string[]> = {
-    mon: rebalanceForPresence("mon", rotate(base, weekOffset + 0)),
-    tue: rebalanceForPresence("tue", rotate(base, weekOffset + 1)),
-    wed: rebalanceForPresence("wed", rotate(base, weekOffset + 2)),
-    thu: rebalanceForPresence("thu", rotate(base, weekOffset + 3)),
-    fri: rebalanceForPresence("fri", rotate(base, weekOffset + 4)),
+    mon: [...emptyAssignments],
+    tue: [...emptyAssignments],
+    wed: [...emptyAssignments],
+    thu: [...emptyAssignments],
+    fri: [...emptyAssignments],
   };
+
+  let rotationDayOffset = 0;
+
+  WEEK_DAY_KEYS.forEach((dayKey, dayOffset) => {
+    const dayDate = new Date(weekStart);
+    dayDate.setDate(weekStart.getDate() + dayOffset);
+
+    if (getOntarioPublicHolidayOnDate(dayDate)) {
+      weekly[dayKey] = [...emptyAssignments];
+      return;
+    }
+
+    weekly[dayKey] = rebalanceForPresence(
+      dayKey,
+      rotate(base, weekOffset + rotationDayOffset),
+    );
+    rotationDayOffset += 1;
+  });
 
   return weekly;
 }
