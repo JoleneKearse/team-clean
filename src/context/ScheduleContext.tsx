@@ -8,6 +8,7 @@ import {
   type WeeklyReassignmentFlags,
 } from "../utils/scheduleUtils";
 import {
+  getMarchBreakReducedScheduleByDayForWeek,
   getOntarioPublicHolidaysByDayForWeek,
   type OntarioPublicHoliday,
 } from "../utils/holidayUtils";
@@ -26,6 +27,7 @@ import { db } from "../lib/firebase";
 interface ScheduleContextType {
   todayDayKey: DayKey;
   weeklyPublicHolidays: Partial<Record<DayKey, OntarioPublicHoliday>>;
+  isMarchBreakReducedScheduleDay: boolean;
   weeklyAssignments: Record<DayKey, string[]>;
   weeklyReassignmentFlags: WeeklyReassignmentFlags;
   buildingWeeklyAssignments: Record<DayKey, string[]>;
@@ -477,6 +479,10 @@ export const ScheduleProvider = ({
     () => getOntarioPublicHolidaysByDayForWeek(today),
     [today],
   );
+  const weeklyMarchBreakReducedSchedule = useMemo(
+    () => getMarchBreakReducedScheduleByDayForWeek(today),
+    [today],
+  );
   const persistedScheduleState = useMemo(
     () => loadPersistedScheduleState(todayDateKey),
     [todayDateKey],
@@ -519,6 +525,9 @@ export const ScheduleProvider = ({
     null,
   );
   const flo1AtAnnex = flo1AtAnnexByDay[currentDay];
+  const isMarchBreakReducedScheduleDay = Boolean(
+    weeklyMarchBreakReducedSchedule[currentDay],
+  );
 
   const presentCleaners = presentCleanersByDay[currentDay];
   const closedItems = closedItemsByDay[currentDay];
@@ -1021,6 +1030,7 @@ export const ScheduleProvider = ({
       value={{
         todayDayKey,
         weeklyPublicHolidays,
+        isMarchBreakReducedScheduleDay,
         weeklyAssignments,
         weeklyReassignmentFlags,
         buildingWeeklyAssignments,

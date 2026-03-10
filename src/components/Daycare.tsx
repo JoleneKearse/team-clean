@@ -200,6 +200,7 @@ const Daycare = ({ isEditMode }: DaycareProps) => {
     daycareReassignmentFlags,
     moveDaycareAssignment,
     peopleIn,
+    isMarchBreakReducedScheduleDay,
   } = useSchedule();
   const [activeInitials, setActiveInitials] = useState("");
 
@@ -253,6 +254,7 @@ const Daycare = ({ isEditMode }: DaycareProps) => {
     jobs: JOBS,
     weeklyAssignments: daycareWeeklyAssignments,
     peopleIn,
+    isMarchBreakReducedScheduleDay,
   });
   // call attention to missing areas to reassign cleaners
   const missingAreas = getMissingDayCareAreasForDay({
@@ -260,6 +262,7 @@ const Daycare = ({ isEditMode }: DaycareProps) => {
     jobs: JOBS,
     weeklyAssignments: daycareWeeklyAssignments,
     peopleIn,
+    isMarchBreakReducedScheduleDay,
   });
 
   const missingAreasText = formatMissingAreas(missingAreas);
@@ -297,9 +300,14 @@ const Daycare = ({ isEditMode }: DaycareProps) => {
                 const isReassigned =
                   jobIndex >= 0 &&
                   Boolean(daycareReassignmentFlags[currentDay]?.[jobIndex]);
-                const baselineLabel = getDaycareJobLabel(assignment.job, 8);
+                const baselineLabel = getDaycareJobLabel(assignment.job, 8, {
+                  isMarchBreakReducedScheduleDay,
+                });
+                const isNeedsAssignment =
+                  assignment.label === "Needs assignment";
                 const isAreaChanged = assignment.label !== baselineLabel;
-                const shouldHighlightLabel = isReassigned || isAreaChanged;
+                const shouldHighlightLabel =
+                  isNeedsAssignment || isReassigned || isAreaChanged;
                 const necessaryJobStyle = getNecessaryJobStyle(assignment.job);
                 const badgeClassName = [
                   "inline-block rounded px-1 font-medium",

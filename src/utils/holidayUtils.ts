@@ -5,6 +5,16 @@ const ONTARIO_COUNTRY_CODE = "CA";
 const ONTARIO_PROVINCE_CODE = "ON";
 const FALLBACK_PUBLIC_HOLIDAY_ICON = "📅";
 const WEEK_DAY_KEYS: readonly DayKey[] = ["mon", "tue", "wed", "thu", "fri"];
+// Hard-coded reduced-schedule dates for March Break.
+// Use local date keys in YYYY-MM-DD format (example for next year: 2027-03-16).
+// Keep Monday out of this list when it should run the normal schedule.
+const MARCH_BREAK_REDUCED_SCHEDULE_DATE_KEYS = new Set<string>([
+  // Monday of March Break is still cleaned as normal; reduced schedule starts Tuesday.
+  "2026-03-17",
+  "2026-03-18",
+  "2026-03-19",
+  "2026-03-20",
+]);
 
 const ONTARIO_PUBLIC_HOLIDAY_ICONS: Readonly<Record<string, string>> = {
   "New Year's Day": "🎉",
@@ -174,6 +184,36 @@ export function getOntarioPublicHolidaysByDayForWeek(
 
       holidaysByDay[dayKey] = holiday;
       return holidaysByDay;
+    },
+    {},
+  );
+}
+
+export function isMarchBreakReducedScheduleOnDate(
+  referenceDate: Date,
+): boolean {
+  return MARCH_BREAK_REDUCED_SCHEDULE_DATE_KEYS.has(
+    getLocalDateKey(referenceDate),
+  );
+}
+
+export function getMarchBreakReducedScheduleByDayForWeek(
+  referenceDate: Date,
+): Partial<Record<DayKey, true>> {
+  const weekReferenceDate = getWeekReferenceDate(referenceDate);
+  const weekStart = getStartOfWeekMonday(weekReferenceDate);
+
+  return WEEK_DAY_KEYS.reduce<Partial<Record<DayKey, true>>>(
+    (reducedScheduleByDay, dayKey, dayOffset) => {
+      const dayDate = new Date(weekStart);
+      dayDate.setDate(weekStart.getDate() + dayOffset);
+
+      if (!isMarchBreakReducedScheduleOnDate(dayDate)) {
+        return reducedScheduleByDay;
+      }
+
+      reducedScheduleByDay[dayKey] = true;
+      return reducedScheduleByDay;
     },
     {},
   );

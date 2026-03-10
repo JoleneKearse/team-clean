@@ -202,6 +202,7 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
     moveBuildingAssignment,
     flo1AtAnnex,
     setFlo1AtAnnexForDay,
+    isMarchBreakReducedScheduleDay,
   } = useSchedule();
   const [activeInitials, setActiveInitials] = useState("");
   const flo1JobIndex = JOBS.indexOf("Flo1");
@@ -210,9 +211,16 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
       ? (buildingWeeklyAssignments[currentDay][flo1JobIndex] ?? "")
       : "";
   const closedSet = new Set(closedItems);
+  const marchBreakHiddenSegmentIds = isMarchBreakReducedScheduleDay
+    ? new Set<ClosureId>(["Grade 1", "Grade 2"])
+    : new Set<ClosureId>();
   const visibleBuildings = BUILDINGS.flatMap((building) => {
     const visibleLabelSegments = building.closureSegmentIds
-      .filter((segmentId) => !closedSet.has(segmentId))
+      .filter(
+        (segmentId) =>
+          !closedSet.has(segmentId) &&
+          !marchBreakHiddenSegmentIds.has(segmentId),
+      )
       .map((segmentId) => getClosureLabelById(segmentId));
 
     if (visibleLabelSegments.length === 0) {

@@ -19,8 +19,45 @@ function normalizePeopleIn(peopleIn: number): number {
   return Math.max(0, Math.min(8, peopleIn));
 }
 
-export function getDaycareJobLabel(jobId: JobId, peopleIn: number): string {
+type DaycareScheduleOptions = {
+  isMarchBreakReducedScheduleDay?: boolean;
+};
+
+export function getDaycareJobLabel(
+  jobId: JobId,
+  peopleIn: number,
+  options: DaycareScheduleOptions = {},
+): string {
   const staffing = normalizePeopleIn(peopleIn);
+  const isMarchBreakReducedScheduleDay =
+    options.isMarchBreakReducedScheduleDay === true;
+
+  if (isMarchBreakReducedScheduleDay) {
+    switch (jobId) {
+      case "Bath":
+        return "Bathrooms";
+      case "Vac":
+        return "P1 & playground doorway";
+      case "SW":
+        return "P2";
+      case "San":
+        return "Needs assignment";
+      case "Gar":
+        return staffing <= 6 ? "Fill & all outside" : "Fill & front outside";
+      case "Flo1":
+        if (staffing >= 7) return "Baby Room";
+        if (staffing <= 6) return "Baby & Toddler";
+        return "Flo1";
+      case "Flo2":
+        if (staffing >= 7) return "Toddler Room & P2 lockers";
+        return "Flo2";
+      case "Flo3":
+        if (staffing >= 7) return "Back outside & P1 lockers";
+        return "Flo3";
+      default:
+        return jobId;
+    }
+  }
 
   switch (jobId) {
     case "Bath":
@@ -83,8 +120,41 @@ export function getHealthCenterAssignmentsForDay(
   }
 }
 
-function getDaycareAreasForJob(jobId: JobId, peopleIn: number): string[] {
+function getDaycareAreasForJob(
+  jobId: JobId,
+  peopleIn: number,
+  options: DaycareScheduleOptions = {},
+): string[] {
   const staffing = normalizePeopleIn(peopleIn);
+  const isMarchBreakReducedScheduleDay =
+    options.isMarchBreakReducedScheduleDay === true;
+
+  if (isMarchBreakReducedScheduleDay) {
+    switch (jobId) {
+      case "Bath":
+        return ["Bathrooms"];
+      case "Vac":
+        return ["P1"];
+      case "SW":
+        return ["P2"];
+      case "San":
+        return [];
+      case "Gar":
+        return staffing <= 6
+          ? ["Front outside", "Back outside"]
+          : ["Front outside"];
+      case "Flo1":
+        return staffing >= 7 ? ["Baby"] : ["Baby", "Toddler"];
+      case "Flo2":
+        if (staffing >= 7) return ["Toddler"];
+        return [];
+      case "Flo3":
+        if (staffing >= 7) return ["Back outside"];
+        return [];
+      default:
+        return [];
+    }
+  }
 
   switch (jobId) {
     case "Bath":
@@ -113,8 +183,24 @@ function getDaycareAreasForJob(jobId: JobId, peopleIn: number): string[] {
   }
 }
 
-export function getRequiredDaycareAreas(peopleIn: number): string[] {
+export function getRequiredDaycareAreas(
+  peopleIn: number,
+  options: DaycareScheduleOptions = {},
+): string[] {
   void peopleIn;
+
+  if (options.isMarchBreakReducedScheduleDay) {
+    return [
+      "Bathrooms",
+      "P1",
+      "P2",
+      "Baby",
+      "Toddler",
+      "Back outside",
+      "Front outside",
+    ];
+  }
+
   return [
     "Bathrooms",
     "P1",
@@ -127,13 +213,86 @@ export function getRequiredDaycareAreas(peopleIn: number): string[] {
   ];
 }
 
+function getMarchBreakSanBackfillArea(params: {
+  jobs: readonly JobId[];
+  dayAssignments: readonly string[];
+  peopleIn: number;
+  isMarchBreakReducedScheduleDay: boolean;
+}): string | null {
+  const { jobs, dayAssignments, peopleIn, isMarchBreakReducedScheduleDay } =
+    params;
+
+  if (!isMarchBreakReducedScheduleDay || normalizePeopleIn(peopleIn) !== 7) {
+    return null;
+  }
+
+  const sanJobIndex = jobs.indexOf("San");
+  if (sanJobIndex < 0) {
+    return null;
+  }
+
+  const sanInitials = dayAssignments[sanJobIndex] ?? "";
+  if (!sanInitials) {
+    return null;
+  }
+
+  const coveredAreasWithoutSan = new Set<string>();
+
+  jobs.forEach((jobId, index) => {
+    if (index === sanJobIndex) return;
+
+    const initials = dayAssignments[index] ?? "";
+    if (!initials) return;
+
+    getDaycareAreasForJob(jobId, peopleIn, {
+      isMarchBreakReducedScheduleDay,
+    }).forEach((area) => {
+      coveredAreasWithoutSan.add(area);
+    });
+  });
+
+  return (
+    getRequiredDaycareAreas(peopleIn, {
+      isMarchBreakReducedScheduleDay,
+    }).find((area) => !coveredAreasWithoutSan.has(area)) ?? null
+  );
+}
+
+function getMarchBreakSanBackfillLabel(area: string): string {
+  switch (area) {
+    case "Bathrooms":
+      return "Bathrooms";
+    case "P1":
+      return "P1 & playground doorway";
+    case "P2":
+      return "P2";
+    case "Baby":
+      return "Baby Room";
+    case "Toddler":
+      return "Toddler Room & P2 lockers";
+    case "Back outside":
+      return "Back outside & P1 lockers";
+    case "Front outside":
+      return "Fill & front outside";
+    default:
+      return area;
+  }
+}
+
 export function getMissingDayCareAreasForDay(params: {
   day: DayKey;
   jobs: readonly JobId[];
   weeklyAssignments: WeeklyAssignments;
   peopleIn: number;
+  isMarchBreakReducedScheduleDay?: boolean;
 }) {
-  const { day, jobs, weeklyAssignments, peopleIn } = params;
+  const {
+    day,
+    jobs,
+    weeklyAssignments,
+    peopleIn,
+    isMarchBreakReducedScheduleDay = false,
+  } = params;
   const dayAssignments = weeklyAssignments[day];
   const coveredAreas = new Set<string>();
 
@@ -141,14 +300,27 @@ export function getMissingDayCareAreasForDay(params: {
     const initials = dayAssignments[index] ?? "";
     if (!initials) return;
 
-    getDaycareAreasForJob(jobId, peopleIn).forEach((area) => {
+    getDaycareAreasForJob(jobId, peopleIn, {
+      isMarchBreakReducedScheduleDay,
+    }).forEach((area) => {
       coveredAreas.add(area);
     });
   });
 
-  return getRequiredDaycareAreas(peopleIn).filter(
-    (area) => !coveredAreas.has(area),
-  );
+  const marchBreakSanBackfillArea = getMarchBreakSanBackfillArea({
+    jobs,
+    dayAssignments,
+    peopleIn,
+    isMarchBreakReducedScheduleDay,
+  });
+
+  if (marchBreakSanBackfillArea) {
+    coveredAreas.add(marchBreakSanBackfillArea);
+  }
+
+  return getRequiredDaycareAreas(peopleIn, {
+    isMarchBreakReducedScheduleDay,
+  }).filter((area) => !coveredAreas.has(area));
 }
 
 export function getDayKeyFromDate(referenceDate: Date): DayKey {
@@ -434,14 +606,37 @@ export function getDayCareAssignmentsForDay(params: {
   jobs: readonly JobId[];
   weeklyAssignments: WeeklyAssignments;
   peopleIn: number;
+  isMarchBreakReducedScheduleDay?: boolean;
 }) {
-  const { day, jobs, weeklyAssignments, peopleIn } = params;
+  const {
+    day,
+    jobs,
+    weeklyAssignments,
+    peopleIn,
+    isMarchBreakReducedScheduleDay = false,
+  } = params;
   const dayAssignments = weeklyAssignments[day];
+  const marchBreakSanBackfillArea = getMarchBreakSanBackfillArea({
+    jobs,
+    dayAssignments,
+    peopleIn,
+    isMarchBreakReducedScheduleDay,
+  });
 
-  return jobs.map((jobId, index) => ({
-    job: jobId,
-    initials: dayAssignments[index] ?? "",
-    label: getDaycareJobLabel(jobId, peopleIn),
-    missing: !dayAssignments[index],
-  }));
+  return jobs.map((jobId, index) => {
+    const initials = dayAssignments[index] ?? "";
+    const label =
+      jobId === "San" && marchBreakSanBackfillArea
+        ? getMarchBreakSanBackfillLabel(marchBreakSanBackfillArea)
+        : getDaycareJobLabel(jobId, peopleIn, {
+            isMarchBreakReducedScheduleDay,
+          });
+
+    return {
+      job: jobId,
+      initials,
+      label,
+      missing: !dayAssignments[index],
+    };
+  });
 }
