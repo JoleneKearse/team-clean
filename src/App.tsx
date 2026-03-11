@@ -12,6 +12,10 @@ import Daycare from "./components/Daycare";
 import BandOffice from "./components/BandOffice";
 import HealthCenter from "./components/HealthCenter";
 import CommunityCenter from "./components/CommunityCenter";
+import Seniors from "./components/Seniors";
+import Education from "./components/Education";
+import Social from "./components/Social";
+import Annex from "./components/Annex";
 import DropInCenter from "./components/DropInCenter";
 import Church from "./components/Church";
 import Button from "./components/Button";
@@ -122,6 +126,10 @@ function App() {
     showBandOffice && !closedItemSet.has("Band Office");
   const showHealthCenterSection = !closedItemSet.has("Health Center");
   const showCommunityCenterSection = !closedItemSet.has("Community Center");
+  const showSeniorsSection = !closedItemSet.has("Seniors");
+  const showEducationSection = !closedItemSet.has("Education");
+  const showSocialSection = !closedItemSet.has("Social");
+  const showAnnexSection = !closedItemSet.has("Annex");
   const showDropInCenterSection = !closedItemSet.has("Drop-in Center");
   const showChurchSection = !closedItemSet.has("Church");
 
@@ -424,6 +432,10 @@ function App() {
       </div>
       {showBandOfficeSection && <BandOffice />}
 
+      {showSeniorsSection && <Seniors />}
+      {showEducationSection && <Education />}
+      {showSocialSection && <Social />}
+      {showAnnexSection && <Annex />}
       {showHealthCenterSection && <HealthCenter />}
       {showCommunityCenterSection && <CommunityCenter />}
       {showDropInCenterSection && <DropInCenter />}

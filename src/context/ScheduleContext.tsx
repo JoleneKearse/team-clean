@@ -66,7 +66,7 @@ interface ScheduleContextType {
 }
 
 const STORAGE_KEY = "team-clean:schedule-state";
-const CLOSED_ITEMS_DEFAULTS_VERSION = 2;
+const CLOSED_ITEMS_DEFAULTS_VERSION = 4;
 
 type PresentCleanersByDay = Record<DayKey, CleanerId[]>;
 type SwapOperation = {
@@ -84,6 +84,10 @@ const CLOSURE_ID_SET = new Set<string>(CLOSURE_IDS);
 const DEFAULT_CLOSED_ITEMS = CLOSURE_IDS.filter(
   (closureId) =>
     closureId === "Community Center" ||
+    closureId === "Seniors" ||
+    closureId === "Education" ||
+    closureId === "Social" ||
+    closureId === "Annex" ||
     closureId === "Drop-in Center" ||
     closureId === "Church",
 );
@@ -246,9 +250,11 @@ function normalizeClosedItemsForDay(
 
   const selected = new Set(value.filter(isClosureId));
 
-  // Legacy schedules (v1 and earlier) never had Church, so default it to closed.
+  // Merge latest default-closed items when migrating older saved state versions.
   if (backfillDefaultWhenEmpty) {
-    selected.add("Church");
+    DEFAULT_CLOSED_ITEMS.forEach((closureId) => {
+      selected.add(closureId);
+    });
   }
 
   return CLOSURE_IDS.filter((closureId) => selected.has(closureId));
