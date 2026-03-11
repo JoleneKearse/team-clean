@@ -187,6 +187,7 @@ const CalendarWeekly = ({
     swapAssignments,
   } = useSchedule();
   const [activeInitials, setActiveInitials] = useState("");
+  const currentDateNumber = new Date().getDate();
 
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -264,6 +265,12 @@ const CalendarWeekly = ({
                     className="w-12 bg-gray-900 py-3 text-gray-100"
                   >
                     <span className="sr-only">Jobs</span>
+                    <span
+                      aria-label={`Today's date is ${currentDateNumber}`}
+                      className="text-gray-300"
+                    >
+                      {currentDateNumber}
+                    </span>
                   </th>
                   {DAYS.map((day) => (
                     <th
