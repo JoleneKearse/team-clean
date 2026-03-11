@@ -17,6 +17,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useSchedule } from "../context/ScheduleContext";
 import { DAYS, JOBS, getNecessaryJobStyle } from "../constants/consts";
 import type { DayKey } from "../types/types";
+import Button from "./Button";
 
 type CalendarWeeklyProps = {
   highlightedDayKey: DayKey;
@@ -34,6 +35,38 @@ type DropPayload = {
   day: DayKey;
   jobIndex: number;
 };
+
+const DAY_INDEX_BY_KEY: Record<DayKey, number> = {
+  mon: 0,
+  tue: 1,
+  wed: 2,
+  thu: 3,
+  fri: 4,
+};
+
+function getDisplayedWeekStart(referenceDate: Date): Date {
+  const date = new Date(referenceDate);
+  date.setHours(0, 0, 0, 0);
+
+  // Keep date labels aligned with assignment generation by previewing next week on weekends.
+  while (date.getDay() === 0 || date.getDay() === 6) {
+    date.setDate(date.getDate() + 1);
+  }
+
+  const day = date.getDay();
+  const daysFromMonday = (day + 6) % 7;
+  date.setDate(date.getDate() - daysFromMonday);
+
+  return date;
+}
+
+function getDateNumberForDayKey(dayKey: DayKey, referenceDate: Date): number {
+  const weekStart = getDisplayedWeekStart(referenceDate);
+  const date = new Date(weekStart);
+  date.setDate(weekStart.getDate() + DAY_INDEX_BY_KEY[dayKey]);
+
+  return date.getDate();
+}
 
 function isDayKey(value: unknown): value is DayKey {
   return (
@@ -181,13 +214,18 @@ const CalendarWeekly = ({
   isEditMode,
 }: CalendarWeeklyProps) => {
   const {
+    todayDayKey,
     weeklyAssignments,
     weeklyPublicHolidays,
     weeklyReassignmentFlags,
     swapAssignments,
+    setCurrentDay,
   } = useSchedule();
   const [activeInitials, setActiveInitials] = useState("");
-  const currentDateNumber = new Date().getDate();
+  const currentDateNumber = getDateNumberForDayKey(
+    highlightedDayKey,
+    new Date(),
+  );
 
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -266,7 +304,7 @@ const CalendarWeekly = ({
                   >
                     <span className="sr-only">Jobs</span>
                     <span
-                      aria-label={`Today's date is ${currentDateNumber}`}
+                      aria-label={`Selected date is ${currentDateNumber}`}
                       className="text-gray-300"
                     >
                       {currentDateNumber}
@@ -281,7 +319,9 @@ const CalendarWeekly = ({
                           : "bg-gray-900 py-3 text-gray-100"
                       }
                     >
-                      {day.label}
+                      <button onClick={() => setCurrentDay(day.key)}>
+                        {day.label}
+                      </button>
                     </th>
                   ))}
                 </tr>
@@ -383,6 +423,32 @@ const CalendarWeekly = ({
           </article>
         </div>
       </div>
+
+      {highlightedDayKey !== todayDayKey ? (
+        <div className="mt-3 flex justify-center">
+          <Button
+            label="Reset to Today"
+            onClick={() => setCurrentDay(todayDayKey)}
+            className="w-48 whitespace-nowrap"
+            icon={
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2.0}
+                stroke="currentColor"
+                className="size-6"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"
+                />
+              </svg>
+            }
+          />
+        </div>
+      ) : null}
 
       <DragOverlay>
         {isEditMode && activeInitials ? (
