@@ -121,15 +121,23 @@ function App() {
   );
   const closedItemSet = useMemo(() => new Set(closedItems), [closedItems]);
   const isEditUiActive = isEditMode || isClosuresOpen;
+  const isSeniorsComponentEnabled = false;
+  const isEducationComponentEnabled = false;
+  const isSocialComponentEnabled = false;
+  const isAnnexComponentEnabled = false;
   const showDaycareSection = showDaycare && !closedItemSet.has("Daycare");
   const showBandOfficeSection =
     showBandOffice && !closedItemSet.has("Band Office");
   const showHealthCenterSection = !closedItemSet.has("Health Center");
   const showCommunityCenterSection = !closedItemSet.has("Community Center");
-  const showSeniorsSection = !closedItemSet.has("Seniors");
-  const showEducationSection = !closedItemSet.has("Education");
-  const showSocialSection = !closedItemSet.has("Social");
-  const showAnnexSection = !closedItemSet.has("Annex");
+  const showSeniorsSection =
+    isSeniorsComponentEnabled && !closedItemSet.has("Seniors");
+  const showEducationSection =
+    isEducationComponentEnabled && !closedItemSet.has("Education");
+  const showSocialSection =
+    isSocialComponentEnabled && !closedItemSet.has("Social");
+  const showAnnexSection =
+    isAnnexComponentEnabled && !closedItemSet.has("Annex");
   const showDropInCenterSection = !closedItemSet.has("Drop-in Center");
   const showChurchSection = !closedItemSet.has("Church");
 

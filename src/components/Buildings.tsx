@@ -15,12 +15,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 import { useSchedule } from "../context/ScheduleContext";
-import {
-  BUILDINGS,
-  JOBS,
-  getClosureLabelById,
-  getNecessaryJobStyle,
-} from "../constants/consts";
+import { BUILDINGS, JOBS, getNecessaryJobStyle } from "../constants/consts";
 import { getBuildingAssignmentsForDay } from "../utils/scheduleUtils";
 import type { ClosureId, DayKey } from "../types/types";
 import aamjiwnaangImage from "../assets/aamjiwnaang.webp";
@@ -214,26 +209,12 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
   const marchBreakHiddenSegmentIds = isMarchBreakReducedScheduleDay
     ? new Set<ClosureId>(["Grade 1", "Grade 2"])
     : new Set<ClosureId>();
-  const visibleBuildings = BUILDINGS.flatMap((building) => {
-    const visibleLabelSegments = building.closureSegmentIds
-      .filter(
-        (segmentId) =>
-          !closedSet.has(segmentId) &&
-          !marchBreakHiddenSegmentIds.has(segmentId),
-      )
-      .map((segmentId) => getClosureLabelById(segmentId));
-
-    if (visibleLabelSegments.length === 0) {
-      return [];
-    }
-
-    return [
-      {
-        building,
-        label: visibleLabelSegments.join(" / "),
-      },
-    ];
-  });
+  const visibleBuildings = BUILDINGS.filter((building) =>
+    building.closureSegmentIds.some(
+      (segmentId) =>
+        !closedSet.has(segmentId) && !marchBreakHiddenSegmentIds.has(segmentId),
+    ),
+  );
 
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -322,7 +303,7 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
           </h2>
 
           <div className="space-y-2 p-4">
-            {visibleBuildings.map(({ building, label }) => {
+            {visibleBuildings.map((building) => {
               const baseAssignments = getBuildingAssignmentsForDay({
                 day: currentDay,
                 jobs: JOBS,
@@ -372,8 +353,8 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
                       .join(" ")}
                   >
                     {hasOnlyOneAssignedCleaner
-                      ? `${label} needs another cleaner`
-                      : label}
+                      ? `${building.label} needs another cleaner`
+                      : building.label}
                   </h3>
                   <div className="mt-1 rounded-xl overflow-hidden border ">
                     <table className="w-full table-fixed text-center border-collapse">

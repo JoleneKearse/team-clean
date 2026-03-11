@@ -66,7 +66,7 @@ interface ScheduleContextType {
 }
 
 const STORAGE_KEY = "team-clean:schedule-state";
-const CLOSED_ITEMS_DEFAULTS_VERSION = 4;
+const CLOSED_ITEMS_DEFAULTS_VERSION = 6;
 
 type PresentCleanersByDay = Record<DayKey, CleanerId[]>;
 type SwapOperation = {
@@ -84,13 +84,44 @@ const CLOSURE_ID_SET = new Set<string>(CLOSURE_IDS);
 const DEFAULT_CLOSED_ITEMS = CLOSURE_IDS.filter(
   (closureId) =>
     closureId === "Community Center" ||
-    closureId === "Seniors" ||
-    closureId === "Education" ||
-    closureId === "Social" ||
-    closureId === "Annex" ||
     closureId === "Drop-in Center" ||
     closureId === "Church",
 );
+
+const LEGACY_DEFAULT_CLOSED_ITEMS_V4 = new Set<ClosureId>([
+  "Community Center",
+  "Seniors",
+  "Education",
+  "Social",
+  "Annex",
+  "Drop-in Center",
+  "Church",
+]);
+
+const LEGACY_DEFAULT_CLOSED_ITEMS_V5 = new Set<ClosureId>([
+  "Community Center",
+  "Social",
+  "Annex",
+  "Drop-in Center",
+  "Church",
+]);
+
+function hasSameClosureSelection(
+  selected: Set<ClosureId>,
+  expected: Set<ClosureId>,
+): boolean {
+  if (selected.size !== expected.size) {
+    return false;
+  }
+
+  for (const closureId of expected) {
+    if (!selected.has(closureId)) {
+      return false;
+    }
+  }
+
+  return true;
+}
 
 interface PersistedScheduleState {
   date: string;
@@ -244,17 +275,15 @@ function normalizeClosedItemsForDay(
   backfillDefaultWhenEmpty: boolean,
 ): ClosureId[] {
   if (!Array.isArray(value)) return [...DEFAULT_CLOSED_ITEMS];
-  if (backfillDefaultWhenEmpty && value.length === 0) {
-    return [...DEFAULT_CLOSED_ITEMS];
-  }
-
   const selected = new Set(value.filter(isClosureId));
 
-  // Merge latest default-closed items when migrating older saved state versions.
-  if (backfillDefaultWhenEmpty) {
-    DEFAULT_CLOSED_ITEMS.forEach((closureId) => {
-      selected.add(closureId);
-    });
+  if (
+    backfillDefaultWhenEmpty &&
+    (value.length === 0 ||
+      hasSameClosureSelection(selected, LEGACY_DEFAULT_CLOSED_ITEMS_V4) ||
+      hasSameClosureSelection(selected, LEGACY_DEFAULT_CLOSED_ITEMS_V5))
+  ) {
+    return [...DEFAULT_CLOSED_ITEMS];
   }
 
   return CLOSURE_IDS.filter((closureId) => selected.has(closureId));
