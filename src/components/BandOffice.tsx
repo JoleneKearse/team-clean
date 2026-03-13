@@ -2,6 +2,7 @@ import { JOBS, getNecessaryJobStyle } from "../constants/consts";
 import { useSchedule } from "../context/ScheduleContext";
 
 import { getBandOfficeAssignmentsForDay } from "../utils/scheduleUtils";
+import { getCleanerInitialsBadgeClassName } from "../utils/cleanerBadgeUtils";
 import type { JobId } from "../types/types";
 import bandOfficeImage from "../assets/band-office.webp";
 
@@ -103,32 +104,23 @@ const BandOffice = () => {
           {assignments
             .filter((assignment) => assignment.initials !== "")
             .map((assignment) => {
-              const necessaryJobStyle = getNecessaryJobStyle(assignment.jobId);
+              const isReassigned =
+                assignment.index >= 0 &&
+                Boolean(
+                  weeklyReassignmentFlags[currentDay]?.[assignment.index],
+                );
 
               return (
                 <li key={assignment.jobId}>
                   <span
-                    className={[
-                      "inline-block rounded px-1 font-medium",
-                      necessaryJobStyle ? necessaryJobStyle.badgeClass : "",
-                      assignment.index >= 0 &&
-                      weeklyReassignmentFlags[currentDay]?.[assignment.index]
-                        ? "text-pink-700"
-                        : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
+                    className={getCleanerInitialsBadgeClassName(
+                      assignment.jobId,
+                      isReassigned ? "text-pink-700" : "",
+                    )}
                   >
                     {assignment.initials}
                   </span>{" "}
-                  <span
-                    className={
-                      assignment.index >= 0 &&
-                      weeklyReassignmentFlags[currentDay]?.[assignment.index]
-                        ? "text-pink-700"
-                        : ""
-                    }
-                  >
+                  <span className={isReassigned ? "text-pink-700" : ""}>
                     {assignment.label}
                   </span>
                 </li>

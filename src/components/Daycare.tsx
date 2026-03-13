@@ -15,9 +15,10 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 import { useSchedule } from "../context/ScheduleContext";
-import { JOBS, getNecessaryJobStyle } from "../constants/consts";
+import { JOBS } from "../constants/consts";
 import type { DayKey } from "../types/types";
 import daycareImage from "../assets/daycare.webp";
+import { getCleanerInitialsBadgeClassName } from "../utils/cleanerBadgeUtils";
 
 import {
   getDaycareJobLabel,
@@ -308,14 +309,10 @@ const Daycare = ({ isEditMode }: DaycareProps) => {
                 const isAreaChanged = assignment.label !== baselineLabel;
                 const shouldHighlightLabel =
                   isNeedsAssignment || isReassigned || isAreaChanged;
-                const necessaryJobStyle = getNecessaryJobStyle(assignment.job);
-                const badgeClassName = [
-                  "inline-block rounded px-1 font-medium",
-                  necessaryJobStyle ? necessaryJobStyle.badgeClass : "",
+                const badgeClassName = getCleanerInitialsBadgeClassName(
+                  assignment.job,
                   isReassigned ? "text-pink-700" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ");
+                );
 
                 if (jobIndex < 0) {
                   return (

@@ -1,7 +1,8 @@
-import { JOBS, getNecessaryJobStyle } from "../constants/consts";
+import { JOBS } from "../constants/consts";
 import { useSchedule } from "../context/ScheduleContext";
 
 import { getHealthCenterAssignmentsForDay } from "../utils/scheduleUtils";
+import { getCleanerInitialsBadgeClassName } from "../utils/cleanerBadgeUtils";
 import type { JobId } from "../types/types";
 import healthCenterImage from "../assets/health-center.webp";
 
@@ -58,18 +59,14 @@ const HealthCenter = () => {
               );
               const isStaffingChanged = assignment.label !== baselineLabel;
               const shouldHighlight = isReassigned || isStaffingChanged;
-              const necessaryJobStyle = getNecessaryJobStyle(assignment.jobId);
 
               return (
                 <li key={assignment.jobId}>
                   <span
-                    className={[
-                      "inline-block rounded px-1 font-medium",
-                      necessaryJobStyle ? necessaryJobStyle.badgeClass : "",
+                    className={getCleanerInitialsBadgeClassName(
+                      assignment.jobId,
                       shouldHighlight ? "text-pink-700" : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
+                    )}
                   >
                     {assignment.initials}
                   </span>{" "}
