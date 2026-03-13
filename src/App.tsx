@@ -245,7 +245,8 @@ function App() {
     <div className="mx-auto flex max-w-112.5 flex-col items-center gap-4 p-4">
       <div
         className={[
-          "w-full space-y-4 rounded-xl transition-colors",
+          "w-full rounded-xl transition-colors",
+          isFriday ? "space-y-6" : "space-y-4",
           isEditUiActive ? "bg-pink-200/40 p-2" : "",
         ]
           .filter(Boolean)
