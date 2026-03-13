@@ -13,7 +13,10 @@ import BandOffice from "./components/BandOffice";
 import HealthCenter from "./components/HealthCenter";
 import CommunityCenter from "./components/CommunityCenter";
 import Seniors from "./components/Seniors";
+import Grade1 from "./components/Grade1";
+import Grade2 from "./components/Grade2";
 import Education from "./components/Education";
+import Fieldhouse from "./components/Fieldhouse";
 import Social from "./components/Social";
 import Annex from "./components/Annex";
 import DropInCenter from "./components/DropInCenter";
@@ -142,10 +145,15 @@ function App() {
     : FULL_SECTION_VISIBILITY;
   const closedItemSet = useMemo(() => new Set(closedItems), [closedItems]);
   const isEditUiActive = isEditMode || isClosuresOpen;
-  const isSeniorsComponentEnabled = false;
-  const isEducationComponentEnabled = false;
-  const isSocialComponentEnabled = false;
-  const isAnnexComponentEnabled = false;
+  const isFriday = currentDay === "fri";
+  const isBuildingsComponentEnabled = !isFriday;
+  const isSeniorsComponentEnabled = isFriday;
+  const isGrade1ComponentEnabled = isFriday;
+  const isGrade2ComponentEnabled = isFriday;
+  const isEducationComponentEnabled = isFriday;
+  const isFieldhouseComponentEnabled = isFriday;
+  const isSocialComponentEnabled = isFriday;
+  const isAnnexComponentEnabled = isFriday;
   const showDaycareSection =
     sectionVisibility.showDaycare && !closedItemSet.has("Daycare");
   const showBandOfficeSection =
@@ -154,12 +162,20 @@ function App() {
   const showCommunityCenterSection = !closedItemSet.has("Community Center");
   const showSeniorsSection =
     isSeniorsComponentEnabled && !closedItemSet.has("Seniors");
+  const showGrade1Section =
+    isGrade1ComponentEnabled && !closedItemSet.has("Grade 1");
+  const showGrade2Section =
+    isGrade2ComponentEnabled && !closedItemSet.has("Grade 2");
   const showEducationSection =
     isEducationComponentEnabled && !closedItemSet.has("Education");
+  const showFieldhouseSection =
+    isFieldhouseComponentEnabled && !closedItemSet.has("Fieldhouse");
   const showSocialSection =
     isSocialComponentEnabled && !closedItemSet.has("Social");
   const showAnnexSection =
     isAnnexComponentEnabled && !closedItemSet.has("Annex");
+  const showBuildingsSection =
+    isBuildingsComponentEnabled && sectionVisibility.showBuildings;
   const showDropInCenterSection = !closedItemSet.has("Drop-in Center");
   const showChurchSection = !closedItemSet.has("Church");
 
@@ -455,17 +471,28 @@ function App() {
           highlightedDayKey={currentDay}
           isEditMode={isEditMode}
         />
-        {sectionVisibility.showBuildings && (
+        {isFriday && showSeniorsSection && <Seniors />}
+        {isFriday && showGrade1Section && <Grade1 />}
+        {isFriday && showGrade2Section && <Grade2 />}
+        {isFriday && showDaycareSection && <Daycare isEditMode={isEditMode} />}
+        {isFriday && showEducationSection && <Education />}
+        {isFriday && showFieldhouseSection && <Fieldhouse />}
+        {isFriday && showSocialSection && <Social />}
+        {isFriday && showAnnexSection && <Annex />}
+        {showBuildingsSection && (
           <Buildings isEditMode={isEditMode} closedItems={closedItems} />
         )}
-        {showDaycareSection && <Daycare isEditMode={isEditMode} />}
+        {!isFriday && showDaycareSection && <Daycare isEditMode={isEditMode} />}
       </div>
       {showBandOfficeSection && <BandOffice />}
 
-      {showSeniorsSection && <Seniors />}
-      {showEducationSection && <Education />}
-      {showSocialSection && <Social />}
-      {showAnnexSection && <Annex />}
+      {!isFriday && showSeniorsSection && <Seniors />}
+      {!isFriday && showGrade1Section && <Grade1 />}
+      {!isFriday && showGrade2Section && <Grade2 />}
+      {!isFriday && showEducationSection && <Education />}
+      {!isFriday && showFieldhouseSection && <Fieldhouse />}
+      {!isFriday && showSocialSection && <Social />}
+      {!isFriday && showAnnexSection && <Annex />}
       {showHealthCenterSection && <HealthCenter />}
       {showCommunityCenterSection && <CommunityCenter />}
       {showDropInCenterSection && <DropInCenter />}
