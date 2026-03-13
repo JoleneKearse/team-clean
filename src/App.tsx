@@ -4,7 +4,7 @@ import { useSchedule } from "./context/ScheduleContext";
 
 import { CLEANERS } from "./constants/consts";
 
-import type { CleanerId } from "./types/types";
+import type { CleanerId, ClosureId } from "./types/types";
 
 import Calendar from "./components/Calendar";
 import Buildings from "./components/Buildings";
@@ -22,6 +22,16 @@ import Button from "./components/Button";
 import Closures from "./components/Closures";
 
 const EASTERN_TIME_ZONE = "America/Toronto";
+const DEFAULT_ORDER_CLOSED_ITEMS: readonly ClosureId[] = [
+  "Community Center",
+  "Drop-in Center",
+  "Church",
+];
+const FULL_SECTION_VISIBILITY = {
+  showBuildings: true,
+  showDaycare: true,
+  showBandOffice: true,
+};
 
 function getEasternTimeParts(referenceDate: Date) {
   const formatter = new Intl.DateTimeFormat("en-US", {
@@ -44,28 +54,26 @@ function getEasternTimeParts(referenceDate: Date) {
   };
 }
 
-function getSectionVisibility(referenceDate: Date) {
-  const { weekday, minutesSinceMidnight } = getEasternTimeParts(referenceDate);
-  const isWeekday =
-    weekday === "Mon" ||
-    weekday === "Tue" ||
-    weekday === "Wed" ||
-    weekday === "Thu" ||
-    weekday === "Fri";
-
-  if (!isWeekday) {
-    return {
-      showBuildings: true,
-      showDaycare: true,
-      showBandOffice: true,
-    };
-  }
+function getTimeBasedSectionVisibility(referenceDate: Date) {
+  const { minutesSinceMidnight } = getEasternTimeParts(referenceDate);
 
   return {
     showBuildings: minutesSinceMidnight < 18 * 60,
     showDaycare: minutesSinceMidnight < 20 * 60 + 30,
     showBandOffice: minutesSinceMidnight < 21 * 60 + 45,
   };
+}
+
+function hasDefaultOrderClosures(closedItems: readonly ClosureId[]) {
+  if (closedItems.length !== DEFAULT_ORDER_CLOSED_ITEMS.length) {
+    return false;
+  }
+
+  const closedItemSet = new Set(closedItems);
+
+  return DEFAULT_ORDER_CLOSED_ITEMS.every((closureId) =>
+    closedItemSet.has(closureId),
+  );
 }
 
 function App() {
@@ -115,19 +123,33 @@ function App() {
     };
   }, [showSaveSuccessMessage, saveSuccessMessageTick]);
 
-  const { showBuildings, showDaycare, showBandOffice } = useMemo(
-    () => getSectionVisibility(new Date(clockTick)),
+  const timeBasedVisibility = useMemo(
+    () => getTimeBasedSectionVisibility(new Date(clockTick)),
     [clockTick],
   );
+  const isMondayToThursdayDay =
+    currentDay === "mon" ||
+    currentDay === "tue" ||
+    currentDay === "wed" ||
+    currentDay === "thu";
+  const hasDefaultClosures = useMemo(
+    () => hasDefaultOrderClosures(closedItems),
+    [closedItems],
+  );
+  const shouldApplyTimeVisibility = isMondayToThursdayDay && hasDefaultClosures;
+  const sectionVisibility = shouldApplyTimeVisibility
+    ? timeBasedVisibility
+    : FULL_SECTION_VISIBILITY;
   const closedItemSet = useMemo(() => new Set(closedItems), [closedItems]);
   const isEditUiActive = isEditMode || isClosuresOpen;
   const isSeniorsComponentEnabled = false;
   const isEducationComponentEnabled = false;
   const isSocialComponentEnabled = false;
   const isAnnexComponentEnabled = false;
-  const showDaycareSection = showDaycare && !closedItemSet.has("Daycare");
+  const showDaycareSection =
+    sectionVisibility.showDaycare && !closedItemSet.has("Daycare");
   const showBandOfficeSection =
-    showBandOffice && !closedItemSet.has("Band Office");
+    sectionVisibility.showBandOffice && !closedItemSet.has("Band Office");
   const showHealthCenterSection = !closedItemSet.has("Health Center");
   const showCommunityCenterSection = !closedItemSet.has("Community Center");
   const showSeniorsSection =
@@ -433,7 +455,7 @@ function App() {
           highlightedDayKey={currentDay}
           isEditMode={isEditMode}
         />
-        {showBuildings && (
+        {sectionVisibility.showBuildings && (
           <Buildings isEditMode={isEditMode} closedItems={closedItems} />
         )}
         {showDaycareSection && <Daycare isEditMode={isEditMode} />}

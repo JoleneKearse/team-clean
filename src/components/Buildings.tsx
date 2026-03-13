@@ -217,8 +217,7 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
   const visibleBuildings = BUILDINGS.flatMap((building) => {
     const visibleSegmentIds = building.closureSegmentIds.filter(
       (segmentId) =>
-        !closedSet.has(segmentId) &&
-        !marchBreakHiddenSegmentIds.has(segmentId),
+        !closedSet.has(segmentId) && !marchBreakHiddenSegmentIds.has(segmentId),
     );
 
     if (visibleSegmentIds.length === 0) {
