@@ -22,7 +22,7 @@ import {
 } from "../constants/consts";
 
 import type { CleanerId, ClosureId, DayKey } from "../types/types";
-import { db } from "../lib/firebase";
+import { db, firebaseConfigError } from "../lib/firebase";
 
 interface ScheduleContextType {
   todayDayKey: DayKey;
@@ -67,6 +67,9 @@ interface ScheduleContextType {
 
 const STORAGE_KEY = "team-clean:schedule-state";
 const CLOSED_ITEMS_DEFAULTS_VERSION = 6;
+const FIRESTORE_SAVE_TIMEOUT_MS = 15000;
+const FIREBASE_NOT_CONFIGURED_MESSAGE =
+  "Firebase is not configured. Add the required VITE_FIREBASE_* values to your .env file and restart the app.";
 
 type PresentCleanersByDay = Record<DayKey, CleanerId[]>;
 type SwapOperation = {
@@ -898,6 +901,12 @@ export const ScheduleProvider = ({
   const persistScheduleSnapshotToFirestore = async (
     snapshot: ScheduleSnapshot,
   ) => {
+    if (!db) {
+      const message = firebaseConfigError ?? FIREBASE_NOT_CONFIGURED_MESSAGE;
+      setSaveScheduleError(message);
+      throw new Error(message);
+    }
+
     if (isSavingSchedule) return;
 
     setIsSavingSchedule(true);
@@ -909,8 +918,10 @@ export const ScheduleProvider = ({
       snapshotDaycareWeeklyAssignments,
     } = getDerivedAssignmentsForSnapshot(snapshot);
 
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
     try {
-      await setDoc(
+      const savePromise = setDoc(
         doc(db, "dailySchedules", todayDateKey),
         {
           date: todayDateKey,
@@ -931,6 +942,18 @@ export const ScheduleProvider = ({
         { merge: true },
       );
 
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(
+            new Error(
+              `Cloud save timed out after ${Math.floor(FIRESTORE_SAVE_TIMEOUT_MS / 1000)} seconds. Check your internet connection and Firebase configuration, then try again.`,
+            ),
+          );
+        }, FIRESTORE_SAVE_TIMEOUT_MS);
+      });
+
+      await Promise.race([savePromise, timeoutPromise]);
+
       setLastSavedToCloudAt(new Date().toISOString());
     } catch (error) {
       const message =
@@ -941,6 +964,10 @@ export const ScheduleProvider = ({
       setSaveScheduleError(message);
       throw error;
     } finally {
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+      }
+
       setIsSavingSchedule(false);
     }
   };
@@ -985,6 +1012,13 @@ export const ScheduleProvider = ({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+
+    if (!db) {
+      setSaveScheduleError(
+        firebaseConfigError ?? FIREBASE_NOT_CONFIGURED_MESSAGE,
+      );
+      return;
+    }
 
     const unsubscribe = onSnapshot(
       doc(db, "dailySchedules", todayDateKey),
