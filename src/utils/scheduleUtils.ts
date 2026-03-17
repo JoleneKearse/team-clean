@@ -37,7 +37,7 @@ export function getDaycareJobLabel(
       case "Bath":
         return "Bathrooms";
       case "Vac":
-        return "P1 & playground doorway";
+        return "Needs assignment";
       case "SW":
         return "P2";
       case "San":
@@ -134,7 +134,7 @@ function getDaycareAreasForJob(
       case "Bath":
         return ["Bathrooms"];
       case "Vac":
-        return ["P1"];
+        return [];
       case "SW":
         return ["P2"];
       case "San":
@@ -192,7 +192,6 @@ export function getRequiredDaycareAreas(
   if (options.isMarchBreakReducedScheduleDay) {
     return [
       "Bathrooms",
-      "P1",
       "P2",
       "Baby",
       "Toddler",
