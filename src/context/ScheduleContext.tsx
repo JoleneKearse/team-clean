@@ -69,7 +69,7 @@ const STORAGE_KEY = "team-clean:schedule-state";
 const CLOSED_ITEMS_DEFAULTS_VERSION = 6;
 const FIRESTORE_SAVE_TIMEOUT_MS = 15000;
 const FIREBASE_NOT_CONFIGURED_MESSAGE =
-  "Firebase is not configured. Add the required VITE_FIREBASE_* values to your .env file and restart the app.";
+  "Firebase is not configured. For local development, add the required VITE_FIREBASE_* values to .env and restart the app. For hosted builds, configure the same variables in your deployment environment and redeploy.";
 
 type PresentCleanersByDay = Record<DayKey, CleanerId[]>;
 type SwapOperation = {

@@ -29,7 +29,7 @@ const missingFirebaseEnvVars = (
 
 export const firebaseConfigError =
   missingFirebaseEnvVars.length > 0
-    ? `Missing Firebase environment variables: ${missingFirebaseEnvVars.join(", ")}. Add them to your .env file and restart the app.`
+    ? `Missing Firebase environment variables: ${missingFirebaseEnvVars.join(", ")}. For local development, add them to .env and restart the app. For hosted builds, configure the same variables in your deployment environment and redeploy.`
     : null;
 
 let db: Firestore | null = null;
