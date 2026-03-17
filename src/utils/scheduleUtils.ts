@@ -405,6 +405,62 @@ function getElapsedWorkdays(anchorMonday: Date, untilDate: Date): number {
   return -count;
 }
 
+export function enforceNecessaryJobsBeforeFlo(params: {
+  assignments: readonly string[];
+  jobs: readonly JobId[];
+}) {
+  const { assignments, jobs } = params;
+  const nextAssignments = [...assignments];
+  const floatIndexesInFillOrder = (["Flo1", "Flo2", "Flo3"] as const)
+    .map((jobId) => jobs.indexOf(jobId))
+    .filter((index) => index >= 0);
+
+  const floatDonorIndexes = BACKFILL_PRIORITY.map((jobId) =>
+    jobs.indexOf(jobId),
+  ).filter((index) => index >= 0);
+
+  const findFloatDonorIndex = (targetIndex: number) => {
+    for (const donorIndex of floatDonorIndexes) {
+      if (donorIndex === targetIndex) continue;
+      if (!nextAssignments[donorIndex]) continue;
+
+      return donorIndex;
+    }
+
+    return -1;
+  };
+
+  const necessaryBackfillTargetIndexes = jobs
+    .map((jobId, index) => ({ jobId, index }))
+    .filter(({ jobId, index }) => isNecessaryJob(jobId) && !nextAssignments[index])
+    .map(({ index }) => index);
+
+  necessaryBackfillTargetIndexes.forEach((targetIndex) => {
+    const donorIndex = findFloatDonorIndex(targetIndex);
+    if (donorIndex < 0) return;
+
+    nextAssignments[targetIndex] = nextAssignments[donorIndex];
+    nextAssignments[donorIndex] = "";
+  });
+
+  const remainingFloatCleaners = floatIndexesInFillOrder
+    .map((index) => nextAssignments[index] ?? "")
+    .filter((initials) => initials !== "");
+
+  floatIndexesInFillOrder.forEach((index) => {
+    nextAssignments[index] = "";
+  });
+
+  remainingFloatCleaners.forEach((initials, fillOrder) => {
+    const targetIndex = floatIndexesInFillOrder[fillOrder];
+    if (targetIndex === undefined) return;
+
+    nextAssignments[targetIndex] = initials;
+  });
+
+  return nextAssignments;
+}
+
 /**
  * Returns an object where each day is an array of initials in job-row order.
  */
@@ -467,51 +523,10 @@ export function generateWeeklyAssignments(
         });
     }
 
-    const lockedIndexes = new Set<number>();
-
-    const findDonorIndex = (targetIndex: number) => {
-      for (const jobId of BACKFILL_PRIORITY) {
-        const index = jobs.indexOf(jobId);
-        if (index < 0) continue;
-        if (index === targetIndex) continue;
-        if (lockedIndexes.has(index)) continue;
-        if (!nextAssignments[index]) continue;
-
-        return index;
-      }
-
-      return -1;
-    };
-
-    const moveFromFloatDonor = (targetIndexes: number[]) => {
-      targetIndexes.forEach((targetIndex) => {
-        if (nextAssignments[targetIndex]) return;
-
-        const donorIndex = findDonorIndex(targetIndex);
-        if (donorIndex < 0) return;
-
-        nextAssignments[targetIndex] = nextAssignments[donorIndex];
-        nextAssignments[donorIndex] = "";
-        lockedIndexes.add(targetIndex);
-      });
-    };
-
-    const floatBackfillTargetIndexes = (["Flo1", "Flo2"] as const)
-      .map((jobId) => jobs.indexOf(jobId))
-      .filter((index) => index >= 0 && !nextAssignments[index]);
-
-    moveFromFloatDonor(floatBackfillTargetIndexes);
-
-    const necessaryBackfillTargetIndexes = jobs
-      .map((jobId, index) => ({ jobId, index }))
-      .filter(
-        ({ jobId, index }) => isNecessaryJob(jobId) && !nextAssignments[index],
-      )
-      .map(({ index }) => index);
-
-    moveFromFloatDonor(necessaryBackfillTargetIndexes);
-
-    return nextAssignments;
+    return enforceNecessaryJobsBeforeFlo({
+      assignments: nextAssignments,
+      jobs,
+    });
   };
 
   const weekly: Record<DayKey, string[]> = {

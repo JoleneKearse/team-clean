@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 
 import {
+  enforceNecessaryJobsBeforeFlo,
   generateWeeklyAssignments,
   getWeeklyReassignmentFlags,
   getDayKeyFromDate,
@@ -620,26 +621,41 @@ export const ScheduleProvider = ({
 
   const weeklyAssignments = useMemo(
     () => ({
-      mon: applyDaySwapOperations(
-        generatedWeeklyAssignments.mon,
-        swapOperationsByDay.mon,
-      ),
-      tue: applyDaySwapOperations(
-        generatedWeeklyAssignments.tue,
-        swapOperationsByDay.tue,
-      ),
-      wed: applyDaySwapOperations(
-        generatedWeeklyAssignments.wed,
-        swapOperationsByDay.wed,
-      ),
-      thu: applyDaySwapOperations(
-        generatedWeeklyAssignments.thu,
-        swapOperationsByDay.thu,
-      ),
-      fri: applyDaySwapOperations(
-        generatedWeeklyAssignments.fri,
-        swapOperationsByDay.fri,
-      ),
+      mon: enforceNecessaryJobsBeforeFlo({
+        assignments: applyDaySwapOperations(
+          generatedWeeklyAssignments.mon,
+          swapOperationsByDay.mon,
+        ),
+        jobs: JOBS,
+      }),
+      tue: enforceNecessaryJobsBeforeFlo({
+        assignments: applyDaySwapOperations(
+          generatedWeeklyAssignments.tue,
+          swapOperationsByDay.tue,
+        ),
+        jobs: JOBS,
+      }),
+      wed: enforceNecessaryJobsBeforeFlo({
+        assignments: applyDaySwapOperations(
+          generatedWeeklyAssignments.wed,
+          swapOperationsByDay.wed,
+        ),
+        jobs: JOBS,
+      }),
+      thu: enforceNecessaryJobsBeforeFlo({
+        assignments: applyDaySwapOperations(
+          generatedWeeklyAssignments.thu,
+          swapOperationsByDay.thu,
+        ),
+        jobs: JOBS,
+      }),
+      fri: enforceNecessaryJobsBeforeFlo({
+        assignments: applyDaySwapOperations(
+          generatedWeeklyAssignments.fri,
+          swapOperationsByDay.fri,
+        ),
+        jobs: JOBS,
+      }),
     }),
     [generatedWeeklyAssignments, swapOperationsByDay],
   );
@@ -747,26 +763,41 @@ export const ScheduleProvider = ({
     );
 
     const snapshotWeeklyAssignments = {
-      mon: applyDaySwapOperations(
-        generatedWeeklyAssignments.mon,
-        snapshot.swapOperationsByDay.mon,
-      ),
-      tue: applyDaySwapOperations(
-        generatedWeeklyAssignments.tue,
-        snapshot.swapOperationsByDay.tue,
-      ),
-      wed: applyDaySwapOperations(
-        generatedWeeklyAssignments.wed,
-        snapshot.swapOperationsByDay.wed,
-      ),
-      thu: applyDaySwapOperations(
-        generatedWeeklyAssignments.thu,
-        snapshot.swapOperationsByDay.thu,
-      ),
-      fri: applyDaySwapOperations(
-        generatedWeeklyAssignments.fri,
-        snapshot.swapOperationsByDay.fri,
-      ),
+      mon: enforceNecessaryJobsBeforeFlo({
+        assignments: applyDaySwapOperations(
+          generatedWeeklyAssignments.mon,
+          snapshot.swapOperationsByDay.mon,
+        ),
+        jobs: JOBS,
+      }),
+      tue: enforceNecessaryJobsBeforeFlo({
+        assignments: applyDaySwapOperations(
+          generatedWeeklyAssignments.tue,
+          snapshot.swapOperationsByDay.tue,
+        ),
+        jobs: JOBS,
+      }),
+      wed: enforceNecessaryJobsBeforeFlo({
+        assignments: applyDaySwapOperations(
+          generatedWeeklyAssignments.wed,
+          snapshot.swapOperationsByDay.wed,
+        ),
+        jobs: JOBS,
+      }),
+      thu: enforceNecessaryJobsBeforeFlo({
+        assignments: applyDaySwapOperations(
+          generatedWeeklyAssignments.thu,
+          snapshot.swapOperationsByDay.thu,
+        ),
+        jobs: JOBS,
+      }),
+      fri: enforceNecessaryJobsBeforeFlo({
+        assignments: applyDaySwapOperations(
+          generatedWeeklyAssignments.fri,
+          snapshot.swapOperationsByDay.fri,
+        ),
+        jobs: JOBS,
+      }),
     };
 
     const snapshotBuildingWeeklyAssignments = {
