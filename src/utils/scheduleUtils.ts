@@ -43,11 +43,9 @@ export function getDaycareJobLabel(
       case "San":
         return "Toddler and P2 lockers";
       case "Gar":
-        return staffing <= 6 ? "Fill & all outside" : "Fill & front outside";
+        return staffing <= 5 ? "Fill & all outside" : "Fill & Front outside";
       case "Flo1":
-        if (staffing >= 7) return "Baby Room";
-        if (staffing <= 6) return "Baby & Toddler";
-        return "Flo1";
+        return "Back outside";
       case "Flo2":
         if (staffing >= 7) return "Toddler Room & P2 lockers";
         return "Flo2";
@@ -140,11 +138,11 @@ function getDaycareAreasForJob(
       case "San":
         return ["Toddler"];
       case "Gar":
-        return staffing <= 6
+        return staffing <= 5
           ? ["Front outside", "Back outside"]
           : ["Front outside"];
       case "Flo1":
-        return staffing >= 7 ? ["Baby"] : ["Baby", "Toddler"];
+        return ["Back outside"];
       case "Flo2":
         if (staffing >= 7) return ["Toddler"];
         return [];
