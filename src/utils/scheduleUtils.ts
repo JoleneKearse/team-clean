@@ -37,11 +37,11 @@ export function getDaycareJobLabel(
       case "Bath":
         return "Bathrooms";
       case "Vac":
-        return "Needs assignment";
+        return "Baby Room";
       case "SW":
         return "P2";
       case "San":
-        return "Needs assignment";
+        return "Toddler and P2 lockers";
       case "Gar":
         return staffing <= 6 ? "Fill & all outside" : "Fill & front outside";
       case "Flo1":
@@ -134,11 +134,11 @@ function getDaycareAreasForJob(
       case "Bath":
         return ["Bathrooms"];
       case "Vac":
-        return [];
+        return ["Baby"];
       case "SW":
         return ["P2"];
       case "San":
-        return [];
+        return ["Toddler"];
       case "Gar":
         return staffing <= 6
           ? ["Front outside", "Back outside"]
@@ -222,6 +222,14 @@ function getMarchBreakSanBackfillArea(params: {
     params;
 
   if (!isMarchBreakReducedScheduleDay || normalizePeopleIn(peopleIn) !== 7) {
+    return null;
+  }
+
+  const marchBreakSanLabel = getDaycareJobLabel("San", peopleIn, {
+    isMarchBreakReducedScheduleDay,
+  });
+
+  if (marchBreakSanLabel !== "Needs assignment") {
     return null;
   }
 
