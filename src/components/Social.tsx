@@ -4,7 +4,7 @@ import { useSchedule } from "../context/ScheduleContext";
 import { getBuildingAssignmentsForDay } from "../utils/scheduleUtils";
 import type { JobId } from "../types/types";
 
-const SOCIAL_JOBS: readonly JobId[] = ["Vac", "Gar"];
+const SOCIAL_JOBS: readonly JobId[] = ["Vac", "Gar", "Flo1"];
 const TOTAL_COLUMNS = 4;
 
 const Social = () => {

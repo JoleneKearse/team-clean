@@ -83,6 +83,7 @@ function App() {
   const {
     currentDay,
     isViewingPastDate,
+    isMarchBreakReducedScheduleDay,
     closedItems,
     peopleIn,
     presentCleaners,
@@ -148,14 +149,15 @@ function App() {
   const effectiveIsEditMode = isEditMode && !isViewingPastDate;
   const isEditUiActive = !isViewingPastDate && (isEditMode || isClosuresOpen);
   const isFriday = currentDay === "fri";
-  const isBuildingsComponentEnabled = !isFriday;
-  const isSeniorsComponentEnabled = isFriday;
+  const isFridayOrMarchBreak = isFriday || isMarchBreakReducedScheduleDay;
+  const isBuildingsComponentEnabled = !isFridayOrMarchBreak;
+  const isSeniorsComponentEnabled = isFridayOrMarchBreak;
   const isGrade1ComponentEnabled = isFriday;
   const isGrade2ComponentEnabled = isFriday;
-  const isEducationComponentEnabled = isFriday;
-  const isFieldhouseComponentEnabled = isFriday;
-  const isSocialComponentEnabled = isFriday;
-  const isAnnexComponentEnabled = isFriday;
+  const isEducationComponentEnabled = isFridayOrMarchBreak;
+  const isFieldhouseComponentEnabled = isFridayOrMarchBreak;
+  const isSocialComponentEnabled = isFridayOrMarchBreak;
+  const isAnnexComponentEnabled = isFridayOrMarchBreak;
   const showDaycareSection =
     sectionVisibility.showDaycare && !closedItemSet.has("Daycare");
   const showBandOfficeSection =
@@ -516,19 +518,38 @@ function App() {
             closedItems={closedItems}
           />
         )}
+        {isMarchBreakReducedScheduleDay && showSeniorsSection && <Seniors />}
+        {isMarchBreakReducedScheduleDay && showEducationSection && (
+          <Education />
+        )}
+        {isMarchBreakReducedScheduleDay && showFieldhouseSection && (
+          <Fieldhouse />
+        )}
+        {isMarchBreakReducedScheduleDay && showSocialSection && <Social />}
+        {isMarchBreakReducedScheduleDay && showAnnexSection && <Annex />}
         {!isFriday && showDaycareSection && (
           <Daycare isEditMode={effectiveIsEditMode} />
         )}
       </div>
       {showBandOfficeSection && <BandOffice />}
 
-      {!isFriday && showSeniorsSection && <Seniors />}
+      {!isFriday && !isMarchBreakReducedScheduleDay && showSeniorsSection && (
+        <Seniors />
+      )}
       {!isFriday && showGrade1Section && <Grade1 />}
       {!isFriday && showGrade2Section && <Grade2 />}
-      {!isFriday && showEducationSection && <Education />}
-      {!isFriday && showFieldhouseSection && <Fieldhouse />}
-      {!isFriday && showSocialSection && <Social />}
-      {!isFriday && showAnnexSection && <Annex />}
+      {!isFriday && !isMarchBreakReducedScheduleDay && showEducationSection && (
+        <Education />
+      )}
+      {!isFriday &&
+        !isMarchBreakReducedScheduleDay &&
+        showFieldhouseSection && <Fieldhouse />}
+      {!isFriday && !isMarchBreakReducedScheduleDay && showSocialSection && (
+        <Social />
+      )}
+      {!isFriday && !isMarchBreakReducedScheduleDay && showAnnexSection && (
+        <Annex />
+      )}
       {showHealthCenterSection && <HealthCenter />}
       {showCommunityCenterSection && <CommunityCenter />}
       {showDropInCenterSection && <DropInCenter />}
