@@ -82,6 +82,7 @@ function hasDefaultOrderClosures(closedItems: readonly ClosureId[]) {
 function App() {
   const {
     currentDay,
+    isViewingPastDate,
     closedItems,
     peopleIn,
     presentCleaners,
@@ -144,7 +145,8 @@ function App() {
     ? timeBasedVisibility
     : FULL_SECTION_VISIBILITY;
   const closedItemSet = useMemo(() => new Set(closedItems), [closedItems]);
-  const isEditUiActive = isEditMode || isClosuresOpen;
+  const effectiveIsEditMode = isEditMode && !isViewingPastDate;
+  const isEditUiActive = !isViewingPastDate && (isEditMode || isClosuresOpen);
   const isFriday = currentDay === "fri";
   const isBuildingsComponentEnabled = !isFriday;
   const isSeniorsComponentEnabled = isFriday;
@@ -180,6 +182,8 @@ function App() {
   const showChurchSection = !closedItemSet.has("Church");
 
   const toggleCleaner = (cleaner: CleanerId) => {
+    if (isViewingPastDate) return;
+
     setIsEditMode(true);
 
     setPresentCleaners((current) =>
@@ -192,6 +196,10 @@ function App() {
   };
 
   const handleEditSchedule = () => {
+    if (isViewingPastDate) {
+      return;
+    }
+
     if (isSavingSchedule) {
       return;
     }
@@ -212,6 +220,10 @@ function App() {
   };
 
   const handleResetSchedule = () => {
+    if (isViewingPastDate) {
+      return;
+    }
+
     void resetScheduleState()
       .then(() => {
         triggerSaveSuccessMessage();
@@ -228,10 +240,18 @@ function App() {
   };
 
   const handleToggleClosures = () => {
+    if (isViewingPastDate) {
+      return;
+    }
+
     setIsClosuresOpen((current) => !current);
   };
 
   const handleToggleClosureItem = () => {
+    if (isViewingPastDate) {
+      return;
+    }
+
     setIsEditMode(true);
   };
 
@@ -283,6 +303,7 @@ function App() {
                     <input
                       type="checkbox"
                       checked={checked}
+                      disabled={isViewingPastDate}
                       onChange={() => toggleCleaner(cleaner)}
                     />
                     <span>{cleaner}</span>
@@ -370,7 +391,7 @@ function App() {
             <Button
               label={editButtonLabel}
               onClick={handleEditSchedule}
-              disabled={isSavingSchedule}
+              disabled={isSavingSchedule || isViewingPastDate}
               className={editButtonLabel === "Confirm" ? "text-pink-400" : ""}
               icon={
                 isEditUiActive ? (
@@ -409,7 +430,7 @@ function App() {
             <Button
               label="Reset"
               onClick={handleResetSchedule}
-              disabled={isSavingSchedule}
+              disabled={isSavingSchedule || isViewingPastDate}
               icon={
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -439,7 +460,14 @@ function App() {
             Changes sent to everyone.
           </p>
         )}
-        {isClosuresOpen && <Closures onToggleItem={handleToggleClosureItem} />}
+        {isViewingPastDate && (
+          <p className="px-2 pb-1 text-center font-semibold text-pink-700">
+            Viewing a past date. This view is read-only.
+          </p>
+        )}
+        {!isViewingPastDate && isClosuresOpen && (
+          <Closures onToggleItem={handleToggleClosureItem} />
+        )}
 
         {isHelpOpen && (
           <div>
@@ -470,20 +498,27 @@ function App() {
         <Calendar
           calendarView={calendarView}
           highlightedDayKey={currentDay}
-          isEditMode={isEditMode}
+          isEditMode={effectiveIsEditMode}
         />
         {isFriday && showSeniorsSection && <Seniors />}
         {isFriday && showGrade1Section && <Grade1 />}
         {isFriday && showGrade2Section && <Grade2 />}
-        {isFriday && showDaycareSection && <Daycare isEditMode={isEditMode} />}
+        {isFriday && showDaycareSection && (
+          <Daycare isEditMode={effectiveIsEditMode} />
+        )}
         {isFriday && showEducationSection && <Education />}
         {isFriday && showFieldhouseSection && <Fieldhouse />}
         {isFriday && showSocialSection && <Social />}
         {isFriday && showAnnexSection && <Annex />}
         {showBuildingsSection && (
-          <Buildings isEditMode={isEditMode} closedItems={closedItems} />
+          <Buildings
+            isEditMode={effectiveIsEditMode}
+            closedItems={closedItems}
+          />
         )}
-        {!isFriday && showDaycareSection && <Daycare isEditMode={isEditMode} />}
+        {!isFriday && showDaycareSection && (
+          <Daycare isEditMode={effectiveIsEditMode} />
+        )}
       </div>
       {showBandOfficeSection && <BandOffice />}
 

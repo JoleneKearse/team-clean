@@ -26,7 +26,10 @@ import type { CleanerId, ClosureId, DayKey } from "../types/types";
 import { db, firebaseConfigError } from "../lib/firebase";
 
 interface ScheduleContextType {
+  todayDateKey: string;
   todayDayKey: DayKey;
+  selectedDateKey: string;
+  isViewingPastDate: boolean;
   weeklyPublicHolidays: Partial<Record<DayKey, OntarioPublicHoliday>>;
   isMarchBreakReducedScheduleDay: boolean;
   weeklyAssignments: Record<DayKey, string[]>;
@@ -42,6 +45,7 @@ interface ScheduleContextType {
   peopleIn: number;
   currentDay: DayKey;
   setCurrentDay: React.Dispatch<React.SetStateAction<DayKey>>;
+  setSelectedDateToToday: () => void;
   swapAssignments: (
     day: DayKey,
     fromJobIndex: number,
@@ -82,6 +86,14 @@ type BuildingMoveOperationsByDay = Record<DayKey, SwapOperation[]>;
 type DaycareMoveOperationsByDay = Record<DayKey, SwapOperation[]>;
 type Flo1AtAnnexByDay = Record<DayKey, boolean>;
 type ClosedItemsByDay = Record<DayKey, ClosureId[]>;
+
+const DAY_OFFSET_BY_KEY: Record<DayKey, number> = {
+  mon: 0,
+  tue: 1,
+  wed: 2,
+  thu: 3,
+  fri: 4,
+};
 
 const CLOSURE_IDS = CLOSURE_OPTIONS.map((option) => option.id) as ClosureId[];
 const CLOSURE_ID_SET = new Set<string>(CLOSURE_IDS);
@@ -215,6 +227,68 @@ function getLocalDateKey(date: Date): string {
   const day = String(date.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
+}
+
+function parseLocalDateKey(dateKey: string): Date | null {
+  const parts = dateKey.split("-");
+  if (parts.length !== 3) return null;
+
+  const [yearPart, monthPart, dayPart] = parts;
+  const year = Number(yearPart);
+  const month = Number(monthPart);
+  const day = Number(dayPart);
+
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+    return null;
+  }
+
+  const parsedDate = new Date(year, month - 1, day);
+  if (
+    parsedDate.getFullYear() !== year ||
+    parsedDate.getMonth() !== month - 1 ||
+    parsedDate.getDate() !== day
+  ) {
+    return null;
+  }
+
+  parsedDate.setHours(0, 0, 0, 0);
+  return parsedDate;
+}
+
+function getDisplayedWeekStart(referenceDate: Date): Date {
+  const date = new Date(referenceDate);
+  date.setHours(0, 0, 0, 0);
+
+  // On weekends, map the calendar view to the upcoming work week.
+  while (date.getDay() === 0 || date.getDay() === 6) {
+    date.setDate(date.getDate() + 1);
+  }
+
+  const day = date.getDay();
+  const daysFromMonday = (day + 6) % 7;
+  date.setDate(date.getDate() - daysFromMonday);
+
+  return date;
+}
+
+function getDateKeyForDayInDisplayedWeek(dayKey: DayKey, referenceDate: Date): string {
+  const weekStart = getDisplayedWeekStart(referenceDate);
+  const date = new Date(weekStart);
+  date.setDate(weekStart.getDate() + DAY_OFFSET_BY_KEY[dayKey]);
+
+  return getLocalDateKey(date);
+}
+
+function getDefaultScheduleSnapshot(currentDay: DayKey): ScheduleSnapshot {
+  return {
+    currentDay,
+    presentCleanersByDay: getDefaultPresentCleanersByDay(),
+    swapOperationsByDay: getDefaultSwapOperationsByDay(),
+    buildingMoveOperationsByDay: getDefaultBuildingMoveOperationsByDay(),
+    flo1AtAnnexByDay: getDefaultFlo1AtAnnexByDay(),
+    daycareMoveOperationsByDay: getDefaultDaycareMoveOperationsByDay(),
+    closedItemsByDay: getDefaultClosedItemsByDay(),
+  };
 }
 
 function isDayKey(value: unknown): value is DayKey {
@@ -514,21 +588,19 @@ export const ScheduleProvider = ({
   const today = useMemo(() => new Date(), []);
   const todayDateKey = useMemo(() => getLocalDateKey(today), [today]);
   const todayDayKey = useMemo(() => getDayKeyFromDate(today), [today]);
-  const weeklyPublicHolidays = useMemo(
-    () => getOntarioPublicHolidaysByDayForWeek(today),
-    [today],
-  );
-  const weeklyMarchBreakReducedSchedule = useMemo(
-    () => getMarchBreakReducedScheduleByDayForWeek(today),
-    [today],
-  );
   const persistedScheduleState = useMemo(
     () => loadPersistedScheduleState(todayDateKey),
     [todayDateKey],
   );
 
-  const [currentDay, setCurrentDay] = useState<DayKey>(
+  const [currentDay, setCurrentDayState] = useState<DayKey>(
     persistedScheduleState?.currentDay ?? todayDayKey,
+  );
+  const [selectedDateKey, setSelectedDateKey] = useState(() =>
+    getDateKeyForDayInDisplayedWeek(
+      persistedScheduleState?.currentDay ?? todayDayKey,
+      today,
+    ),
   );
   const [presentCleanersByDay, setPresentCleanersByDay] =
     useState<PresentCleanersByDay>(
@@ -563,17 +635,47 @@ export const ScheduleProvider = ({
   const [lastSavedToCloudAt, setLastSavedToCloudAt] = useState<string | null>(
     null,
   );
-  const flo1AtAnnex = flo1AtAnnexByDay[currentDay];
-  const isMarchBreakReducedScheduleDay = Boolean(
-    weeklyMarchBreakReducedSchedule[currentDay],
-  );
+  const [pastScheduleSnapshot, setPastScheduleSnapshot] =
+    useState<ScheduleSnapshot | null>(null);
 
-  const presentCleaners = presentCleanersByDay[currentDay];
-  const closedItems = closedItemsByDay[currentDay];
+  const selectedDate = useMemo(
+    () => parseLocalDateKey(selectedDateKey) ?? today,
+    [selectedDateKey, today],
+  );
+  const selectedDateDayKey = useMemo(
+    () => getDayKeyFromDate(selectedDate),
+    [selectedDate],
+  );
+  const isViewingPastDate = selectedDateKey < todayDateKey;
+
+  const setCurrentDay: React.Dispatch<React.SetStateAction<DayKey>> = (
+    valueOrUpdater,
+  ) => {
+    setCurrentDayState((current) => {
+      const nextDay =
+        typeof valueOrUpdater === "function"
+          ? valueOrUpdater(current)
+          : valueOrUpdater;
+
+      setSelectedDateKey((currentDateKey) => {
+        const referenceDate = parseLocalDateKey(currentDateKey) ?? today;
+        return getDateKeyForDayInDisplayedWeek(nextDay, referenceDate);
+      });
+
+      return nextDay;
+    });
+  };
+
+  const setSelectedDateToToday = () => {
+    setSelectedDateKey(todayDateKey);
+    setCurrentDayState(todayDayKey);
+  };
 
   const setPresentCleaners: React.Dispatch<
     React.SetStateAction<CleanerId[]>
   > = (valueOrUpdater) => {
+    if (isViewingPastDate) return;
+
     setPresentCleanersByDay((current) => {
       const nextForCurrentDay =
         typeof valueOrUpdater === "function"
@@ -588,6 +690,8 @@ export const ScheduleProvider = ({
   };
 
   const toggleClosedItem = (closureId: ClosureId) => {
+    if (isViewingPastDate) return;
+
     setClosedItemsByDay((current) => {
       const nextSelection = new Set(current[currentDay]);
 
@@ -604,158 +708,54 @@ export const ScheduleProvider = ({
     });
   };
 
-  const peopleIn = presentCleaners.length;
+  useEffect(() => {
+    if (!isViewingPastDate) {
+      setPastScheduleSnapshot(null);
+      return;
+    }
 
-  const generatedWeeklyAssignments = useMemo(
-    () =>
-      generateWeeklyAssignments(
-        STAFF_CLEANERS,
-        today,
-        JOBS.length,
-        presentCleanersByDay,
-        JOBS,
-        CALL_IN_CLEANERS,
-      ),
-    [presentCleanersByDay, today],
-  );
+    if (!db) {
+      setPastScheduleSnapshot(null);
+      return;
+    }
 
-  const weeklyAssignments = useMemo(
-    () => ({
-      mon: enforceNecessaryJobsBeforeFlo({
-        assignments: applyDaySwapOperations(
-          generatedWeeklyAssignments.mon,
-          swapOperationsByDay.mon,
-        ),
-        jobs: JOBS,
-      }),
-      tue: enforceNecessaryJobsBeforeFlo({
-        assignments: applyDaySwapOperations(
-          generatedWeeklyAssignments.tue,
-          swapOperationsByDay.tue,
-        ),
-        jobs: JOBS,
-      }),
-      wed: enforceNecessaryJobsBeforeFlo({
-        assignments: applyDaySwapOperations(
-          generatedWeeklyAssignments.wed,
-          swapOperationsByDay.wed,
-        ),
-        jobs: JOBS,
-      }),
-      thu: enforceNecessaryJobsBeforeFlo({
-        assignments: applyDaySwapOperations(
-          generatedWeeklyAssignments.thu,
-          swapOperationsByDay.thu,
-        ),
-        jobs: JOBS,
-      }),
-      fri: enforceNecessaryJobsBeforeFlo({
-        assignments: applyDaySwapOperations(
-          generatedWeeklyAssignments.fri,
-          swapOperationsByDay.fri,
-        ),
-        jobs: JOBS,
-      }),
-    }),
-    [generatedWeeklyAssignments, swapOperationsByDay],
-  );
+    const unsubscribe = onSnapshot(
+      doc(db, "dailySchedules", selectedDateKey),
+      (snapshot) => {
+        if (!snapshot.exists()) {
+          setPastScheduleSnapshot(null);
+          return;
+        }
 
-  const baselineWeeklyAssignments = useMemo(
-    () =>
-      generateWeeklyAssignments(
-        STAFF_CLEANERS,
-        today,
-        JOBS.length,
-        undefined,
-        JOBS,
-        CALL_IN_CLEANERS,
-      ),
-    [today],
-  );
+        const syncedSnapshot = getScheduleSnapshotFromFirestoreData(
+          snapshot.data(),
+          selectedDateDayKey,
+        );
 
-  const weeklyReassignmentFlags = useMemo(
-    () =>
-      getWeeklyReassignmentFlags({
-        baseAssignments: baselineWeeklyAssignments,
-        adjustedAssignments: weeklyAssignments,
-      }),
-    [baselineWeeklyAssignments, weeklyAssignments],
-  );
+        if (!syncedSnapshot) {
+          setPastScheduleSnapshot(null);
+          return;
+        }
 
-  const buildingWeeklyAssignments = useMemo(
-    () => ({
-      mon: applyDaySwapOperations(
-        weeklyAssignments.mon,
-        buildingMoveOperationsByDay.mon,
-      ),
-      tue: applyDaySwapOperations(
-        weeklyAssignments.tue,
-        buildingMoveOperationsByDay.tue,
-      ),
-      wed: applyDaySwapOperations(
-        weeklyAssignments.wed,
-        buildingMoveOperationsByDay.wed,
-      ),
-      thu: applyDaySwapOperations(
-        weeklyAssignments.thu,
-        buildingMoveOperationsByDay.thu,
-      ),
-      fri: applyDaySwapOperations(
-        weeklyAssignments.fri,
-        buildingMoveOperationsByDay.fri,
-      ),
-    }),
-    [buildingMoveOperationsByDay, weeklyAssignments],
-  );
+        setPastScheduleSnapshot(syncedSnapshot);
+      },
+      () => {
+        setPastScheduleSnapshot(null);
+      },
+    );
 
-  const buildingReassignmentFlags = useMemo(
-    () =>
-      getWeeklyReassignmentFlags({
-        baseAssignments: weeklyAssignments,
-        adjustedAssignments: buildingWeeklyAssignments,
-      }),
-    [buildingWeeklyAssignments, weeklyAssignments],
-  );
+    return () => {
+      unsubscribe();
+    };
+  }, [isViewingPastDate, selectedDateDayKey, selectedDateKey]);
 
-  const daycareWeeklyAssignments = useMemo(
-    () => ({
-      mon: applyDaySwapOperations(
-        weeklyAssignments.mon,
-        daycareMoveOperationsByDay.mon,
-      ),
-      tue: applyDaySwapOperations(
-        weeklyAssignments.tue,
-        daycareMoveOperationsByDay.tue,
-      ),
-      wed: applyDaySwapOperations(
-        weeklyAssignments.wed,
-        daycareMoveOperationsByDay.wed,
-      ),
-      thu: applyDaySwapOperations(
-        weeklyAssignments.thu,
-        daycareMoveOperationsByDay.thu,
-      ),
-      fri: applyDaySwapOperations(
-        weeklyAssignments.fri,
-        daycareMoveOperationsByDay.fri,
-      ),
-    }),
-    [daycareMoveOperationsByDay, weeklyAssignments],
-  );
-
-  const daycareReassignmentFlags = useMemo(
-    () =>
-      getWeeklyReassignmentFlags({
-        baseAssignments: weeklyAssignments,
-        adjustedAssignments: daycareWeeklyAssignments,
-      }),
-    [daycareWeeklyAssignments, weeklyAssignments],
-  );
-
-  const getDerivedAssignmentsForSnapshot = (snapshot: ScheduleSnapshot) => {
+  const getDerivedAssignmentsForSnapshot = (
+    snapshot: ScheduleSnapshot,
+    referenceDate: Date,
+  ) => {
     const generatedWeeklyAssignments = generateWeeklyAssignments(
       STAFF_CLEANERS,
-      today,
+      referenceDate,
       JOBS.length,
       snapshot.presentCleanersByDay,
       JOBS,
@@ -846,18 +846,116 @@ export const ScheduleProvider = ({
       ),
     };
 
+    const baselineWeeklyAssignments = generateWeeklyAssignments(
+      STAFF_CLEANERS,
+      referenceDate,
+      JOBS.length,
+      undefined,
+      JOBS,
+      CALL_IN_CLEANERS,
+    );
+
+    const snapshotWeeklyReassignmentFlags = getWeeklyReassignmentFlags({
+      baseAssignments: baselineWeeklyAssignments,
+      adjustedAssignments: snapshotWeeklyAssignments,
+    });
+
+    const snapshotBuildingReassignmentFlags = getWeeklyReassignmentFlags({
+      baseAssignments: snapshotWeeklyAssignments,
+      adjustedAssignments: snapshotBuildingWeeklyAssignments,
+    });
+
+    const snapshotDaycareReassignmentFlags = getWeeklyReassignmentFlags({
+      baseAssignments: snapshotWeeklyAssignments,
+      adjustedAssignments: snapshotDaycareWeeklyAssignments,
+    });
+
     return {
       snapshotWeeklyAssignments,
+      snapshotWeeklyReassignmentFlags,
       snapshotBuildingWeeklyAssignments,
+      snapshotBuildingReassignmentFlags,
       snapshotDaycareWeeklyAssignments,
+      snapshotDaycareReassignmentFlags,
     };
   };
+
+  const editableSnapshot = useMemo(
+    () => ({
+      currentDay,
+      presentCleanersByDay,
+      swapOperationsByDay,
+      buildingMoveOperationsByDay,
+      flo1AtAnnexByDay,
+      daycareMoveOperationsByDay,
+      closedItemsByDay,
+    }),
+    [
+      buildingMoveOperationsByDay,
+      closedItemsByDay,
+      currentDay,
+      daycareMoveOperationsByDay,
+      flo1AtAnnexByDay,
+      presentCleanersByDay,
+      swapOperationsByDay,
+    ],
+  );
+
+  const historicalSnapshot = useMemo(
+    () => pastScheduleSnapshot ?? getDefaultScheduleSnapshot(selectedDateDayKey),
+    [pastScheduleSnapshot, selectedDateDayKey],
+  );
+
+  const editableDerivedAssignments = useMemo(
+    () => getDerivedAssignmentsForSnapshot(editableSnapshot, today),
+    [editableSnapshot, today],
+  );
+
+  const historicalDerivedAssignments = useMemo(
+    () => getDerivedAssignmentsForSnapshot(historicalSnapshot, selectedDate),
+    [historicalSnapshot, selectedDate],
+  );
+
+  const activeSnapshot = isViewingPastDate ? historicalSnapshot : editableSnapshot;
+  const activeDerivedAssignments = isViewingPastDate
+    ? historicalDerivedAssignments
+    : editableDerivedAssignments;
+
+  const weeklyPublicHolidays = useMemo(
+    () => getOntarioPublicHolidaysByDayForWeek(selectedDate),
+    [selectedDate],
+  );
+  const weeklyMarchBreakReducedSchedule = useMemo(
+    () => getMarchBreakReducedScheduleByDayForWeek(selectedDate),
+    [selectedDate],
+  );
+  const isMarchBreakReducedScheduleDay = Boolean(
+    weeklyMarchBreakReducedSchedule[currentDay],
+  );
+  const weeklyAssignments = activeDerivedAssignments.snapshotWeeklyAssignments;
+  const weeklyReassignmentFlags =
+    activeDerivedAssignments.snapshotWeeklyReassignmentFlags;
+  const buildingWeeklyAssignments =
+    activeDerivedAssignments.snapshotBuildingWeeklyAssignments;
+  const buildingReassignmentFlags =
+    activeDerivedAssignments.snapshotBuildingReassignmentFlags;
+  const daycareWeeklyAssignments =
+    activeDerivedAssignments.snapshotDaycareWeeklyAssignments;
+  const daycareReassignmentFlags =
+    activeDerivedAssignments.snapshotDaycareReassignmentFlags;
+
+  const presentCleaners = activeSnapshot.presentCleanersByDay[currentDay];
+  const closedItems = activeSnapshot.closedItemsByDay[currentDay];
+  const flo1AtAnnex = activeSnapshot.flo1AtAnnexByDay[currentDay];
+  const peopleIn = presentCleaners.length;
 
   const swapAssignments = (
     day: DayKey,
     fromJobIndex: number,
     toJobIndex: number,
   ) => {
+    if (isViewingPastDate) return;
+
     if (
       !Number.isInteger(fromJobIndex) ||
       !Number.isInteger(toJobIndex) ||
@@ -881,6 +979,8 @@ export const ScheduleProvider = ({
     fromJobIndex: number,
     toJobIndex: number,
   ) => {
+    if (isViewingPastDate) return;
+
     if (
       !Number.isInteger(fromJobIndex) ||
       !Number.isInteger(toJobIndex) ||
@@ -900,6 +1000,8 @@ export const ScheduleProvider = ({
   };
 
   const setFlo1AtAnnexForDay = (day: DayKey, value: boolean) => {
+    if (isViewingPastDate) return;
+
     setFlo1AtAnnexByDay((current) => ({
       ...current,
       [day]: value,
@@ -911,6 +1013,8 @@ export const ScheduleProvider = ({
     fromJobIndex: number,
     toJobIndex: number,
   ) => {
+    if (isViewingPastDate) return;
+
     if (
       !Number.isInteger(fromJobIndex) ||
       !Number.isInteger(toJobIndex) ||
@@ -947,7 +1051,7 @@ export const ScheduleProvider = ({
       snapshotWeeklyAssignments,
       snapshotBuildingWeeklyAssignments,
       snapshotDaycareWeeklyAssignments,
-    } = getDerivedAssignmentsForSnapshot(snapshot);
+    } = getDerivedAssignmentsForSnapshot(snapshot, today);
 
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
@@ -1004,6 +1108,8 @@ export const ScheduleProvider = ({
   };
 
   const saveScheduleToFirestore = async () => {
+    if (isViewingPastDate) return;
+
     await persistScheduleSnapshotToFirestore({
       currentDay,
       presentCleanersByDay,
@@ -1016,6 +1122,8 @@ export const ScheduleProvider = ({
   };
 
   const resetScheduleState = async () => {
+    if (isViewingPastDate) return;
+
     const snapshot: ScheduleSnapshot = {
       currentDay: todayDayKey,
       presentCleanersByDay: getDefaultPresentCleanersByDay(),
@@ -1026,7 +1134,7 @@ export const ScheduleProvider = ({
       closedItemsByDay: getDefaultClosedItemsByDay(),
     };
 
-    setCurrentDay(snapshot.currentDay);
+    setSelectedDateToToday();
     setPresentCleanersByDay(snapshot.presentCleanersByDay);
     setSwapOperationsByDay(snapshot.swapOperationsByDay);
     setBuildingMoveOperationsByDay(snapshot.buildingMoveOperationsByDay);
@@ -1042,7 +1150,7 @@ export const ScheduleProvider = ({
   };
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || isViewingPastDate) return;
 
     if (!db) {
       setSaveScheduleError(
@@ -1064,7 +1172,6 @@ export const ScheduleProvider = ({
 
         if (!syncedSnapshot) return;
 
-        setCurrentDay(syncedSnapshot.currentDay);
         setPresentCleanersByDay(syncedSnapshot.presentCleanersByDay);
         setSwapOperationsByDay(syncedSnapshot.swapOperationsByDay);
         setBuildingMoveOperationsByDay(
@@ -1096,7 +1203,7 @@ export const ScheduleProvider = ({
     return () => {
       unsubscribe();
     };
-  }, [todayDateKey, todayDayKey]);
+  }, [isViewingPastDate, todayDateKey, todayDayKey]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1121,6 +1228,7 @@ export const ScheduleProvider = ({
     daycareMoveOperationsByDay,
     presentCleanersByDay,
     currentDay,
+    isViewingPastDate,
     swapOperationsByDay,
     todayDateKey,
   ]);
@@ -1128,7 +1236,10 @@ export const ScheduleProvider = ({
   return (
     <ScheduleContext.Provider
       value={{
+        todayDateKey,
         todayDayKey,
+        selectedDateKey,
+        isViewingPastDate,
         weeklyPublicHolidays,
         isMarchBreakReducedScheduleDay,
         weeklyAssignments,
@@ -1144,6 +1255,7 @@ export const ScheduleProvider = ({
         peopleIn,
         currentDay,
         setCurrentDay,
+        setSelectedDateToToday,
         swapAssignments,
         moveBuildingAssignment,
         flo1AtAnnex,

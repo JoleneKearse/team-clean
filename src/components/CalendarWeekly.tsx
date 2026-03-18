@@ -68,6 +68,32 @@ function getDateNumberForDayKey(dayKey: DayKey, referenceDate: Date): number {
   return date.getDate();
 }
 
+function parseLocalDateKey(dateKey: string): Date | null {
+  const parts = dateKey.split("-");
+  if (parts.length !== 3) return null;
+
+  const [yearPart, monthPart, dayPart] = parts;
+  const year = Number(yearPart);
+  const month = Number(monthPart);
+  const day = Number(dayPart);
+
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+    return null;
+  }
+
+  const parsedDate = new Date(year, month - 1, day);
+  if (
+    parsedDate.getFullYear() !== year ||
+    parsedDate.getMonth() !== month - 1 ||
+    parsedDate.getDate() !== day
+  ) {
+    return null;
+  }
+
+  parsedDate.setHours(0, 0, 0, 0);
+  return parsedDate;
+}
+
 function isDayKey(value: unknown): value is DayKey {
   return (
     value === "mon" ||
@@ -214,17 +240,20 @@ const CalendarWeekly = ({
   isEditMode,
 }: CalendarWeeklyProps) => {
   const {
-    todayDayKey,
+    todayDateKey,
+    selectedDateKey,
     weeklyAssignments,
     weeklyPublicHolidays,
     weeklyReassignmentFlags,
     swapAssignments,
     setCurrentDay,
+    setSelectedDateToToday,
   } = useSchedule();
   const [activeInitials, setActiveInitials] = useState("");
+  const selectedDateReference = parseLocalDateKey(selectedDateKey) ?? new Date();
   const currentDateNumber = getDateNumberForDayKey(
     highlightedDayKey,
-    new Date(),
+    selectedDateReference,
   );
 
   const sensors = useSensors(
@@ -424,11 +453,11 @@ const CalendarWeekly = ({
         </div>
       </div>
 
-      {highlightedDayKey !== todayDayKey ? (
+      {selectedDateKey !== todayDateKey ? (
         <div className="mt-3 flex justify-center">
           <Button
             label="Reset to Today"
-            onClick={() => setCurrentDay(todayDayKey)}
+            onClick={setSelectedDateToToday}
             className="w-48 whitespace-nowrap"
             icon={
               <svg

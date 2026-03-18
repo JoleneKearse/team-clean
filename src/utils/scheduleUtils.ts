@@ -432,7 +432,9 @@ export function enforceNecessaryJobsBeforeFlo(params: {
 
   const necessaryBackfillTargetIndexes = jobs
     .map((jobId, index) => ({ jobId, index }))
-    .filter(({ jobId, index }) => isNecessaryJob(jobId) && !nextAssignments[index])
+    .filter(
+      ({ jobId, index }) => isNecessaryJob(jobId) && !nextAssignments[index],
+    )
     .map(({ index }) => index);
 
   necessaryBackfillTargetIndexes.forEach((targetIndex) => {
