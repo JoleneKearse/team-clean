@@ -2,6 +2,7 @@ import { JOBS, getNecessaryJobStyle } from "../constants/consts";
 import { useSchedule } from "../context/ScheduleContext";
 import { getBuildingAssignmentsForDay } from "../utils/scheduleUtils";
 import type { JobId } from "../types/types";
+import gradeOneImage from "../assets/grade-one.webp";
 
 const GRADE_1_JOBS: readonly JobId[] = ["Bath", "Flo2"];
 const TOTAL_COLUMNS = 4;
@@ -33,9 +34,9 @@ const Grade1 = () => {
       <h2 className="relative rounded-xl bg-gray-700 px-4 py-4 text-center font-bold text-gray-100">
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute -left-3 top-7 flex h-18 w-18 -translate-y-1/2 items-center justify-center rounded-full border-2 border-gray-700 bg-gray-200 text-3xl"
+          className="pointer-events-none absolute -left-3 top-7 flex h-18 w-18 -translate-y-1/2 items-center justify-center overflow-hidden rounded-full border-2 border-gray-700 bg-gray-200"
         >
-          1️⃣
+          <img src={gradeOneImage} alt="" className="h-full w-full object-cover" />
         </span>
         Grade 1
       </h2>

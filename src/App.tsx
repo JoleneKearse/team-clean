@@ -149,11 +149,14 @@ function App() {
   const effectiveIsEditMode = isEditMode && !isViewingPastDate;
   const isEditUiActive = !isViewingPastDate && (isEditMode || isClosuresOpen);
   const isFriday = currentDay === "fri";
+  const isFridayMarchBreak = isFriday && isMarchBreakReducedScheduleDay;
+  const isFridayOnly = isFriday && !isMarchBreakReducedScheduleDay;
+  const isMarchBreakWeekday = isMarchBreakReducedScheduleDay && !isFriday;
   const isFridayOrMarchBreak = isFriday || isMarchBreakReducedScheduleDay;
   const isBuildingsComponentEnabled = !isFridayOrMarchBreak;
   const isSeniorsComponentEnabled = isFridayOrMarchBreak;
-  const isGrade1ComponentEnabled = isFriday;
-  const isGrade2ComponentEnabled = isFriday;
+  const isGrade1ComponentEnabled = isFriday && !isMarchBreakReducedScheduleDay;
+  const isGrade2ComponentEnabled = isFriday && !isMarchBreakReducedScheduleDay;
   const isEducationComponentEnabled = isFridayOrMarchBreak;
   const isFieldhouseComponentEnabled = isFridayOrMarchBreak;
   const isSocialComponentEnabled = isFridayOrMarchBreak;
@@ -502,31 +505,39 @@ function App() {
           highlightedDayKey={currentDay}
           isEditMode={effectiveIsEditMode}
         />
-        {isFriday && showSeniorsSection && <Seniors />}
-        {isFriday && showGrade1Section && <Grade1 />}
-        {isFriday && showGrade2Section && <Grade2 />}
-        {isFriday && showDaycareSection && (
+        {isFridayMarchBreak && showSeniorsSection && <Seniors />}
+        {isFridayMarchBreak && showEducationSection && <Education />}
+        {isFridayMarchBreak && showFieldhouseSection && <Fieldhouse />}
+        {isFridayMarchBreak && showSocialSection && <Social />}
+        {isFridayMarchBreak && showAnnexSection && <Annex />}
+        {isFridayMarchBreak && showDaycareSection && (
           <Daycare isEditMode={effectiveIsEditMode} />
         )}
-        {isFriday && showEducationSection && <Education />}
-        {isFriday && showFieldhouseSection && <Fieldhouse />}
-        {isFriday && showSocialSection && <Social />}
-        {isFriday && showAnnexSection && <Annex />}
+        {isFridayOnly && showSeniorsSection && <Seniors />}
+        {isFridayOnly && showGrade1Section && <Grade1 />}
+        {isFridayOnly && showGrade2Section && <Grade2 />}
+        {isFridayOnly && showDaycareSection && (
+          <Daycare isEditMode={effectiveIsEditMode} />
+        )}
+        {isFridayOnly && showEducationSection && <Education />}
+        {isFridayOnly && showFieldhouseSection && <Fieldhouse />}
+        {isFridayOnly && showSocialSection && <Social />}
+        {isFridayOnly && showAnnexSection && <Annex />}
         {showBuildingsSection && (
           <Buildings
             isEditMode={effectiveIsEditMode}
             closedItems={closedItems}
           />
         )}
-        {isMarchBreakReducedScheduleDay && showSeniorsSection && <Seniors />}
-        {isMarchBreakReducedScheduleDay && showEducationSection && (
+        {isMarchBreakWeekday && showSeniorsSection && <Seniors />}
+        {isMarchBreakWeekday && showEducationSection && (
           <Education />
         )}
-        {isMarchBreakReducedScheduleDay && showFieldhouseSection && (
+        {isMarchBreakWeekday && showFieldhouseSection && (
           <Fieldhouse />
         )}
-        {isMarchBreakReducedScheduleDay && showSocialSection && <Social />}
-        {isMarchBreakReducedScheduleDay && showAnnexSection && <Annex />}
+        {isMarchBreakWeekday && showSocialSection && <Social />}
+        {isMarchBreakWeekday && showAnnexSection && <Annex />}
         {!isFriday && showDaycareSection && (
           <Daycare isEditMode={effectiveIsEditMode} />
         )}
@@ -551,9 +562,9 @@ function App() {
         <Annex />
       )}
       {showHealthCenterSection && <HealthCenter />}
-      {showCommunityCenterSection && <CommunityCenter />}
-      {showDropInCenterSection && <DropInCenter />}
-      {showChurchSection && <Church />}
+      {!isFridayMarchBreak && showCommunityCenterSection && <CommunityCenter />}
+      {!isFridayMarchBreak && showDropInCenterSection && <DropInCenter />}
+      {!isFridayMarchBreak && showChurchSection && <Church />}
     </div>
   );
 }
