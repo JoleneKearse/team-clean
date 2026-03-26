@@ -390,7 +390,7 @@ function App() {
             </div>
 
             {peopleIn < 8 && (
-              <div className="mt-3 rounded-lg border border-gray-300 bg-gray-100/40 p-3 text-pink-800">
+              <div className="mt-3 rounded-lg border border-gray-300 bg-gray-300/60 p-3 text-pink-800">
                 <div className="space-y-2">
                   {outCleanerAssignments.map(
                     ({
@@ -402,7 +402,7 @@ function App() {
                     }) => (
                       <p
                         key={initials}
-                        className="flex flex-wrap items-center gap-2"
+                        className="flex flex-wrap items-center gap-2 border-b-2 border-gray-100/60 pb-2 last:border-b-0 last:pb-0"
                       >
                         {jobId &&
                         hasReassignedReplacement &&
