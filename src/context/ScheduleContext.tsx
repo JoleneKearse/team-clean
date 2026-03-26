@@ -33,6 +33,7 @@ interface ScheduleContextType {
   weeklyPublicHolidays: Partial<Record<DayKey, OntarioPublicHoliday>>;
   isMarchBreakReducedScheduleDay: boolean;
   weeklyAssignments: Record<DayKey, string[]>;
+  referenceWeeklyAssignments: Record<DayKey, string[]>;
   weeklyReassignmentFlags: WeeklyReassignmentFlags;
   buildingWeeklyAssignments: Record<DayKey, string[]>;
   buildingReassignmentFlags: WeeklyReassignmentFlags;
@@ -238,7 +239,11 @@ function parseLocalDateKey(dateKey: string): Date | null {
   const month = Number(monthPart);
   const day = Number(dayPart);
 
-  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day)
+  ) {
     return null;
   }
 
@@ -271,7 +276,10 @@ function getDisplayedWeekStart(referenceDate: Date): Date {
   return date;
 }
 
-function getDateKeyForDayInDisplayedWeek(dayKey: DayKey, referenceDate: Date): string {
+function getDateKeyForDayInDisplayedWeek(
+  dayKey: DayKey,
+  referenceDate: Date,
+): string {
   const weekStart = getDisplayedWeekStart(referenceDate);
   const date = new Date(weekStart);
   date.setDate(weekStart.getDate() + DAY_OFFSET_BY_KEY[dayKey]);
@@ -855,6 +863,44 @@ export const ScheduleProvider = ({
       CALL_IN_CLEANERS,
     );
 
+    const snapshotReferenceWeeklyAssignments = {
+      mon: enforceNecessaryJobsBeforeFlo({
+        assignments: applyDaySwapOperations(
+          baselineWeeklyAssignments.mon,
+          snapshot.swapOperationsByDay.mon,
+        ),
+        jobs: JOBS,
+      }),
+      tue: enforceNecessaryJobsBeforeFlo({
+        assignments: applyDaySwapOperations(
+          baselineWeeklyAssignments.tue,
+          snapshot.swapOperationsByDay.tue,
+        ),
+        jobs: JOBS,
+      }),
+      wed: enforceNecessaryJobsBeforeFlo({
+        assignments: applyDaySwapOperations(
+          baselineWeeklyAssignments.wed,
+          snapshot.swapOperationsByDay.wed,
+        ),
+        jobs: JOBS,
+      }),
+      thu: enforceNecessaryJobsBeforeFlo({
+        assignments: applyDaySwapOperations(
+          baselineWeeklyAssignments.thu,
+          snapshot.swapOperationsByDay.thu,
+        ),
+        jobs: JOBS,
+      }),
+      fri: enforceNecessaryJobsBeforeFlo({
+        assignments: applyDaySwapOperations(
+          baselineWeeklyAssignments.fri,
+          snapshot.swapOperationsByDay.fri,
+        ),
+        jobs: JOBS,
+      }),
+    };
+
     const snapshotWeeklyReassignmentFlags = getWeeklyReassignmentFlags({
       baseAssignments: baselineWeeklyAssignments,
       adjustedAssignments: snapshotWeeklyAssignments,
@@ -872,6 +918,7 @@ export const ScheduleProvider = ({
 
     return {
       snapshotWeeklyAssignments,
+      snapshotReferenceWeeklyAssignments,
       snapshotWeeklyReassignmentFlags,
       snapshotBuildingWeeklyAssignments,
       snapshotBuildingReassignmentFlags,
@@ -902,7 +949,8 @@ export const ScheduleProvider = ({
   );
 
   const historicalSnapshot = useMemo(
-    () => pastScheduleSnapshot ?? getDefaultScheduleSnapshot(selectedDateDayKey),
+    () =>
+      pastScheduleSnapshot ?? getDefaultScheduleSnapshot(selectedDateDayKey),
     [pastScheduleSnapshot, selectedDateDayKey],
   );
 
@@ -916,7 +964,9 @@ export const ScheduleProvider = ({
     [historicalSnapshot, selectedDate],
   );
 
-  const activeSnapshot = isViewingPastDate ? historicalSnapshot : editableSnapshot;
+  const activeSnapshot = isViewingPastDate
+    ? historicalSnapshot
+    : editableSnapshot;
   const activeDerivedAssignments = isViewingPastDate
     ? historicalDerivedAssignments
     : editableDerivedAssignments;
@@ -933,6 +983,8 @@ export const ScheduleProvider = ({
     weeklyMarchBreakReducedSchedule[currentDay],
   );
   const weeklyAssignments = activeDerivedAssignments.snapshotWeeklyAssignments;
+  const referenceWeeklyAssignments =
+    activeDerivedAssignments.snapshotReferenceWeeklyAssignments;
   const weeklyReassignmentFlags =
     activeDerivedAssignments.snapshotWeeklyReassignmentFlags;
   const buildingWeeklyAssignments =
@@ -1243,6 +1295,7 @@ export const ScheduleProvider = ({
         weeklyPublicHolidays,
         isMarchBreakReducedScheduleDay,
         weeklyAssignments,
+        referenceWeeklyAssignments,
         weeklyReassignmentFlags,
         buildingWeeklyAssignments,
         buildingReassignmentFlags,

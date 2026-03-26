@@ -2,9 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 
 import { useSchedule } from "./context/ScheduleContext";
 
-import { CALL_IN_CLEANERS, CLEANERS } from "./constants/consts";
+import {
+  CALL_IN_CLEANERS,
+  CLEANERS,
+  JOBS,
+  STAFF_CLEANERS,
+} from "./constants/consts";
 
-import type { CleanerId, ClosureId } from "./types/types";
+import type { CleanerId, ClosureId, JobId } from "./types/types";
+import { getCleanerInitialsBadgeClassName } from "./utils/cleanerBadgeUtils";
 
 import Calendar from "./components/Calendar";
 import Buildings from "./components/Buildings";
@@ -88,6 +94,8 @@ function App() {
     closedItems,
     peopleIn,
     presentCleaners,
+    weeklyAssignments,
+    referenceWeeklyAssignments,
     setPresentCleaners,
     saveScheduleToFirestore,
     isSavingSchedule,
@@ -267,6 +275,66 @@ function App() {
       : "Confirm"
     : "Edit";
 
+  type OutCleanerAssignment = {
+    initials: CleanerId;
+    jobId: JobId | null;
+    replacementInitials: CleanerId | null;
+    replacementJobId: JobId | null;
+    hasReassignedReplacement: boolean;
+  };
+
+  const outCleanerAssignments = useMemo(() => {
+    if (peopleIn >= 8) {
+      return [] as OutCleanerAssignment[];
+    }
+
+    const dayAssignments = referenceWeeklyAssignments[currentDay] ?? [];
+    const activeDayAssignments = weeklyAssignments[currentDay] ?? [];
+    const presentCleanerSet = new Set(presentCleaners);
+
+    return STAFF_CLEANERS.filter(
+      (cleaner) => !presentCleanerSet.has(cleaner),
+    ).map((cleaner) => {
+      const jobIndex = dayAssignments.findIndex(
+        (initials) => initials === cleaner,
+      );
+      const jobId = jobIndex >= 0 ? JOBS[jobIndex] : null;
+      const replacementInitialsRaw =
+        jobIndex >= 0 ? (activeDayAssignments[jobIndex] ?? "") : "";
+      const replacementInitials =
+        replacementInitialsRaw && replacementInitialsRaw !== cleaner
+          ? replacementInitialsRaw
+          : null;
+      const replacementJobIndex = replacementInitials
+        ? dayAssignments.findIndex(
+            (initials) => initials === replacementInitials,
+          )
+        : -1;
+      const replacementJobId =
+        replacementJobIndex >= 0 ? JOBS[replacementJobIndex] : null;
+      const hasReassignedReplacement = Boolean(
+        replacementInitials &&
+        jobId &&
+        replacementJobId &&
+        replacementJobId !== jobId,
+      );
+
+      return {
+        initials: cleaner,
+        jobId,
+        replacementInitials,
+        replacementJobId,
+        hasReassignedReplacement,
+      };
+    });
+  }, [
+    currentDay,
+    peopleIn,
+    presentCleaners,
+    referenceWeeklyAssignments,
+    weeklyAssignments,
+  ]);
+
   return (
     <div className="mx-auto flex max-w-112.5 flex-col items-center gap-4 p-4">
       <div
@@ -322,24 +390,80 @@ function App() {
             </div>
 
             {peopleIn < 8 && (
-              <div className="mt-3 flex items-center justify-center gap-2 text-pink-700">
-                <p className="font-semibold">
-                  Please review the changes below.
-                </p>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={1.5}
-                  stroke="currentColor"
-                  className="size-6 shrink-0"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M19.5 13.5 12 21m0 0-7.5-7.5M12 21V3"
-                  />
-                </svg>
+              <div className="mt-3 rounded-lg border border-gray-300 bg-gray-100/40 p-3 text-pink-800">
+                <div className="space-y-2">
+                  {outCleanerAssignments.map(
+                    ({
+                      initials,
+                      jobId,
+                      replacementInitials,
+                      replacementJobId,
+                      hasReassignedReplacement,
+                    }) => (
+                      <p
+                        key={initials}
+                        className="flex flex-wrap items-center gap-2"
+                      >
+                        {jobId &&
+                        hasReassignedReplacement &&
+                        replacementInitials ? (
+                          <>
+                            {replacementJobId ? (
+                              <span
+                                className={getCleanerInitialsBadgeClassName(
+                                  replacementJobId,
+                                )}
+                              >
+                                {replacementInitials}
+                              </span>
+                            ) : (
+                              <span className="font-semibold">
+                                {replacementInitials}
+                              </span>
+                            )}
+                            <span>
+                              formerly{" "}
+                              <span className="font-semibold">
+                                {replacementJobId}
+                              </span>{" "}
+                              replaces
+                            </span>
+                            <span
+                              className={getCleanerInitialsBadgeClassName(
+                                jobId,
+                                "line-through decoration-2",
+                              )}
+                            >
+                              {initials}
+                            </span>
+                            <span>
+                              as <span className="font-semibold">{jobId}</span>.
+                            </span>
+                          </>
+                        ) : jobId ? (
+                          <>
+                            <span
+                              className={getCleanerInitialsBadgeClassName(
+                                jobId,
+                                "line-through decoration-2",
+                              )}
+                            >
+                              {initials}
+                            </span>
+                            <span>
+                              is out as{" "}
+                              <span className="font-semibold">{jobId}</span>.
+                            </span>
+                          </>
+                        ) : (
+                          <span className="font-semibold">
+                            {initials} is out.
+                          </span>
+                        )}
+                      </p>
+                    ),
+                  )}
+                </div>
               </div>
             )}
           </div>
