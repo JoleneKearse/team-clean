@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { useSchedule } from "./context/ScheduleContext";
 
-import { CLEANERS } from "./constants/consts";
+import { CALL_IN_CLEANERS, CLEANERS } from "./constants/consts";
 
 import type { CleanerId, ClosureId } from "./types/types";
 
@@ -35,6 +35,7 @@ const FULL_SECTION_VISIBILITY = {
   showDaycare: true,
   showBandOffice: true,
 };
+const CALL_IN_CLEANER_SET = new Set<CleanerId>(CALL_IN_CLEANERS);
 
 function getEasternTimeParts(referenceDate: Date) {
   const formatter = new Intl.DateTimeFormat("en-US", {
@@ -299,6 +300,7 @@ function App() {
             <div className="mt-3 flex flex-wrap gap-3">
               {CLEANERS.map((cleaner) => {
                 const checked = presentCleaners.includes(cleaner);
+                const isCallInCleaner = CALL_IN_CLEANER_SET.has(cleaner);
 
                 return (
                   <label
@@ -311,7 +313,9 @@ function App() {
                       disabled={isViewingPastDate}
                       onChange={() => toggleCleaner(cleaner)}
                     />
-                    <span>{cleaner}</span>
+                    <span className={isCallInCleaner ? "text-gray-600" : ""}>
+                      {cleaner}
+                    </span>
                   </label>
                 );
               })}
@@ -530,12 +534,8 @@ function App() {
           />
         )}
         {isMarchBreakWeekday && showSeniorsSection && <Seniors />}
-        {isMarchBreakWeekday && showEducationSection && (
-          <Education />
-        )}
-        {isMarchBreakWeekday && showFieldhouseSection && (
-          <Fieldhouse />
-        )}
+        {isMarchBreakWeekday && showEducationSection && <Education />}
+        {isMarchBreakWeekday && showFieldhouseSection && <Fieldhouse />}
         {isMarchBreakWeekday && showSocialSection && <Social />}
         {isMarchBreakWeekday && showAnnexSection && <Annex />}
         {!isFriday && showDaycareSection && (

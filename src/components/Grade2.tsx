@@ -36,7 +36,11 @@ const Grade2 = () => {
           aria-hidden="true"
           className="pointer-events-none absolute -left-3 top-7 flex h-18 w-18 -translate-y-1/2 items-center justify-center overflow-hidden rounded-full border-2 border-gray-700 bg-gray-200"
         >
-          <img src={gradeTwoImage} alt="" className="h-full w-full object-cover" />
+          <img
+            src={gradeTwoImage}
+            alt=""
+            className="h-full w-full object-cover"
+          />
         </span>
         Grade 2
       </h2>
