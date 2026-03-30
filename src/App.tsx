@@ -13,6 +13,7 @@ import type { CleanerId, ClosureId, JobId } from "./types/types";
 import { getCleanerInitialsBadgeClassName } from "./utils/cleanerBadgeUtils";
 
 import Calendar from "./components/Calendar";
+import DailyAssignments from "./components/DailyAssignments";
 import Buildings from "./components/Buildings";
 import Daycare from "./components/Daycare";
 import BandOffice from "./components/BandOffice";
@@ -102,7 +103,9 @@ function App() {
     saveScheduleError,
     resetScheduleState,
   } = useSchedule();
-  const calendarView = "weekly";
+  const [calendarView, setCalendarView] = useState<"weekly" | "monthly">(
+    "weekly",
+  );
   const [clockTick, setClockTick] = useState(() => Date.now());
   const [isEditMode, setIsEditMode] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
@@ -251,6 +254,10 @@ function App() {
 
   const handleToggleHelp = () => {
     setIsHelpOpen((current) => !current);
+  };
+
+  const handleToggleCalendarView = () => {
+    setCalendarView((current) => (current === "weekly" ? "monthly" : "weekly"));
   };
 
   const handleToggleClosures = () => {
@@ -632,7 +639,9 @@ function App() {
           calendarView={calendarView}
           highlightedDayKey={currentDay}
           isEditMode={effectiveIsEditMode}
+          onToggleCalendarView={handleToggleCalendarView}
         />
+        {calendarView === "monthly" && <DailyAssignments />}
         {isFridayMarchBreak && showSeniorsSection && <Seniors />}
         {isFridayMarchBreak && showEducationSection && <Education />}
         {isFridayMarchBreak && showFieldhouseSection && <Fieldhouse />}

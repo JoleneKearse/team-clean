@@ -47,6 +47,7 @@ interface ScheduleContextType {
   currentDay: DayKey;
   setCurrentDay: React.Dispatch<React.SetStateAction<DayKey>>;
   setSelectedDateToToday: () => void;
+  setSelectedDate: (dateKey: string) => void;
   swapAssignments: (
     day: DayKey,
     fromJobIndex: number,
@@ -679,6 +680,15 @@ export const ScheduleProvider = ({
     setCurrentDayState(todayDayKey);
   };
 
+  const setSelectedDate = (dateKey: string) => {
+    const parsedDate = parseLocalDateKey(dateKey);
+    if (!parsedDate) return;
+
+    const normalizedDateKey = getLocalDateKey(parsedDate);
+    setSelectedDateKey(normalizedDateKey);
+    setCurrentDayState(getDayKeyFromDate(parsedDate));
+  };
+
   const setPresentCleaners: React.Dispatch<
     React.SetStateAction<CleanerId[]>
   > = (valueOrUpdater) => {
@@ -1309,6 +1319,7 @@ export const ScheduleProvider = ({
         currentDay,
         setCurrentDay,
         setSelectedDateToToday,
+        setSelectedDate,
         swapAssignments,
         moveBuildingAssignment,
         flo1AtAnnex,

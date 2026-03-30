@@ -22,6 +22,7 @@ import Button from "./Button";
 type CalendarWeeklyProps = {
   highlightedDayKey: DayKey;
   isEditMode: boolean;
+  onToggleCalendarView: () => void;
 };
 
 type DragAssignmentPayload = {
@@ -77,7 +78,11 @@ function parseLocalDateKey(dateKey: string): Date | null {
   const month = Number(monthPart);
   const day = Number(dayPart);
 
-  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day)
+  ) {
     return null;
   }
 
@@ -238,6 +243,7 @@ function CalendarDroppableCell({
 const CalendarWeekly = ({
   highlightedDayKey,
   isEditMode,
+  onToggleCalendarView,
 }: CalendarWeeklyProps) => {
   const {
     todayDateKey,
@@ -250,7 +256,8 @@ const CalendarWeekly = ({
     setSelectedDateToToday,
   } = useSchedule();
   const [activeInitials, setActiveInitials] = useState("");
-  const selectedDateReference = parseLocalDateKey(selectedDateKey) ?? new Date();
+  const selectedDateReference =
+    parseLocalDateKey(selectedDateKey) ?? new Date();
   const currentDateNumber = getDateNumberForDayKey(
     highlightedDayKey,
     selectedDateReference,
@@ -332,12 +339,14 @@ const CalendarWeekly = ({
                     className="w-12 bg-gray-900 py-3 text-gray-100"
                   >
                     <span className="sr-only">Jobs</span>
-                    <span
-                      aria-label={`Selected date is ${currentDateNumber}`}
-                      className="text-gray-300"
+                    <button
+                      type="button"
+                      onClick={onToggleCalendarView}
+                      aria-label={`Selected date is ${currentDateNumber}. Click to open monthly calendar view`}
+                      className="cursor-pointer text-gray-300"
                     >
                       {currentDateNumber}
-                    </span>
+                    </button>
                   </th>
                   {DAYS.map((day) => (
                     <th
@@ -348,7 +357,10 @@ const CalendarWeekly = ({
                           : "bg-gray-900 py-3 text-gray-100"
                       }
                     >
-                      <button onClick={() => setCurrentDay(day.key)}>
+                      <button
+                        onClick={() => setCurrentDay(day.key)}
+                        className="cursor-pointer"
+                      >
                         {day.label}
                       </button>
                     </th>
