@@ -250,6 +250,7 @@ const CalendarWeekly = ({
     selectedDateKey,
     weeklyAssignments,
     weeklyPublicHolidays,
+    weeklyExtraHolidays,
     weeklyReassignmentFlags,
     swapAssignments,
     setCurrentDay,
@@ -292,8 +293,10 @@ const CalendarWeekly = ({
     const target = parseDropPayload(event.over.data.current);
     if (!source || !target) return;
     if (source.day !== target.day) return;
-    if (weeklyPublicHolidays[source.day]) return;
-    if (weeklyPublicHolidays[target.day]) return;
+    if (weeklyPublicHolidays[source.day] || weeklyExtraHolidays[source.day])
+      return;
+    if (weeklyPublicHolidays[target.day] || weeklyExtraHolidays[target.day])
+      return;
     if (source.jobIndex === target.jobIndex) return;
 
     const sourceInitials = weeklyAssignments[source.day][source.jobIndex] ?? "";
@@ -396,7 +399,10 @@ const CalendarWeekly = ({
 
                       {DAYS.map((day) => {
                         const isHighlightedDay = day.key === highlightedDayKey;
-                        const holiday = weeklyPublicHolidays[day.key] ?? null;
+                        const holiday =
+                          weeklyPublicHolidays[day.key] ??
+                          weeklyExtraHolidays[day.key] ??
+                          null;
                         const isHoliday = Boolean(holiday);
                         const isFloJob = job.includes("Flo");
                         const initials =

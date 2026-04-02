@@ -1,6 +1,9 @@
 import type { DayKey, JobId } from "../types/types";
 import { ANCHOR_MONDAY, isNecessaryJob } from "../constants/consts";
-import { getOntarioPublicHolidayOnDate } from "./holidayUtils";
+import {
+  getExtraHolidayOnDate,
+  getOntarioPublicHolidayOnDate,
+} from "./holidayUtils";
 
 function rotate<T>(arr: readonly T[], shiftDown: number): T[] {
   const len = arr.length;
@@ -389,7 +392,11 @@ function getElapsedWorkdays(anchorMonday: Date, untilDate: Date): number {
     let count = 0;
 
     while (cursor < end) {
-      if (isWorkday(cursor) && !getOntarioPublicHolidayOnDate(cursor)) {
+      if (
+        isWorkday(cursor) &&
+        !getOntarioPublicHolidayOnDate(cursor) &&
+        !getExtraHolidayOnDate(cursor)
+      ) {
         count += 1;
       }
       cursor.setDate(cursor.getDate() + 1);
@@ -402,7 +409,11 @@ function getElapsedWorkdays(anchorMonday: Date, untilDate: Date): number {
   let count = 0;
 
   while (cursor < start) {
-    if (isWorkday(cursor) && !getOntarioPublicHolidayOnDate(cursor)) {
+    if (
+      isWorkday(cursor) &&
+      !getOntarioPublicHolidayOnDate(cursor) &&
+      !getExtraHolidayOnDate(cursor)
+    ) {
       count += 1;
     }
     cursor.setDate(cursor.getDate() + 1);
@@ -551,7 +562,10 @@ export function generateWeeklyAssignments(
     const dayDate = new Date(weekStart);
     dayDate.setDate(weekStart.getDate() + dayOffset);
 
-    if (getOntarioPublicHolidayOnDate(dayDate)) {
+    if (
+      getOntarioPublicHolidayOnDate(dayDate) ||
+      getExtraHolidayOnDate(dayDate)
+    ) {
       weekly[dayKey] = [...emptyAssignments];
       return;
     }

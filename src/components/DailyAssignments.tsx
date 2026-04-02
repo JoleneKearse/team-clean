@@ -34,6 +34,18 @@ function formatDailyAssignmentHeading(referenceDate: Date): string {
   return `${weekday}, ${month} ${day}${getOrdinalSuffix(day)} jobs`;
 }
 
+function formatDayOffHeading(referenceDate: Date): string {
+  const weekday = new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+  }).format(referenceDate);
+  const month = new Intl.DateTimeFormat("en-US", {
+    month: "long",
+  }).format(referenceDate);
+  const day = referenceDate.getDate();
+
+  return `${weekday}, ${month} ${day}${getOrdinalSuffix(day)} is a day off!`;
+}
+
 type AssignmentRowProps = {
   jobId: JobId;
   initials: string;
@@ -65,14 +77,25 @@ function AssignmentRow({ jobId, initials }: AssignmentRowProps) {
 }
 
 const DailyAssignments = () => {
-  const { currentDay, selectedDateKey, weeklyAssignments } = useSchedule();
+  const {
+    currentDay,
+    selectedDateKey,
+    weeklyAssignments,
+    weeklyPublicHolidays,
+    weeklyExtraHolidays,
+  } = useSchedule();
 
   const selectedDate = useMemo(
     () => parseLocalDateKey(selectedDateKey) ?? new Date(),
     [selectedDateKey],
   );
 
-  const dayAssignments = weeklyAssignments[currentDay] ?? [];
+  const isSelectedDayHoliday = Boolean(
+    weeklyPublicHolidays[currentDay] ?? weeklyExtraHolidays[currentDay],
+  );
+  const dayAssignments = isSelectedDayHoliday
+    ? []
+    : (weeklyAssignments[currentDay] ?? []);
 
   const getInitialsForJob = (jobId: JobId): string => {
     const index = JOBS.indexOf(jobId);
@@ -81,32 +104,36 @@ const DailyAssignments = () => {
     return dayAssignments[index] ?? "";
   };
 
-  const headingText = formatDailyAssignmentHeading(selectedDate);
+  const headingText = isSelectedDayHoliday
+    ? formatDayOffHeading(selectedDate)
+    : formatDailyAssignmentHeading(selectedDate);
 
   return (
     <article className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg bg-gray-200">
       <div className="p-4">
         <p className="font-semibold">{headingText}</p>
-        <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2">
-          <ul className="space-y-2">
-            {LEFT_COLUMN_JOBS.map((jobId) => (
-              <AssignmentRow
-                key={jobId}
-                jobId={jobId}
-                initials={getInitialsForJob(jobId)}
-              />
-            ))}
-          </ul>
-          <ul className="space-y-2">
-            {RIGHT_COLUMN_JOBS.map((jobId) => (
-              <AssignmentRow
-                key={jobId}
-                jobId={jobId}
-                initials={getInitialsForJob(jobId)}
-              />
-            ))}
-          </ul>
-        </div>
+        {!isSelectedDayHoliday && (
+          <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2">
+            <ul className="space-y-2">
+              {LEFT_COLUMN_JOBS.map((jobId) => (
+                <AssignmentRow
+                  key={jobId}
+                  jobId={jobId}
+                  initials={getInitialsForJob(jobId)}
+                />
+              ))}
+            </ul>
+            <ul className="space-y-2">
+              {RIGHT_COLUMN_JOBS.map((jobId) => (
+                <AssignmentRow
+                  key={jobId}
+                  jobId={jobId}
+                  initials={getInitialsForJob(jobId)}
+                />
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </article>
   );

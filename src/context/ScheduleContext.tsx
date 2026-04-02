@@ -10,7 +10,9 @@ import {
 } from "../utils/scheduleUtils";
 import {
   getMarchBreakReducedScheduleByDayForWeek,
+  getExtraHolidaysByDayForWeek,
   getOntarioPublicHolidaysByDayForWeek,
+  type ExtraHoliday,
   type OntarioPublicHoliday,
 } from "../utils/holidayUtils";
 
@@ -31,6 +33,7 @@ interface ScheduleContextType {
   selectedDateKey: string;
   isViewingPastDate: boolean;
   weeklyPublicHolidays: Partial<Record<DayKey, OntarioPublicHoliday>>;
+  weeklyExtraHolidays: Partial<Record<DayKey, ExtraHoliday>>;
   isMarchBreakReducedScheduleDay: boolean;
   weeklyAssignments: Record<DayKey, string[]>;
   referenceWeeklyAssignments: Record<DayKey, string[]>;
@@ -985,6 +988,10 @@ export const ScheduleProvider = ({
     () => getOntarioPublicHolidaysByDayForWeek(selectedDate),
     [selectedDate],
   );
+  const weeklyExtraHolidays = useMemo(
+    () => getExtraHolidaysByDayForWeek(selectedDate),
+    [selectedDate],
+  );
   const weeklyMarchBreakReducedSchedule = useMemo(
     () => getMarchBreakReducedScheduleByDayForWeek(selectedDate),
     [selectedDate],
@@ -1303,6 +1310,7 @@ export const ScheduleProvider = ({
         selectedDateKey,
         isViewingPastDate,
         weeklyPublicHolidays,
+        weeklyExtraHolidays,
         isMarchBreakReducedScheduleDay,
         weeklyAssignments,
         referenceWeeklyAssignments,

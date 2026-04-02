@@ -197,6 +197,55 @@ export function isMarchBreakReducedScheduleOnDate(
   );
 }
 
+// ---------------------------------------------------------------------------
+// Extra team holidays (non-statutory days off granted by the team).
+// Add one entry per extra day off using YYYY-MM-DD local date keys.
+// Update each year as needed.
+// ---------------------------------------------------------------------------
+
+export type ExtraHoliday = {
+  dateKey: string;
+  name: string;
+  icon: string;
+};
+
+const EXTRA_HOLIDAYS: readonly ExtraHoliday[] = [
+  { dateKey: "2026-04-06", name: "Easter Monday", icon: "🐰" },
+];
+
+const extraHolidayByDateKey: Readonly<Record<string, ExtraHoliday>> =
+  Object.fromEntries(EXTRA_HOLIDAYS.map((h) => [h.dateKey, h]));
+
+export function getExtraHolidayOnDate(
+  referenceDate: Date,
+): ExtraHoliday | null {
+  const dateKey = getLocalDateKey(referenceDate);
+  return extraHolidayByDateKey[dateKey] ?? null;
+}
+
+export function getExtraHolidaysByDayForWeek(
+  referenceDate: Date,
+): Partial<Record<DayKey, ExtraHoliday>> {
+  const weekReferenceDate = getWeekReferenceDate(referenceDate);
+  const weekStart = getStartOfWeekMonday(weekReferenceDate);
+
+  return WEEK_DAY_KEYS.reduce<Partial<Record<DayKey, ExtraHoliday>>>(
+    (extraHolidaysByDay, dayKey, dayOffset) => {
+      const dayDate = new Date(weekStart);
+      dayDate.setDate(weekStart.getDate() + dayOffset);
+
+      const holiday = getExtraHolidayOnDate(dayDate);
+      if (!holiday) {
+        return extraHolidaysByDay;
+      }
+
+      extraHolidaysByDay[dayKey] = holiday;
+      return extraHolidaysByDay;
+    },
+    {},
+  );
+}
+
 export function getMarchBreakReducedScheduleByDayForWeek(
   referenceDate: Date,
 ): Partial<Record<DayKey, true>> {

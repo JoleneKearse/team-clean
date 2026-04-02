@@ -92,6 +92,8 @@ function App() {
     currentDay,
     isViewingPastDate,
     isMarchBreakReducedScheduleDay,
+    weeklyPublicHolidays,
+    weeklyExtraHolidays,
     closedItems,
     peopleIn,
     presentCleaners,
@@ -161,6 +163,9 @@ function App() {
   const effectiveIsEditMode = isEditMode && !isViewingPastDate;
   const isEditUiActive = !isViewingPastDate && (isEditMode || isClosuresOpen);
   const isFriday = currentDay === "fri";
+  const isCurrentDayHoliday = Boolean(
+    weeklyPublicHolidays[currentDay] ?? weeklyExtraHolidays[currentDay],
+  );
   const isFridayMarchBreak = isFriday && isMarchBreakReducedScheduleDay;
   const isFridayOnly = isFriday && !isMarchBreakReducedScheduleDay;
   const isMarchBreakWeekday = isMarchBreakReducedScheduleDay && !isFriday;
@@ -641,63 +646,80 @@ function App() {
           isEditMode={effectiveIsEditMode}
           onToggleCalendarView={handleToggleCalendarView}
         />
-        {calendarView === "monthly" && <DailyAssignments />}
-        {isFridayMarchBreak && showSeniorsSection && <Seniors />}
-        {isFridayMarchBreak && showEducationSection && <Education />}
-        {isFridayMarchBreak && showFieldhouseSection && <Fieldhouse />}
-        {isFridayMarchBreak && showSocialSection && <Social />}
-        {isFridayMarchBreak && showAnnexSection && <Annex />}
-        {isFridayMarchBreak && showDaycareSection && (
-          <Daycare isEditMode={effectiveIsEditMode} />
+        {(calendarView === "monthly" || isCurrentDayHoliday) && (
+          <DailyAssignments />
         )}
-        {isFridayOnly && showSeniorsSection && <Seniors />}
-        {isFridayOnly && showGrade1Section && <Grade1 />}
-        {isFridayOnly && showGrade2Section && <Grade2 />}
-        {isFridayOnly && showDaycareSection && (
-          <Daycare isEditMode={effectiveIsEditMode} />
-        )}
-        {isFridayOnly && showEducationSection && <Education />}
-        {isFridayOnly && showFieldhouseSection && <Fieldhouse />}
-        {isFridayOnly && showSocialSection && <Social />}
-        {isFridayOnly && showAnnexSection && <Annex />}
-        {showBuildingsSection && (
-          <Buildings
-            isEditMode={effectiveIsEditMode}
-            closedItems={closedItems}
-          />
-        )}
-        {isMarchBreakWeekday && showSeniorsSection && <Seniors />}
-        {isMarchBreakWeekday && showEducationSection && <Education />}
-        {isMarchBreakWeekday && showFieldhouseSection && <Fieldhouse />}
-        {isMarchBreakWeekday && showSocialSection && <Social />}
-        {isMarchBreakWeekday && showAnnexSection && <Annex />}
-        {!isFriday && showDaycareSection && (
-          <Daycare isEditMode={effectiveIsEditMode} />
+        {!isCurrentDayHoliday && (
+          <>
+            {isFridayMarchBreak && showSeniorsSection && <Seniors />}
+            {isFridayMarchBreak && showEducationSection && <Education />}
+            {isFridayMarchBreak && showFieldhouseSection && <Fieldhouse />}
+            {isFridayMarchBreak && showSocialSection && <Social />}
+            {isFridayMarchBreak && showAnnexSection && <Annex />}
+            {isFridayMarchBreak && showDaycareSection && (
+              <Daycare isEditMode={effectiveIsEditMode} />
+            )}
+            {isFridayOnly && showSeniorsSection && <Seniors />}
+            {isFridayOnly && showGrade1Section && <Grade1 />}
+            {isFridayOnly && showGrade2Section && <Grade2 />}
+            {isFridayOnly && showDaycareSection && (
+              <Daycare isEditMode={effectiveIsEditMode} />
+            )}
+            {isFridayOnly && showEducationSection && <Education />}
+            {isFridayOnly && showFieldhouseSection && <Fieldhouse />}
+            {isFridayOnly && showSocialSection && <Social />}
+            {isFridayOnly && showAnnexSection && <Annex />}
+            {showBuildingsSection && (
+              <Buildings
+                isEditMode={effectiveIsEditMode}
+                closedItems={closedItems}
+              />
+            )}
+            {isMarchBreakWeekday && showSeniorsSection && <Seniors />}
+            {isMarchBreakWeekday && showEducationSection && <Education />}
+            {isMarchBreakWeekday && showFieldhouseSection && <Fieldhouse />}
+            {isMarchBreakWeekday && showSocialSection && <Social />}
+            {isMarchBreakWeekday && showAnnexSection && <Annex />}
+            {!isFriday && showDaycareSection && (
+              <Daycare isEditMode={effectiveIsEditMode} />
+            )}
+          </>
         )}
       </div>
-      {showBandOfficeSection && <BandOffice />}
+      {!isCurrentDayHoliday && showBandOfficeSection && <BandOffice />}
 
-      {!isFriday && !isMarchBreakReducedScheduleDay && showSeniorsSection && (
-        <Seniors />
-      )}
-      {!isFriday && showGrade1Section && <Grade1 />}
-      {!isFriday && showGrade2Section && <Grade2 />}
-      {!isFriday && !isMarchBreakReducedScheduleDay && showEducationSection && (
-        <Education />
-      )}
-      {!isFriday &&
+      {!isCurrentDayHoliday &&
+        !isFriday &&
+        !isMarchBreakReducedScheduleDay &&
+        showSeniorsSection && <Seniors />}
+      {!isCurrentDayHoliday && !isFriday && showGrade1Section && <Grade1 />}
+      {!isCurrentDayHoliday && !isFriday && showGrade2Section && <Grade2 />}
+      {!isCurrentDayHoliday &&
+        !isFriday &&
+        !isMarchBreakReducedScheduleDay &&
+        showEducationSection && <Education />}
+      {!isCurrentDayHoliday &&
+        !isFriday &&
         !isMarchBreakReducedScheduleDay &&
         showFieldhouseSection && <Fieldhouse />}
-      {!isFriday && !isMarchBreakReducedScheduleDay && showSocialSection && (
-        <Social />
+      {!isCurrentDayHoliday &&
+        !isFriday &&
+        !isMarchBreakReducedScheduleDay &&
+        showSocialSection && <Social />}
+      {!isCurrentDayHoliday &&
+        !isFriday &&
+        !isMarchBreakReducedScheduleDay &&
+        showAnnexSection && <Annex />}
+      {!isCurrentDayHoliday && showHealthCenterSection && <HealthCenter />}
+      {!isCurrentDayHoliday &&
+        !isFridayMarchBreak &&
+        showCommunityCenterSection && <CommunityCenter />}
+      {!isCurrentDayHoliday &&
+        !isFridayMarchBreak &&
+        showDropInCenterSection && <DropInCenter />}
+      {!isCurrentDayHoliday && !isFridayMarchBreak && showChurchSection && (
+        <Church />
       )}
-      {!isFriday && !isMarchBreakReducedScheduleDay && showAnnexSection && (
-        <Annex />
-      )}
-      {showHealthCenterSection && <HealthCenter />}
-      {!isFridayMarchBreak && showCommunityCenterSection && <CommunityCenter />}
-      {!isFridayMarchBreak && showDropInCenterSection && <DropInCenter />}
-      {!isFridayMarchBreak && showChurchSection && <Church />}
     </div>
   );
 }
