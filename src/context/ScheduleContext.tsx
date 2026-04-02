@@ -968,8 +968,8 @@ export const ScheduleProvider = ({
   );
 
   const editableDerivedAssignments = useMemo(
-    () => getDerivedAssignmentsForSnapshot(editableSnapshot, today),
-    [editableSnapshot, today],
+    () => getDerivedAssignmentsForSnapshot(editableSnapshot, selectedDate),
+    [editableSnapshot, selectedDate],
   );
 
   const historicalDerivedAssignments = useMemo(
