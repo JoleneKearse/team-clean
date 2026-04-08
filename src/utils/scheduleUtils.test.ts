@@ -39,7 +39,8 @@ describe("scheduleUtils rotation", () => {
       JOBS.map((jobId, index) => [jobId, nextWeek.tue[index]]),
     );
 
-    expect(asByJob.Flo1).toBe("AP");
+    expect(asByJob.Bath).toBe("AN");
+    expect(asByJob.Flo1).toBe("RB");
     expect(asByJob.SW).toBe("D");
     expect(asByJob.Flo2).toBe("JK");
     expect(asByJob.Vac).toBe("TW");
