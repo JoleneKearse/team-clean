@@ -1,5 +1,20 @@
 @import "tailwindcss";
 
+.rainbow-accent-text {
+  background-image: linear-gradient(
+    to bottom right,
+    var(--color-purple-500),
+    var(--color-sky-500),
+    var(--color-lime-500),
+    var(--color-yellow-500),
+    var(--color-orange-500)
+  );
+  background-clip: text;
+  color: transparent;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
 .pink-change-contrast {
   text-shadow:
     1px 0 0 rgb(255 255 255 / 0.95),
@@ -10,4 +25,10 @@
     -1px 1px 0 rgb(255 255 255 / 0.85),
     1px -1px 0 rgb(255 255 255 / 0.85),
     -1px -1px 0 rgb(255 255 255 / 0.85);
+}
+
+.white-text-outline {
+  -webkit-text-stroke: 0.75px rgb(255 255 255 / 0.92);
+  paint-order: stroke fill;
+  text-shadow: 0 0 1px rgb(255 255 255 / 0.35);
 }

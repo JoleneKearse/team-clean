@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useSchedule } from "./context/ScheduleContext";
 
@@ -43,6 +43,7 @@ const FULL_SECTION_VISIBILITY = {
   showBandOffice: true,
 };
 const CALL_IN_CLEANER_SET = new Set<CleanerId>(CALL_IN_CLEANERS);
+const HOLD_TO_EDIT_DELAY_MS = 1000;
 
 function getEasternTimeParts(referenceDate: Date) {
   const formatter = new Intl.DateTimeFormat("en-US", {
@@ -114,6 +115,8 @@ function App() {
   const [isClosuresOpen, setIsClosuresOpen] = useState(false);
   const [showSaveSuccessMessage, setShowSaveSuccessMessage] = useState(false);
   const [saveSuccessMessageTick, setSaveSuccessMessageTick] = useState(0);
+  const [isHoldToEditPending, setIsHoldToEditPending] = useState(false);
+  const holdToEditTimeoutRef = useRef<number | null>(null);
 
   const triggerSaveSuccessMessage = () => {
     setShowSaveSuccessMessage(true);
@@ -141,6 +144,14 @@ function App() {
       window.clearTimeout(timeoutId);
     };
   }, [showSaveSuccessMessage, saveSuccessMessageTick]);
+
+  useEffect(() => {
+    return () => {
+      if (holdToEditTimeoutRef.current !== null) {
+        window.clearTimeout(holdToEditTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const timeBasedVisibility = useMemo(
     () => getTimeBasedSectionVisibility(new Date(clockTick)),
@@ -281,6 +292,38 @@ function App() {
     setIsEditMode(true);
   };
 
+  const clearHoldToEdit = () => {
+    if (holdToEditTimeoutRef.current !== null) {
+      window.clearTimeout(holdToEditTimeoutRef.current);
+      holdToEditTimeoutRef.current = null;
+    }
+
+    setIsHoldToEditPending(false);
+  };
+
+  const handleHoldToEditStart = () => {
+    if (isViewingPastDate || isEditUiActive || isSavingSchedule) {
+      return;
+    }
+
+    clearHoldToEdit();
+    setIsHoldToEditPending(true);
+
+    holdToEditTimeoutRef.current = window.setTimeout(() => {
+      setIsEditMode(true);
+      setIsHoldToEditPending(false);
+      holdToEditTimeoutRef.current = null;
+    }, HOLD_TO_EDIT_DELAY_MS);
+  };
+
+  const handleHoldToEditEnd = () => {
+    if (!isHoldToEditPending) {
+      return;
+    }
+
+    clearHoldToEdit();
+  };
+
   const editButtonLabel = isEditUiActive
     ? isSavingSchedule
       ? "Saving..."
@@ -358,243 +401,309 @@ function App() {
           .filter(Boolean)
           .join(" ")}
       >
-        <section className="w-full border border-gray-500 overflow-hidden rounded-xl shadow-lg bg-gray-200">
+        <section className="w-full overflow-hidden rounded-xl border border-gray-500 bg-gray-200 shadow-lg">
           <div className="flex items-center justify-between gap-4 bg-gray-700 px-4 py-4 text-gray-100">
-            <div>
-              <h2 className="font-semibold text-xl">Who is in today?</h2>
-              <p className="text-sm italic text-gray-200">
-                (Un)Check names if necessary
-              </p>
-            </div>
-
-            <span
-              className={
-                peopleIn === 8 ? "font-semibold" : "font-bold text-pink-400"
-              }
-            >
-              Staffing: {peopleIn}
-            </span>
-          </div>
-
-          <div className="p-4">
-            <div className="mt-3 flex flex-wrap gap-3">
-              {CLEANERS.map((cleaner) => {
-                const checked = presentCleaners.includes(cleaner);
-                const isCallInCleaner = CALL_IN_CLEANER_SET.has(cleaner);
-
-                return (
-                  <label
-                    key={cleaner}
-                    className="inline-flex items-center gap-2"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      disabled={isViewingPastDate}
-                      onChange={() => toggleCleaner(cleaner)}
-                    />
-                    <span className={isCallInCleaner ? "text-gray-600" : ""}>
-                      {cleaner}
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-
-            {peopleIn < 8 && (
-              <div className="mt-3 rounded-lg border border-gray-300 bg-gray-300/60 p-3 text-pink-800">
-                <div className="space-y-2">
-                  {outCleanerAssignments.map(
-                    ({
-                      initials,
-                      jobId,
-                      replacementInitials,
-                      replacementJobId,
-                      hasReassignedReplacement,
-                    }) => (
-                      <p
-                        key={initials}
-                        className="flex flex-wrap items-center gap-2 border-b-2 border-gray-100/60 pb-2 last:border-b-0 last:pb-0"
-                      >
-                        {jobId &&
-                        hasReassignedReplacement &&
-                        replacementInitials ? (
-                          <>
-                            {replacementJobId ? (
-                              <span
-                                className={getCleanerInitialsBadgeClassName(
-                                  replacementJobId,
-                                )}
-                              >
-                                {replacementInitials}
-                              </span>
-                            ) : (
-                              <span className="font-semibold">
-                                {replacementInitials}
-                              </span>
-                            )}
-                            <span>
-                              formerly{" "}
-                              <span className="font-semibold">
-                                {replacementJobId}
-                              </span>{" "}
-                              replaces
-                            </span>
-                            <span
-                              className={getCleanerInitialsBadgeClassName(
-                                jobId,
-                                "line-through decoration-2",
-                              )}
-                            >
-                              {initials}
-                            </span>
-                            <span>
-                              as <span className="font-semibold">{jobId}</span>.
-                            </span>
-                          </>
-                        ) : jobId ? (
-                          <>
-                            <span
-                              className={getCleanerInitialsBadgeClassName(
-                                jobId,
-                                "line-through decoration-2",
-                              )}
-                            >
-                              {initials}
-                            </span>
-                            <span>
-                              is out as{" "}
-                              <span className="font-semibold">{jobId}</span>.
-                            </span>
-                          </>
-                        ) : (
-                          <span className="font-semibold">
-                            {initials} is out.
-                          </span>
-                        )}
-                      </p>
-                    ),
-                  )}
+            {isEditUiActive ? (
+              <>
+                <div>
+                  <h2 className="font-semibold text-xl">Who is in today?</h2>
+                  <p className="text-sm italic text-gray-200">
+                    (Un)Check names if necessary
+                  </p>
                 </div>
+
+                <span
+                  className={[
+                    "flex flex-col items-center justify-center text-center leading-none",
+                    peopleIn === 8
+                      ? "font-semibold"
+                      : "font-bold text-pink-400",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  <span className="text-sm">Staffing:</span>
+                  <span className="rainbow-accent-text white-text-outline text-5xl leading-none font-black">
+                    {peopleIn}
+                  </span>
+                </span>
+              </>
+            ) : (
+              <div className="flex items-center justify-center gap-3">
+                <h2 className="text-base font-semibold tracking-wide text-gray-200">
+                  Staffing
+                </h2>
+                <span
+                  className={[
+                    "rainbow-accent-text white-text-outline text-6xl leading-none font-black",
+                    peopleIn === 8 ? "" : "scale-105",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  {peopleIn}
+                </span>
               </div>
             )}
-          </div>
-        </section>
 
-        <div className="relative w-full">
-          <div
-            className={`absolute ${isEditUiActive ? "-left-1" : "left-0"} top-1/2 -translate-y-1/2 mt-1`}
-          >
-            <button
-              type="button"
-              onClick={handleToggleHelp}
-              aria-label={isHelpOpen ? "Hide help" : "Show help"}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={2.5}
-                stroke="currentColor"
-                className="size-8"
+            {!isEditUiActive && (
+              <button
+                type="button"
+                onPointerDown={handleHoldToEditStart}
+                onPointerUp={handleHoldToEditEnd}
+                onPointerLeave={handleHoldToEditEnd}
+                onPointerCancel={handleHoldToEditEnd}
+                onContextMenu={(event) => event.preventDefault()}
+                disabled={isSavingSchedule || isViewingPastDate}
+                aria-label="Hold to edit"
+                className={[
+                  "flex min-h-11 items-center justify-center gap-3 rounded-lg bg-gray-100 px-4 py-2 text-gray-800 transition-colors select-none touch-none disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500",
+                  isHoldToEditPending ? "bg-pink-200 text-pink-900" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z"
-                />
-              </svg>
-            </button>
-          </div>
-
-          <div
-            className={`absolute ${isEditUiActive ? "-right-1" : "right-0"} top-1/2 -translate-y-1/2 mt-1`}
-          >
-            <button
-              type="button"
-              onClick={handleToggleClosures}
-              aria-label={isClosuresOpen ? "Hide closures" : "Show closures"}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={2.5}
-                stroke="currentColor"
-                className="size-8"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 0 1 6.208.682l.108.054a9 9 0 0 0 6.086.71l3.114-.732a48.524 48.524 0 0 1-.005-10.499l-3.11.732a9 9 0 0 1-6.085-.711l-.108-.054a9 9 0 0 0-6.208-.682L3 4.5M3 15V4.5"
-                />
-              </svg>
-            </button>
-          </div>
-
-          <div className="flex items-center justify-center gap-6 p-2">
-            <Button
-              label={editButtonLabel}
-              onClick={handleEditSchedule}
-              disabled={isSavingSchedule || isViewingPastDate}
-              className={editButtonLabel === "Confirm" ? "text-pink-400" : ""}
-              icon={
-                isEditUiActive ? (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth={2.5}
-                    stroke="currentColor"
-                    className="size-8"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="m4.5 12.75 6 6 9-13.5"
-                    />
-                  </svg>
-                ) : (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth={1.5}
-                    stroke="currentColor"
-                    className="size-5"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"
-                    />
-                  </svg>
-                )
-              }
-            />
-            <Button
-              label="Reset"
-              onClick={handleResetSchedule}
-              disabled={isSavingSchedule || isViewingPastDate}
-              icon={
+                <span className="font-medium whitespace-nowrap">
+                  {isHoldToEditPending ? "Keep holding..." : "Hold to Edit"}
+                </span>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
                   strokeWidth={1.5}
                   stroke="currentColor"
-                  className="size-6"
+                  className="size-5"
                 >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"
+                    d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"
                   />
                 </svg>
-              }
-            />
+              </button>
+            )}
           </div>
-        </div>
+
+          {isEditUiActive ? (
+            <div className="p-4">
+              <div className="mt-3 flex flex-wrap gap-3">
+                {CLEANERS.map((cleaner) => {
+                  const checked = presentCleaners.includes(cleaner);
+                  const isCallInCleaner = CALL_IN_CLEANER_SET.has(cleaner);
+
+                  return (
+                    <label
+                      key={cleaner}
+                      className="inline-flex items-center gap-2"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={isViewingPastDate}
+                        onChange={() => toggleCleaner(cleaner)}
+                      />
+                      <span className={isCallInCleaner ? "text-gray-600" : ""}>
+                        {cleaner}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+
+              {peopleIn < 8 && (
+                <div className="mt-3 rounded-lg border border-gray-300 bg-gray-300/60 p-3 text-pink-800">
+                  <div className="space-y-2">
+                    {outCleanerAssignments.map(
+                      ({
+                        initials,
+                        jobId,
+                        replacementInitials,
+                        replacementJobId,
+                        hasReassignedReplacement,
+                      }) => (
+                        <p
+                          key={initials}
+                          className="flex flex-wrap items-center gap-2 border-b-2 border-gray-100/60 pb-2 last:border-b-0 last:pb-0"
+                        >
+                          {jobId &&
+                          hasReassignedReplacement &&
+                          replacementInitials ? (
+                            <>
+                              {replacementJobId ? (
+                                <span
+                                  className={getCleanerInitialsBadgeClassName(
+                                    replacementJobId,
+                                  )}
+                                >
+                                  {replacementInitials}
+                                </span>
+                              ) : (
+                                <span className="font-semibold">
+                                  {replacementInitials}
+                                </span>
+                              )}
+                              <span>
+                                formerly{" "}
+                                <span className="font-semibold">
+                                  {replacementJobId}
+                                </span>{" "}
+                                replaces
+                              </span>
+                              <span
+                                className={getCleanerInitialsBadgeClassName(
+                                  jobId,
+                                  "line-through decoration-2",
+                                )}
+                              >
+                                {initials}
+                              </span>
+                              <span>
+                                as{" "}
+                                <span className="font-semibold">{jobId}</span>.
+                              </span>
+                            </>
+                          ) : jobId ? (
+                            <>
+                              <span
+                                className={getCleanerInitialsBadgeClassName(
+                                  jobId,
+                                  "line-through decoration-2",
+                                )}
+                              >
+                                {initials}
+                              </span>
+                              <span>
+                                is out as{" "}
+                                <span className="font-semibold">{jobId}</span>.
+                              </span>
+                            </>
+                          ) : (
+                            <span className="font-semibold">
+                              {initials} is out.
+                            </span>
+                          )}
+                        </p>
+                      ),
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : null}
+        </section>
+
+        {isEditUiActive && (
+          <div className="relative w-full">
+            <div className="absolute -left-1 top-1/2 mt-1 -translate-y-1/2">
+              <button
+                type="button"
+                onClick={handleToggleHelp}
+                aria-label={isHelpOpen ? "Hide help" : "Show help"}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2.5}
+                  stroke="currentColor"
+                  className="size-8"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            <div className="absolute -right-1 top-1/2 mt-1 -translate-y-1/2">
+              <button
+                type="button"
+                onClick={handleToggleClosures}
+                aria-label={isClosuresOpen ? "Hide closures" : "Show closures"}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2.5}
+                  stroke="currentColor"
+                  className="size-8"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 0 1 6.208.682l.108.054a9 9 0 0 0 6.086.71l3.114-.732a48.524 48.524 0 0 1-.005-10.499l-3.11.732a9 9 0 0 1-6.085-.711l-.108-.054a9 9 0 0 0-6.208-.682L3 4.5M3 15V4.5"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            <div className="flex items-center justify-center gap-6 p-2">
+              <Button
+                label={editButtonLabel}
+                onClick={handleEditSchedule}
+                disabled={isSavingSchedule || isViewingPastDate}
+                className={editButtonLabel === "Confirm" ? "text-pink-400" : ""}
+                icon={
+                  isEditUiActive ? (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      strokeWidth={2.5}
+                      stroke="currentColor"
+                      className="size-8"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="m4.5 12.75 6 6 9-13.5"
+                      />
+                    </svg>
+                  ) : (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      strokeWidth={1.5}
+                      stroke="currentColor"
+                      className="size-5"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"
+                      />
+                    </svg>
+                  )
+                }
+              />
+              <Button
+                label="Reset"
+                onClick={handleResetSchedule}
+                disabled={isSavingSchedule || isViewingPastDate}
+                icon={
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={1.5}
+                    stroke="currentColor"
+                    className="size-6"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"
+                    />
+                  </svg>
+                }
+              />
+            </div>
+          </div>
+        )}
         {saveScheduleError && (
           <p className="px-2 pb-1 text-center font-semibold text-pink-700">
             Save failed: {saveScheduleError}
