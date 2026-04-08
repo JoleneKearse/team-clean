@@ -32,19 +32,14 @@ import SignOffMessage from "./components/SignOffMessage";
 import Button from "./components/Button";
 import Closures from "./components/Closures";
 
+const CALL_IN_CLEANER_SET = new Set<CleanerId>(CALL_IN_CLEANERS);
+const HOLD_TO_EDIT_DELAY_MS = 1000;
 const EASTERN_TIME_ZONE = "America/Toronto";
 const DEFAULT_ORDER_CLOSED_ITEMS: readonly ClosureId[] = [
   "Community Center",
   "Drop-in Center",
   "Church",
 ];
-const FULL_SECTION_VISIBILITY = {
-  showBuildings: true,
-  showDaycare: true,
-  showBandOffice: true,
-};
-const CALL_IN_CLEANER_SET = new Set<CleanerId>(CALL_IN_CLEANERS);
-const HOLD_TO_EDIT_DELAY_MS = 1000;
 
 function getEasternTimeParts(referenceDate: Date) {
   const formatter = new Intl.DateTimeFormat("en-US", {
@@ -56,12 +51,10 @@ function getEasternTimeParts(referenceDate: Date) {
   });
 
   const parts = formatter.formatToParts(referenceDate);
-  const weekday = parts.find((part) => part.type === "weekday")?.value;
   const hour = Number(parts.find((part) => part.type === "hour")?.value);
   const minute = Number(parts.find((part) => part.type === "minute")?.value);
 
   return {
-    weekday,
     minutesSinceMidnight:
       Number.isFinite(hour) && Number.isFinite(minute) ? hour * 60 + minute : 0,
   };
@@ -154,6 +147,7 @@ function App() {
     };
   }, []);
 
+  const closedItemSet = useMemo(() => new Set(closedItems), [closedItems]);
   const timeBasedVisibility = useMemo(
     () => getTimeBasedSectionVisibility(new Date(clockTick)),
     [clockTick],
@@ -168,10 +162,12 @@ function App() {
     [closedItems],
   );
   const shouldApplyTimeVisibility = isMondayToThursdayDay && hasDefaultClosures;
-  const sectionVisibility = shouldApplyTimeVisibility
-    ? timeBasedVisibility
-    : FULL_SECTION_VISIBILITY;
-  const closedItemSet = useMemo(() => new Set(closedItems), [closedItems]);
+  const isPastBuildingsVisibilityTime =
+    shouldApplyTimeVisibility && !timeBasedVisibility.showBuildings;
+  const isPastDaycareVisibilityTime =
+    shouldApplyTimeVisibility && !timeBasedVisibility.showDaycare;
+  const isPastBandOfficeVisibilityTime =
+    shouldApplyTimeVisibility && !timeBasedVisibility.showBandOffice;
   const effectiveIsEditMode = isEditMode && !isViewingPastDate;
   const isEditUiActive = !isViewingPastDate && (isEditMode || isClosuresOpen);
   const isFriday = currentDay === "fri";
@@ -190,10 +186,8 @@ function App() {
   const isFieldhouseComponentEnabled = isFridayOrMarchBreak;
   const isSocialComponentEnabled = isFridayOrMarchBreak;
   const isAnnexComponentEnabled = isFridayOrMarchBreak;
-  const showDaycareSection =
-    sectionVisibility.showDaycare && !closedItemSet.has("Daycare");
-  const showBandOfficeSection =
-    sectionVisibility.showBandOffice && !closedItemSet.has("Band Office");
+  const showDaycareSection = !closedItemSet.has("Daycare");
+  const showBandOfficeSection = !closedItemSet.has("Band Office");
   const showHealthCenterSection = !closedItemSet.has("Health Center");
   const showCommunityCenterSection = !closedItemSet.has("Community Center");
   const showSeniorsSection =
@@ -210,8 +204,7 @@ function App() {
     isSocialComponentEnabled && !closedItemSet.has("Social");
   const showAnnexSection =
     isAnnexComponentEnabled && !closedItemSet.has("Annex");
-  const showBuildingsSection =
-    isBuildingsComponentEnabled && sectionVisibility.showBuildings;
+  const showBuildingsSection = isBuildingsComponentEnabled;
   const showDropInCenterSection = !closedItemSet.has("Drop-in Center");
   const showChurchSection = !closedItemSet.has("Church");
 
@@ -766,38 +759,21 @@ function App() {
             {isFridayMarchBreak && showFieldhouseSection && <Fieldhouse />}
             {isFridayMarchBreak && showSocialSection && <Social />}
             {isFridayMarchBreak && showAnnexSection && <Annex />}
-            {isFridayMarchBreak && showDaycareSection && (
-              <Daycare isEditMode={effectiveIsEditMode} />
-            )}
             {isFridayOnly && showSeniorsSection && <Seniors />}
             {isFridayOnly && showGrade1Section && <Grade1 />}
             {isFridayOnly && showGrade2Section && <Grade2 />}
-            {isFridayOnly && showDaycareSection && (
-              <Daycare isEditMode={effectiveIsEditMode} />
-            )}
             {isFridayOnly && showEducationSection && <Education />}
             {isFridayOnly && showFieldhouseSection && <Fieldhouse />}
             {isFridayOnly && showSocialSection && <Social />}
             {isFridayOnly && showAnnexSection && <Annex />}
-            {showBuildingsSection && (
-              <Buildings
-                isEditMode={effectiveIsEditMode}
-                closedItems={closedItems}
-              />
-            )}
             {isMarchBreakWeekday && showSeniorsSection && <Seniors />}
             {isMarchBreakWeekday && showEducationSection && <Education />}
             {isMarchBreakWeekday && showFieldhouseSection && <Fieldhouse />}
             {isMarchBreakWeekday && showSocialSection && <Social />}
             {isMarchBreakWeekday && showAnnexSection && <Annex />}
-            {!isFriday && showDaycareSection && (
-              <Daycare isEditMode={effectiveIsEditMode} />
-            )}
           </>
         )}
       </div>
-      {!isCurrentDayHoliday && showBandOfficeSection && <BandOffice />}
-
       {!isCurrentDayHoliday &&
         !isFriday &&
         !isMarchBreakReducedScheduleDay &&
@@ -820,8 +796,40 @@ function App() {
         !isFriday &&
         !isMarchBreakReducedScheduleDay &&
         showAnnexSection && <Annex />}
+      {!isCurrentDayHoliday &&
+        showBuildingsSection &&
+        !isPastBuildingsVisibilityTime && (
+          <Buildings
+            isEditMode={effectiveIsEditMode}
+            closedItems={closedItems}
+          />
+        )}
+      {!isCurrentDayHoliday &&
+        showDaycareSection &&
+        !isPastDaycareVisibilityTime && (
+          <Daycare isEditMode={effectiveIsEditMode} />
+        )}
+      {!isCurrentDayHoliday &&
+        showBandOfficeSection &&
+        !isPastBandOfficeVisibilityTime && <BandOffice />}
       {!isCurrentDayHoliday && showHealthCenterSection && <HealthCenter />}
       {!isCurrentDayHoliday && <SignOffMessage />}
+      {!isCurrentDayHoliday &&
+        showBandOfficeSection &&
+        isPastBandOfficeVisibilityTime && <BandOffice />}
+      {!isCurrentDayHoliday &&
+        showBuildingsSection &&
+        isPastBuildingsVisibilityTime && (
+          <Buildings
+            isEditMode={effectiveIsEditMode}
+            closedItems={closedItems}
+          />
+        )}
+      {!isCurrentDayHoliday &&
+        showDaycareSection &&
+        isPastDaycareVisibilityTime && (
+          <Daycare isEditMode={effectiveIsEditMode} />
+        )}
       {!isCurrentDayHoliday &&
         !isFridayMarchBreak &&
         showCommunityCenterSection && <CommunityCenter />}
