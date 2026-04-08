@@ -390,7 +390,7 @@ function App() {
         className={[
           "w-full rounded-xl transition-colors",
           isFriday ? "space-y-6" : "space-y-4",
-          isEditUiActive ? "bg-pink-200/40 p-2" : "",
+          isEditUiActive ? "bg-pink-300/45 p-2" : "",
         ]
           .filter(Boolean)
           .join(" ")}
@@ -773,42 +773,42 @@ function App() {
             {isMarchBreakWeekday && showAnnexSection && <Annex />}
           </>
         )}
+        {!isCurrentDayHoliday &&
+          !isFriday &&
+          !isMarchBreakReducedScheduleDay &&
+          showSeniorsSection && <Seniors />}
+        {!isCurrentDayHoliday && !isFriday && showGrade1Section && <Grade1 />}
+        {!isCurrentDayHoliday && !isFriday && showGrade2Section && <Grade2 />}
+        {!isCurrentDayHoliday &&
+          !isFriday &&
+          !isMarchBreakReducedScheduleDay &&
+          showEducationSection && <Education />}
+        {!isCurrentDayHoliday &&
+          !isFriday &&
+          !isMarchBreakReducedScheduleDay &&
+          showFieldhouseSection && <Fieldhouse />}
+        {!isCurrentDayHoliday &&
+          !isFriday &&
+          !isMarchBreakReducedScheduleDay &&
+          showSocialSection && <Social />}
+        {!isCurrentDayHoliday &&
+          !isFriday &&
+          !isMarchBreakReducedScheduleDay &&
+          showAnnexSection && <Annex />}
+        {!isCurrentDayHoliday &&
+          showBuildingsSection &&
+          !isPastBuildingsVisibilityTime && (
+            <Buildings
+              isEditMode={effectiveIsEditMode}
+              closedItems={closedItems}
+            />
+          )}
+        {!isCurrentDayHoliday &&
+          showDaycareSection &&
+          !isPastDaycareVisibilityTime && (
+            <Daycare isEditMode={effectiveIsEditMode} />
+          )}
       </div>
-      {!isCurrentDayHoliday &&
-        !isFriday &&
-        !isMarchBreakReducedScheduleDay &&
-        showSeniorsSection && <Seniors />}
-      {!isCurrentDayHoliday && !isFriday && showGrade1Section && <Grade1 />}
-      {!isCurrentDayHoliday && !isFriday && showGrade2Section && <Grade2 />}
-      {!isCurrentDayHoliday &&
-        !isFriday &&
-        !isMarchBreakReducedScheduleDay &&
-        showEducationSection && <Education />}
-      {!isCurrentDayHoliday &&
-        !isFriday &&
-        !isMarchBreakReducedScheduleDay &&
-        showFieldhouseSection && <Fieldhouse />}
-      {!isCurrentDayHoliday &&
-        !isFriday &&
-        !isMarchBreakReducedScheduleDay &&
-        showSocialSection && <Social />}
-      {!isCurrentDayHoliday &&
-        !isFriday &&
-        !isMarchBreakReducedScheduleDay &&
-        showAnnexSection && <Annex />}
-      {!isCurrentDayHoliday &&
-        showBuildingsSection &&
-        !isPastBuildingsVisibilityTime && (
-          <Buildings
-            isEditMode={effectiveIsEditMode}
-            closedItems={closedItems}
-          />
-        )}
-      {!isCurrentDayHoliday &&
-        showDaycareSection &&
-        !isPastDaycareVisibilityTime && (
-          <Daycare isEditMode={effectiveIsEditMode} />
-        )}
       {!isCurrentDayHoliday &&
         showBandOfficeSection &&
         !isPastBandOfficeVisibilityTime && <BandOffice />}
@@ -820,15 +820,27 @@ function App() {
       {!isCurrentDayHoliday &&
         showBuildingsSection &&
         isPastBuildingsVisibilityTime && (
-          <Buildings
-            isEditMode={effectiveIsEditMode}
-            closedItems={closedItems}
-          />
+          <div
+            className={
+              effectiveIsEditMode ? "rounded-xl bg-pink-300/45 p-2" : ""
+            }
+          >
+            <Buildings
+              isEditMode={effectiveIsEditMode}
+              closedItems={closedItems}
+            />
+          </div>
         )}
       {!isCurrentDayHoliday &&
         showDaycareSection &&
         isPastDaycareVisibilityTime && (
-          <Daycare isEditMode={effectiveIsEditMode} />
+          <div
+            className={
+              effectiveIsEditMode ? "rounded-xl bg-pink-300/45 p-2" : ""
+            }
+          >
+            <Daycare isEditMode={effectiveIsEditMode} />
+          </div>
         )}
       {!isCurrentDayHoliday &&
         !isFridayMarchBreak &&
