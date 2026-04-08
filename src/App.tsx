@@ -28,6 +28,7 @@ import Social from "./components/Social";
 import Annex from "./components/Annex";
 import DropInCenter from "./components/DropInCenter";
 import Church from "./components/Church";
+import SignOffMessage from "./components/SignOffMessage";
 import Button from "./components/Button";
 import Closures from "./components/Closures";
 
@@ -820,6 +821,7 @@ function App() {
         !isMarchBreakReducedScheduleDay &&
         showAnnexSection && <Annex />}
       {!isCurrentDayHoliday && showHealthCenterSection && <HealthCenter />}
+      {!isCurrentDayHoliday && <SignOffMessage />}
       {!isCurrentDayHoliday &&
         !isFridayMarchBreak &&
         showCommunityCenterSection && <CommunityCenter />}
