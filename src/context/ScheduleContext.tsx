@@ -77,9 +77,12 @@ interface ScheduleContextType {
 
 const STORAGE_KEY = "team-clean:schedule-state";
 const CLOSED_ITEMS_DEFAULTS_VERSION = 6;
+const STAFF_CLEANERS_DEFAULTS_VERSION = 2;
 const FIRESTORE_SAVE_TIMEOUT_MS = 15000;
 const FIREBASE_NOT_CONFIGURED_MESSAGE =
   "Firebase is not configured. For local development, add the required VITE_FIREBASE_* values to .env and restart the app. For hosted builds, configure the same variables in your deployment environment and redeploy.";
+
+const STAFF_CLEANERS_ADDED_IN_V2 = new Set<CleanerId>(["AN", "RB"]);
 
 type PresentCleanersByDay = Record<DayKey, CleanerId[]>;
 type SwapOperation = {
@@ -147,6 +150,7 @@ function hasSameClosureSelection(
 interface PersistedScheduleState {
   date: string;
   closedItemsDefaultsVersion: number;
+  staffCleanersDefaultsVersion: number;
   currentDay: DayKey;
   presentCleanersByDay: PresentCleanersByDay;
   swapOperationsByDay: SwapOperationsByDay;
@@ -313,7 +317,10 @@ function isDayKey(value: unknown): value is DayKey {
   );
 }
 
-function normalizeCleanersForDay(value: unknown): CleanerId[] {
+function normalizeCleanersForDay(
+  value: unknown,
+  backfillMissingStaffCleaners: boolean,
+): CleanerId[] {
   if (!Array.isArray(value)) return [...STAFF_CLEANERS];
 
   const selected = new Set(
@@ -323,21 +330,30 @@ function normalizeCleanersForDay(value: unknown): CleanerId[] {
     ),
   );
 
+  if (backfillMissingStaffCleaners) {
+    STAFF_CLEANERS_ADDED_IN_V2.forEach((cleaner) => {
+      selected.add(cleaner);
+    });
+  }
+
   return CLEANERS.filter((cleaner) => selected.has(cleaner));
 }
 
-function normalizePresentCleanersByDay(value: unknown): PresentCleanersByDay {
+function normalizePresentCleanersByDay(
+  value: unknown,
+  backfillMissingStaffCleaners = false,
+): PresentCleanersByDay {
   const source =
     value && typeof value === "object"
       ? (value as Partial<Record<DayKey, unknown>>)
       : {};
 
   return {
-    mon: normalizeCleanersForDay(source.mon),
-    tue: normalizeCleanersForDay(source.tue),
-    wed: normalizeCleanersForDay(source.wed),
-    thu: normalizeCleanersForDay(source.thu),
-    fri: normalizeCleanersForDay(source.fri),
+    mon: normalizeCleanersForDay(source.mon, backfillMissingStaffCleaners),
+    tue: normalizeCleanersForDay(source.tue, backfillMissingStaffCleaners),
+    wed: normalizeCleanersForDay(source.wed, backfillMissingStaffCleaners),
+    thu: normalizeCleanersForDay(source.thu, backfillMissingStaffCleaners),
+    fri: normalizeCleanersForDay(source.fri, backfillMissingStaffCleaners),
   };
 }
 
@@ -493,6 +509,8 @@ function loadPersistedScheduleState(
     const parsed = JSON.parse(raw) as Partial<PersistedScheduleState>;
     const backfillDefaultWhenEmpty =
       parsed.closedItemsDefaultsVersion !== CLOSED_ITEMS_DEFAULTS_VERSION;
+    const backfillMissingStaffCleaners =
+      parsed.staffCleanersDefaultsVersion !== STAFF_CLEANERS_DEFAULTS_VERSION;
 
     if (parsed.date !== todayDateKey) {
       window.localStorage.removeItem(STORAGE_KEY);
@@ -507,6 +525,7 @@ function loadPersistedScheduleState(
       currentDay,
       presentCleanersByDay: normalizePresentCleanersByDay(
         parsed.presentCleanersByDay,
+        backfillMissingStaffCleaners,
       ),
       swapOperationsByDay: normalizeSwapOperationsByDay(
         parsed.swapOperationsByDay,
@@ -545,6 +564,8 @@ function getScheduleSnapshotFromFirestoreData(
 
   const backfillDefaultWhenEmpty =
     source.closedItemsDefaultsVersion !== CLOSED_ITEMS_DEFAULTS_VERSION;
+  const backfillMissingStaffCleaners =
+    source.staffCleanersDefaultsVersion !== STAFF_CLEANERS_DEFAULTS_VERSION;
 
   return {
     currentDay: isDayKey(source.currentDay)
@@ -552,6 +573,7 @@ function getScheduleSnapshotFromFirestoreData(
       : fallbackCurrentDay,
     presentCleanersByDay: normalizePresentCleanersByDay(
       source.presentCleanersByDay,
+      backfillMissingStaffCleaners,
     ),
     swapOperationsByDay: normalizeSwapOperationsByDay(
       source.swapOperationsByDay,
@@ -1130,6 +1152,7 @@ export const ScheduleProvider = ({
         {
           date: todayDateKey,
           closedItemsDefaultsVersion: CLOSED_ITEMS_DEFAULTS_VERSION,
+          staffCleanersDefaultsVersion: STAFF_CLEANERS_DEFAULTS_VERSION,
           todayDayKey,
           currentDay: snapshot.currentDay,
           presentCleanersByDay: snapshot.presentCleanersByDay,
@@ -1280,6 +1303,7 @@ export const ScheduleProvider = ({
     const payload: PersistedScheduleState = {
       date: todayDateKey,
       closedItemsDefaultsVersion: CLOSED_ITEMS_DEFAULTS_VERSION,
+      staffCleanersDefaultsVersion: STAFF_CLEANERS_DEFAULTS_VERSION,
       currentDay,
       presentCleanersByDay,
       swapOperationsByDay,
