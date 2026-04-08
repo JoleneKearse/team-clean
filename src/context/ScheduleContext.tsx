@@ -94,6 +94,8 @@ type BuildingMoveOperationsByDay = Record<DayKey, SwapOperation[]>;
 type DaycareMoveOperationsByDay = Record<DayKey, SwapOperation[]>;
 type Flo1AtAnnexByDay = Record<DayKey, boolean>;
 type ClosedItemsByDay = Record<DayKey, ClosureId[]>;
+type AssignmentEntriesByDay = Record<DayKey, string[]>;
+type PresentCleanerCountsByDay = Record<DayKey, number>;
 
 const DAY_OFFSET_BY_KEY: Record<DayKey, number> = {
   mon: 0,
@@ -168,6 +170,10 @@ interface ScheduleSnapshot {
   flo1AtAnnexByDay: Flo1AtAnnexByDay;
   daycareMoveOperationsByDay: DaycareMoveOperationsByDay;
   closedItemsByDay: ClosedItemsByDay;
+  savedWeeklyAssignments?: AssignmentEntriesByDay;
+  savedBuildingWeeklyAssignments?: AssignmentEntriesByDay;
+  savedDaycareWeeklyAssignments?: AssignmentEntriesByDay;
+  presentCleanerCountsByDay?: PresentCleanerCountsByDay;
 }
 
 function getDefaultPresentCleanersByDay(): PresentCleanersByDay {
@@ -463,6 +469,102 @@ function normalizeSwapOperationsByDay(
   };
 }
 
+function normalizeAssignmentEntriesForDay(
+  value: unknown,
+  slotCount: number,
+): string[] {
+  if (!Array.isArray(value)) {
+    return Array.from({ length: slotCount }, () => "");
+  }
+
+  return Array.from({ length: slotCount }, (_, index) => {
+    const entry = value[index];
+    return typeof entry === "string" ? entry : "";
+  });
+}
+
+function normalizeAssignmentEntriesByDay(
+  value: unknown,
+  slotCount: number,
+): AssignmentEntriesByDay | undefined {
+  const source =
+    value && typeof value === "object"
+      ? (value as Partial<Record<DayKey, unknown>>)
+      : {};
+
+  const normalized = {
+    mon: normalizeAssignmentEntriesForDay(source.mon, slotCount),
+    tue: normalizeAssignmentEntriesForDay(source.tue, slotCount),
+    wed: normalizeAssignmentEntriesForDay(source.wed, slotCount),
+    thu: normalizeAssignmentEntriesForDay(source.thu, slotCount),
+    fri: normalizeAssignmentEntriesForDay(source.fri, slotCount),
+  };
+
+  const hasAnyAssignments = (Object.keys(normalized) as DayKey[]).some((day) =>
+    normalized[day].some((initials) => initials !== ""),
+  );
+
+  return hasAnyAssignments ? normalized : undefined;
+}
+
+function getPresentCleanerCountForDay(value: unknown): number {
+  if (!Array.isArray(value)) {
+    return STAFF_CLEANERS.length;
+  }
+
+  return value.filter(
+    (cleaner): cleaner is string =>
+      typeof cleaner === "string" && cleaner.trim().length > 0,
+  ).length;
+}
+
+function getPresentCleanerCountsByDay(
+  value: unknown,
+): PresentCleanerCountsByDay {
+  const source =
+    value && typeof value === "object"
+      ? (value as Partial<Record<DayKey, unknown>>)
+      : {};
+
+  return {
+    mon: getPresentCleanerCountForDay(source.mon),
+    tue: getPresentCleanerCountForDay(source.tue),
+    wed: getPresentCleanerCountForDay(source.wed),
+    thu: getPresentCleanerCountForDay(source.thu),
+    fri: getPresentCleanerCountForDay(source.fri),
+  };
+}
+
+function getOperationFlagsByDay(
+  operationsByDay:
+    | SwapOperationsByDay
+    | BuildingMoveOperationsByDay
+    | DaycareMoveOperationsByDay,
+  slotCount: number,
+): WeeklyReassignmentFlags {
+  const flags: WeeklyReassignmentFlags = {
+    mon: Array.from({ length: slotCount }, () => false),
+    tue: Array.from({ length: slotCount }, () => false),
+    wed: Array.from({ length: slotCount }, () => false),
+    thu: Array.from({ length: slotCount }, () => false),
+    fri: Array.from({ length: slotCount }, () => false),
+  };
+
+  (Object.keys(flags) as DayKey[]).forEach((day) => {
+    operationsByDay[day].forEach(({ fromJobIndex, toJobIndex }) => {
+      if (fromJobIndex >= 0 && fromJobIndex < slotCount) {
+        flags[day][fromJobIndex] = true;
+      }
+
+      if (toJobIndex >= 0 && toJobIndex < slotCount) {
+        flags[day][toJobIndex] = true;
+      }
+    });
+  });
+
+  return flags;
+}
+
 function applyDaySwapOperations(
   assignments: readonly string[],
   swapOperations: readonly SwapOperation[],
@@ -554,6 +656,9 @@ function loadPersistedScheduleState(
 function getScheduleSnapshotFromFirestoreData(
   value: unknown,
   fallbackCurrentDay: DayKey,
+  options?: {
+    preserveHistoricalAssignments?: boolean;
+  },
 ): ScheduleSnapshot | null {
   const source =
     value && typeof value === "object"
@@ -562,9 +667,13 @@ function getScheduleSnapshotFromFirestoreData(
 
   if (!source) return null;
 
+  const preserveHistoricalAssignments =
+    options?.preserveHistoricalAssignments === true;
+
   const backfillDefaultWhenEmpty =
     source.closedItemsDefaultsVersion !== CLOSED_ITEMS_DEFAULTS_VERSION;
   const backfillMissingStaffCleaners =
+    !preserveHistoricalAssignments &&
     source.staffCleanersDefaultsVersion !== STAFF_CLEANERS_DEFAULTS_VERSION;
 
   return {
@@ -592,6 +701,24 @@ function getScheduleSnapshotFromFirestoreData(
       source.closedItemsByDay,
       backfillDefaultWhenEmpty,
     ),
+    savedWeeklyAssignments: preserveHistoricalAssignments
+      ? normalizeAssignmentEntriesByDay(source.weeklyAssignments, JOBS.length)
+      : undefined,
+    savedBuildingWeeklyAssignments: preserveHistoricalAssignments
+      ? normalizeAssignmentEntriesByDay(
+          source.buildingWeeklyAssignments,
+          JOBS.length,
+        )
+      : undefined,
+    savedDaycareWeeklyAssignments: preserveHistoricalAssignments
+      ? normalizeAssignmentEntriesByDay(
+          source.daycareWeeklyAssignments,
+          JOBS.length,
+        )
+      : undefined,
+    presentCleanerCountsByDay: preserveHistoricalAssignments
+      ? getPresentCleanerCountsByDay(source.presentCleanersByDay)
+      : undefined,
   };
 }
 
@@ -773,6 +900,7 @@ export const ScheduleProvider = ({
         const syncedSnapshot = getScheduleSnapshotFromFirestoreData(
           snapshot.data(),
           selectedDateDayKey,
+          { preserveHistoricalAssignments: true },
         );
 
         if (!syncedSnapshot) {
@@ -805,7 +933,7 @@ export const ScheduleProvider = ({
       CALL_IN_CLEANERS,
     );
 
-    const snapshotWeeklyAssignments = {
+    const computedWeeklyAssignments = {
       mon: enforceNecessaryJobsBeforeFlo({
         assignments: applyDaySwapOperations(
           generatedWeeklyAssignments.mon,
@@ -843,7 +971,10 @@ export const ScheduleProvider = ({
       }),
     };
 
-    const snapshotBuildingWeeklyAssignments = {
+    const snapshotWeeklyAssignments =
+      snapshot.savedWeeklyAssignments ?? computedWeeklyAssignments;
+
+    const computedBuildingWeeklyAssignments = {
       mon: applyDaySwapOperations(
         snapshotWeeklyAssignments.mon,
         snapshot.buildingMoveOperationsByDay.mon,
@@ -866,7 +997,11 @@ export const ScheduleProvider = ({
       ),
     };
 
-    const snapshotDaycareWeeklyAssignments = {
+    const snapshotBuildingWeeklyAssignments =
+      snapshot.savedBuildingWeeklyAssignments ??
+      computedBuildingWeeklyAssignments;
+
+    const computedDaycareWeeklyAssignments = {
       mon: applyDaySwapOperations(
         snapshotWeeklyAssignments.mon,
         snapshot.daycareMoveOperationsByDay.mon,
@@ -888,6 +1023,10 @@ export const ScheduleProvider = ({
         snapshot.daycareMoveOperationsByDay.fri,
       ),
     };
+
+    const snapshotDaycareWeeklyAssignments =
+      snapshot.savedDaycareWeeklyAssignments ??
+      computedDaycareWeeklyAssignments;
 
     const baselineWeeklyAssignments = generateWeeklyAssignments(
       STAFF_CLEANERS,
@@ -936,20 +1075,34 @@ export const ScheduleProvider = ({
       }),
     };
 
-    const snapshotWeeklyReassignmentFlags = getWeeklyReassignmentFlags({
-      baseAssignments: baselineWeeklyAssignments,
-      adjustedAssignments: snapshotWeeklyAssignments,
-    });
+    const snapshotWeeklyReassignmentFlags = snapshot.savedWeeklyAssignments
+      ? getOperationFlagsByDay(snapshot.swapOperationsByDay, JOBS.length)
+      : getWeeklyReassignmentFlags({
+          baseAssignments: baselineWeeklyAssignments,
+          adjustedAssignments: snapshotWeeklyAssignments,
+        });
 
-    const snapshotBuildingReassignmentFlags = getWeeklyReassignmentFlags({
-      baseAssignments: snapshotWeeklyAssignments,
-      adjustedAssignments: snapshotBuildingWeeklyAssignments,
-    });
+    const snapshotBuildingReassignmentFlags =
+      snapshot.savedBuildingWeeklyAssignments
+        ? getOperationFlagsByDay(
+            snapshot.buildingMoveOperationsByDay,
+            JOBS.length,
+          )
+        : getWeeklyReassignmentFlags({
+            baseAssignments: snapshotWeeklyAssignments,
+            adjustedAssignments: snapshotBuildingWeeklyAssignments,
+          });
 
-    const snapshotDaycareReassignmentFlags = getWeeklyReassignmentFlags({
-      baseAssignments: snapshotWeeklyAssignments,
-      adjustedAssignments: snapshotDaycareWeeklyAssignments,
-    });
+    const snapshotDaycareReassignmentFlags =
+      snapshot.savedDaycareWeeklyAssignments
+        ? getOperationFlagsByDay(
+            snapshot.daycareMoveOperationsByDay,
+            JOBS.length,
+          )
+        : getWeeklyReassignmentFlags({
+            baseAssignments: snapshotWeeklyAssignments,
+            adjustedAssignments: snapshotDaycareWeeklyAssignments,
+          });
 
     return {
       snapshotWeeklyAssignments,
@@ -962,7 +1115,7 @@ export const ScheduleProvider = ({
     };
   };
 
-  const editableSnapshot = useMemo(
+  const editableSnapshot = useMemo<ScheduleSnapshot>(
     () => ({
       currentDay,
       presentCleanersByDay,
@@ -1038,7 +1191,9 @@ export const ScheduleProvider = ({
   const presentCleaners = activeSnapshot.presentCleanersByDay[currentDay];
   const closedItems = activeSnapshot.closedItemsByDay[currentDay];
   const flo1AtAnnex = activeSnapshot.flo1AtAnnexByDay[currentDay];
-  const peopleIn = presentCleaners.length;
+  const peopleIn =
+    activeSnapshot.presentCleanerCountsByDay?.[currentDay] ??
+    presentCleaners.length;
 
   const swapAssignments = (
     day: DayKey,
