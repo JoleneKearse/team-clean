@@ -14,6 +14,29 @@ type CalendarMonthlyProps = {
   onToggleCalendarView: () => void;
 };
 
+const WEEK_ROW_COLOR_STYLES = [
+  {
+    selectedClass: "bg-red-400 text-white",
+    savedClass: "bg-red-100 ring-1 ring-red-400",
+  },
+  {
+    selectedClass: "bg-orange-400 text-white",
+    savedClass: "bg-orange-100 ring-1 ring-orange-400",
+  },
+  {
+    selectedClass: "bg-green-400 text-white",
+    savedClass: "bg-green-100 ring-1 ring-green-400",
+  },
+  {
+    selectedClass: "bg-blue-400 text-white",
+    savedClass: "bg-blue-100 ring-1 ring-blue-400",
+  },
+  {
+    selectedClass: "bg-purple-400 text-white",
+    savedClass: "bg-purple-100 ring-1 ring-purple-400",
+  },
+];
+
 const CalendarMonthly = ({ onToggleCalendarView }: CalendarMonthlyProps) => {
   const { selectedDateKey, setSelectedDate, setSelectedDateToToday } =
     useSchedule();
@@ -108,53 +131,60 @@ const CalendarMonthly = ({ onToggleCalendarView }: CalendarMonthlyProps) => {
                 </tr>
               </thead>
               <tbody>
-                {monthlyGrid.map((week, weekIndex) => (
-                  <tr key={`week-${weekIndex}`}>
-                    <td className="w-16 bg-gray-100/80 py-2 text-xs text-gray-500">
-                      <span aria-hidden="true">&nbsp;</span>
-                    </td>
-                    {week.map((cell) => {
-                      const hasSavedData = savedDateKeys.has(cell.dateKey);
-                      const isSelectedDate = cell.dateKey === selectedDateKey;
+                {monthlyGrid.map((week, weekIndex) => {
+                  const weekRowColorStyle =
+                    WEEK_ROW_COLOR_STYLES[
+                      weekIndex % WEEK_ROW_COLOR_STYLES.length
+                    ];
 
-                      return (
-                        <td
-                          key={cell.dateKey}
-                          className={[
-                            "py-2",
-                            cell.isCurrentMonth
-                              ? "text-gray-900"
-                              : "text-gray-500",
-                          ]
-                            .filter(Boolean)
-                            .join(" ")}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => setSelectedDate(cell.dateKey)}
-                            aria-label={`Select ${cell.date.toDateString()}`}
-                            className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full"
+                  return (
+                    <tr key={`week-${weekIndex}`}>
+                      <td className="w-16 bg-gray-100/80 py-2 text-xs text-gray-500">
+                        <span aria-hidden="true">&nbsp;</span>
+                      </td>
+                      {week.map((cell) => {
+                        const hasSavedData = savedDateKeys.has(cell.dateKey);
+                        const isSelectedDate = cell.dateKey === selectedDateKey;
+
+                        return (
+                          <td
+                            key={cell.dateKey}
+                            className={[
+                              "py-2",
+                              cell.isCurrentMonth
+                                ? "text-gray-900"
+                                : "text-gray-500",
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
                           >
-                            <span
-                              className={[
-                                "inline-flex h-8 w-8 items-center justify-center rounded-full",
-                                isSelectedDate
-                                  ? "bg-sky-400 text-gray-900"
-                                  : hasSavedData
-                                    ? "bg-sky-100 ring-1 ring-sky-400"
-                                    : "",
-                              ]
-                                .filter(Boolean)
-                                .join(" ")}
+                            <button
+                              type="button"
+                              onClick={() => setSelectedDate(cell.dateKey)}
+                              aria-label={`Select ${cell.date.toDateString()}`}
+                              className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full"
                             >
-                              {cell.date.getDate()}
-                            </span>
-                          </button>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
+                              <span
+                                className={[
+                                  "inline-flex h-8 w-8 items-center justify-center rounded-full",
+                                  isSelectedDate
+                                    ? weekRowColorStyle.selectedClass
+                                    : hasSavedData
+                                      ? weekRowColorStyle.savedClass
+                                      : "",
+                                ]
+                                  .filter(Boolean)
+                                  .join(" ")}
+                              >
+                                {cell.date.getDate()}
+                              </span>
+                            </button>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </article>
