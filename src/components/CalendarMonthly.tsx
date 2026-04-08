@@ -6,6 +6,7 @@ import { DAYS } from "../constants/consts";
 import { db } from "../lib/firebase";
 import Button from "./Button";
 import {
+  getLocalDateKey,
   getMonthlyWeekdayGrid,
   parseLocalDateKey,
 } from "../utils/calendarMonthlyUtils";
@@ -38,8 +39,7 @@ const WEEK_ROW_COLOR_STYLES = [
 ];
 
 const CalendarMonthly = ({ onToggleCalendarView }: CalendarMonthlyProps) => {
-  const { selectedDateKey, setSelectedDate, setSelectedDateToToday } =
-    useSchedule();
+  const { selectedDateKey, setSelectedDate } = useSchedule();
   const [savedDateKeys, setSavedDateKeys] = useState<Set<string>>(new Set());
 
   const selectedDate = useMemo(
@@ -47,18 +47,42 @@ const CalendarMonthly = ({ onToggleCalendarView }: CalendarMonthlyProps) => {
     [selectedDateKey],
   );
 
-  const monthLabel = useMemo(
+  const monthOptions = useMemo(
     () =>
-      new Intl.DateTimeFormat("en-US", {
-        month: "short",
-      }).format(selectedDate),
-    [selectedDate],
+      Array.from({ length: 12 }, (_, monthIndex) => ({
+        value: monthIndex,
+        label: new Intl.DateTimeFormat("en-US", {
+          month: "short",
+        }).format(new Date(2000, monthIndex, 1)),
+      })),
+    [],
   );
 
   const monthlyGrid = useMemo(
     () => getMonthlyWeekdayGrid(selectedDate),
     [selectedDate],
   );
+
+  const hasCurrentMonthSavedData = useMemo(
+    () =>
+      monthlyGrid
+        .flat()
+        .some((cell) => cell.isCurrentMonth && savedDateKeys.has(cell.dateKey)),
+    [monthlyGrid, savedDateKeys],
+  );
+
+  const handleMonthChange = (nextMonthIndex: number) => {
+    const year = selectedDate.getFullYear();
+    const day = selectedDate.getDate();
+    const daysInTargetMonth = new Date(year, nextMonthIndex + 1, 0).getDate();
+    const nextDate = new Date(
+      year,
+      nextMonthIndex,
+      Math.min(day, daysInTargetMonth),
+    );
+
+    setSelectedDate(getLocalDateKey(nextDate));
+  };
 
   useEffect(() => {
     let isCancelled = false;
@@ -111,14 +135,39 @@ const CalendarMonthly = ({ onToggleCalendarView }: CalendarMonthlyProps) => {
                     scope="col"
                     className="w-16 bg-gray-900 py-3 text-gray-100"
                   >
-                    <button
-                      type="button"
-                      onClick={onToggleCalendarView}
-                      className="cursor-pointer text-gray-300"
-                      aria-label="Switch to weekly calendar view"
-                    >
-                      {monthLabel}
-                    </button>
+                    <div className="relative mx-auto w-fit">
+                      <label
+                        className="sr-only"
+                        htmlFor="calendar-month-select"
+                      >
+                        Select month
+                      </label>
+                      <select
+                        id="calendar-month-select"
+                        value={selectedDate.getMonth()}
+                        onChange={(event) => {
+                          handleMonthChange(Number(event.target.value));
+                        }}
+                        className="cursor-pointer appearance-none bg-transparent px-2 pr-5 text-gray-200 focus:outline-none"
+                        aria-label="Select month"
+                      >
+                        {monthOptions.map((monthOption) => (
+                          <option
+                            key={monthOption.value}
+                            value={monthOption.value}
+                            className="bg-gray-900 text-gray-100"
+                          >
+                            {monthOption.label}
+                          </option>
+                        ))}
+                      </select>
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-[10px] text-gray-300"
+                      >
+                        ▾
+                      </span>
+                    </div>
                   </th>
                   {DAYS.map((day) => (
                     <th
@@ -167,11 +216,14 @@ const CalendarMonthly = ({ onToggleCalendarView }: CalendarMonthlyProps) => {
                               <span
                                 className={[
                                   "inline-flex h-8 w-8 items-center justify-center rounded-full",
-                                  isSelectedDate
-                                    ? weekRowColorStyle.selectedClass
-                                    : hasSavedData
-                                      ? weekRowColorStyle.savedClass
-                                      : "",
+                                  !hasCurrentMonthSavedData &&
+                                  cell.isCurrentMonth
+                                    ? "bg-gray-100 ring-1 ring-gray-400"
+                                    : isSelectedDate
+                                      ? weekRowColorStyle.selectedClass
+                                      : hasSavedData
+                                        ? weekRowColorStyle.savedClass
+                                        : "",
                                 ]
                                   .filter(Boolean)
                                   .join(" ")}
@@ -193,9 +245,8 @@ const CalendarMonthly = ({ onToggleCalendarView }: CalendarMonthlyProps) => {
 
       <div className="mt-3 flex justify-center">
         <Button
-          label="Reset to Today"
+          label="Back to Week"
           onClick={() => {
-            setSelectedDateToToday();
             onToggleCalendarView();
           }}
           className="w-48 whitespace-nowrap"
@@ -211,7 +262,7 @@ const CalendarMonthly = ({ onToggleCalendarView }: CalendarMonthlyProps) => {
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"
+                d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"
               />
             </svg>
           }
