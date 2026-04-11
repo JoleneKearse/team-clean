@@ -869,42 +869,38 @@ function App() {
         !isPastBandOfficeVisibilityTime && <BandOffice />}
       {!isCurrentDayHoliday && showHealthCenterSection && <HealthCenter />}
       {!isCurrentDayHoliday && <SignOffMessage />}
-      {!isCurrentDayHoliday &&
-        showBandOfficeSection &&
-        isPastBandOfficeVisibilityTime && <BandOffice />}
-      {!isCurrentDayHoliday &&
-        showBuildingsSection &&
-        isPastBuildingsVisibilityTime && (
-          <div
-            className={
-              effectiveIsEditMode ? "rounded-xl bg-pink-300/45 p-2" : ""
-            }
-          >
-            <Buildings
-              isEditMode={effectiveIsEditMode}
-              closedItems={closedItems}
-            />
-          </div>
-        )}
-      {!isCurrentDayHoliday &&
-        showDaycareSection &&
-        isPastDaycareVisibilityTime && (
-          <div
-            className={
-              effectiveIsEditMode ? "rounded-xl bg-pink-300/45 p-2" : ""
-            }
-          >
-            <Daycare isEditMode={effectiveIsEditMode} />
-          </div>
-        )}
-      {!isCurrentDayHoliday &&
-        !isFridayMarchBreak &&
-        showCommunityCenterSection && <CommunityCenter />}
-      {!isCurrentDayHoliday &&
-        !isFridayMarchBreak &&
-        showDropInCenterSection && <DropInCenter />}
-      {!isCurrentDayHoliday && !isFridayMarchBreak && showChurchSection && (
-        <Church />
+      {!isCurrentDayHoliday && (
+        <div className="opacity-75">
+          {showBandOfficeSection && isPastBandOfficeVisibilityTime && (
+            <BandOffice />
+          )}
+          {showBuildingsSection && isPastBuildingsVisibilityTime && (
+            <div
+              className={
+                effectiveIsEditMode ? "rounded-xl bg-pink-300/45 p-2" : ""
+              }
+            >
+              <Buildings
+                isEditMode={effectiveIsEditMode}
+                closedItems={closedItems}
+              />
+            </div>
+          )}
+          {showDaycareSection && isPastDaycareVisibilityTime && (
+            <div
+              className={
+                effectiveIsEditMode ? "rounded-xl bg-pink-300/45 p-2" : ""
+              }
+            >
+              <Daycare isEditMode={effectiveIsEditMode} />
+            </div>
+          )}
+          {!isFridayMarchBreak && showCommunityCenterSection && (
+            <CommunityCenter />
+          )}
+          {!isFridayMarchBreak && showDropInCenterSection && <DropInCenter />}
+          {!isFridayMarchBreak && showChurchSection && <Church />}
+        </div>
       )}
     </div>
   );

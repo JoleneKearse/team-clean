@@ -363,7 +363,7 @@ From Monday through Thursday, building components should render in the normal we
 
 ### Friday
 
-Friday, or Thursdays if a holiday falls on Friday, uses a different building component order:
+Friday uses a different building component order:
 
 1. Seniors
 2. Grade 1
@@ -376,9 +376,27 @@ Friday, or Thursdays if a holiday falls on Friday, uses a different building com
 9. Band Office
 10. Health Center
 
+### Thursday Before Friday Holiday
+
+When Friday is a holiday, Thursday can optionally use Friday order.
+
+- This is controlled by a user-facing toggle (`FRIDAY-IZE IT!`) while editing.
+- If toggled on, Thursday uses Friday component order.
+- If toggled off, Thursday keeps normal weekday order.
+
+### Time-Based Visibility and Deferred Sections
+
+Time-based visibility can defer sections that are considered "already done" and
+show them later in the scroll flow (for example below SignOffMessage).
+
+- Deferred sections must remain visible.
+- Deferred sections must preserve the same relative order they would have in the active day mode.
+- The "deferred" area should be treated as continuation of the same ordered list, not a new ordering system.
+
 ### Guardrail
 
 Do not assume the component order is the same across all weekdays. Friday is intentionally different and must be handled explicitly.
+Do not reorder deferred sections in a way that breaks users' ability to scroll and see what is next.
 
 ---
 

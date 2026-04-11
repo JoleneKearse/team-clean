@@ -35,6 +35,9 @@ Do not simplify or replace these rules unless explicitly instructed.
 - Staffing count directly affects assignment distribution.
 - UI must remain mobile-friendly.
 - All components (except buttons) must be the same width.
+- Preserve component order when sections are deferred by time-based visibility.
+- If deferred sections render below SignOffMessage, keep their relative order as continuation of the same day order.
+- Thursday-before-Friday-holiday uses Friday order only when the FRIDAY-IZE IT toggle is enabled.
 
 ## Data Model Constraints
 
