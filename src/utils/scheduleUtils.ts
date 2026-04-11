@@ -462,19 +462,25 @@ export function enforceNecessaryJobsBeforeFlo(params: {
     nextAssignments[donorIndex] = "";
   });
 
-  const remainingFloatCleaners = floatIndexesInFillOrder
-    .map((index) => nextAssignments[index] ?? "")
-    .filter((initials) => initials !== "");
+  // Fill empty float slots using the highest-ranked available float (Flo3 first).
+  // Architecture rule: if Flo1 is out Flo3 becomes Flo1; if Flo2 is out Flo3
+  // becomes Flo2. A lower float never steps up to fill an earlier gap — only a
+  // higher float steps down. So we collect empty slots from lowest (Flo1) up,
+  // and for each one we donate from the highest remaining filled float slot above it.
+  const emptyFloatIndexes = floatIndexesInFillOrder.filter(
+    (index) => !nextAssignments[index],
+  );
 
-  floatIndexesInFillOrder.forEach((index) => {
-    nextAssignments[index] = "";
-  });
+  const filledFloatIndexesHighFirst = [...floatIndexesInFillOrder]
+    .reverse()
+    .filter((index) => Boolean(nextAssignments[index]));
 
-  remainingFloatCleaners.forEach((initials, fillOrder) => {
-    const targetIndex = floatIndexesInFillOrder[fillOrder];
-    if (targetIndex === undefined) return;
+  emptyFloatIndexes.forEach((targetIndex, i) => {
+    const donorIndex = filledFloatIndexesHighFirst[i];
+    if (donorIndex === undefined || donorIndex <= targetIndex) return;
 
-    nextAssignments[targetIndex] = initials;
+    nextAssignments[targetIndex] = nextAssignments[donorIndex] ?? "";
+    nextAssignments[donorIndex] = "";
   });
 
   return nextAssignments;

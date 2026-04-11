@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { CALL_IN_CLEANERS, JOBS, STAFF_CLEANERS } from "../constants/consts";
-import { generateWeeklyAssignments } from "./scheduleUtils";
+import {
+  enforceNecessaryJobsBeforeFlo,
+  generateWeeklyAssignments,
+} from "./scheduleUtils";
 
 function rotateDownByOne<T>(values: readonly T[]): T[] {
   if (values.length === 0) return [];
@@ -45,5 +48,87 @@ describe("scheduleUtils rotation", () => {
     expect(asByJob.Flo2).toBe("JK");
     expect(asByJob.Vac).toBe("TW");
     expect(asByJob.San).toBe("PW");
+  });
+});
+
+// JOBS = ["Bath", "Flo1", "SW", "Flo2", "Vac", "San", "Flo3", "Gar"]
+// Indices:          0      1     2      3     4     5      6     7
+
+describe("enforceNecessaryJobsBeforeFlo float fallback", () => {
+  // Build a baseline assignment array where all 8 jobs are staffed.
+  // Slots: Bath=PW, Flo1=JA, SW=BM, Flo2=AN, Vac=RB, San=D, Flo3=JK, Gar=TW
+  const BASE = ["PW", "JA", "BM", "AN", "RB", "D", "JK", "TW"];
+
+  function withEmpty(slots: number[]): string[] {
+    return BASE.map((initials, i) => (slots.includes(i) ? "" : initials));
+  }
+
+  function resultByJob(assignments: string[]): Record<string, string> {
+    return Object.fromEntries(
+      JOBS.map((jobId, i) => [jobId, assignments[i] ?? ""]),
+    );
+  }
+
+  it("Flo3 out: no float movement because no higher float can fill a lower gap", () => {
+    // Flo3 is absent; Flo1 and Flo2 should stay where they are.
+    const input = withEmpty([6]); // Flo3 empty
+    const result = resultByJob(
+      enforceNecessaryJobsBeforeFlo({ assignments: input, jobs: JOBS }),
+    );
+
+    expect(result.Flo1).toBe("JA");
+    expect(result.Flo2).toBe("AN");
+    expect(result.Flo3).toBe("");
+  });
+
+  it("Flo2 out: Flo3 steps down to Flo2, Flo1 stays, Flo3 slot becomes empty", () => {
+    // Architecture rule: if the call-off is Flo2, Flo3 becomes Flo2.
+    const input = withEmpty([3]); // Flo2 empty
+    const result = resultByJob(
+      enforceNecessaryJobsBeforeFlo({ assignments: input, jobs: JOBS }),
+    );
+
+    expect(result.Flo1).toBe("JA"); // Flo1 unchanged
+    expect(result.Flo2).toBe("JK"); // JK was Flo3; now fills Flo2
+    expect(result.Flo3).toBe(""); // Flo3 vacated
+  });
+
+  it("Flo1 out: Flo3 steps down to Flo1, Flo2 stays, Flo3 slot becomes empty", () => {
+    // Architecture rule: if the call-off is Flo1, Flo3 becomes Flo1.
+    const input = withEmpty([1]); // Flo1 empty
+    const result = resultByJob(
+      enforceNecessaryJobsBeforeFlo({ assignments: input, jobs: JOBS }),
+    );
+
+    expect(result.Flo1).toBe("JK"); // JK was Flo3; now fills Flo1
+    expect(result.Flo2).toBe("AN"); // Flo2 unchanged — Flo2 must NOT step up
+    expect(result.Flo3).toBe(""); // Flo3 vacated
+  });
+
+  it("Flo1 and Flo2 both out: Flo3 fills Flo1 only, Flo2 remains empty", () => {
+    // Only one higher float (Flo3) available, so only the lowest empty slot (Flo1) gets filled.
+    const input = withEmpty([1, 3]); // Flo1 and Flo2 empty
+    const result = resultByJob(
+      enforceNecessaryJobsBeforeFlo({ assignments: input, jobs: JOBS }),
+    );
+
+    expect(result.Flo1).toBe("JK"); // JK was Flo3; fills Flo1 (lowest gap)
+    expect(result.Flo2).toBe(""); // No higher float left to fill Flo2
+    expect(result.Flo3).toBe(""); // Flo3 vacated
+  });
+
+  it("necessary job out: Flo3 fills the necessary job, leaving float slots as-is", () => {
+    // Bath is a necessary job. On call-off, Flo3 (highest priority donor) fills it.
+    // Flo1 and Flo2 are untouched because the float compaction only runs after
+    // necessary-job backfill, and no float slot is empty at that point.
+    const input = withEmpty([0]); // Bath empty
+    const result = resultByJob(
+      enforceNecessaryJobsBeforeFlo({ assignments: input, jobs: JOBS }),
+    );
+
+    expect(result.Bath).toBe("JK"); // JK (Flo3) fills Bath
+    expect(result.Flo1).toBe("JA"); // Flo1 unchanged
+    expect(result.Flo2).toBe("AN"); // Flo2 unchanged
+    expect(result.Flo3).toBe(""); // Flo3 vacated
   });
 });
