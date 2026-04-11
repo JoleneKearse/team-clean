@@ -259,6 +259,19 @@ const CalendarWeekly = ({
   const [activeInitials, setActiveInitials] = useState("");
   const selectedDateReference =
     parseLocalDateKey(selectedDateKey) ?? new Date();
+
+  // On weekends the schedule already shows the upcoming work week, so treat
+  // the upcoming Monday as "today" for the Reset to Today button visibility.
+  const effectiveTodayDateKey = useMemo(() => {
+    const todayDate = parseLocalDateKey(todayDateKey) ?? new Date();
+    const dow = todayDate.getDay();
+    if (dow !== 0 && dow !== 6) return todayDateKey;
+    const monday = getDisplayedWeekStart(todayDate);
+    const y = monday.getFullYear();
+    const m = String(monday.getMonth() + 1).padStart(2, "0");
+    const d = String(monday.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }, [todayDateKey]);
   const currentDateNumber = getDateNumberForDayKey(
     highlightedDayKey,
     selectedDateReference,
@@ -471,7 +484,7 @@ const CalendarWeekly = ({
         </div>
       </div>
 
-      {selectedDateKey !== todayDateKey ? (
+      {selectedDateKey !== effectiveTodayDateKey ? (
         <div className="mt-3 flex justify-center">
           <Button
             label="Reset to Today"
