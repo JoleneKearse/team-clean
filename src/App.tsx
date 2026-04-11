@@ -95,6 +95,8 @@ function App() {
     weeklyAssignments,
     referenceWeeklyAssignments,
     setPresentCleaners,
+    isFridayized,
+    setFridayizedForDay,
     saveScheduleToFirestore,
     isSavingSchedule,
     saveScheduleError,
@@ -177,11 +179,21 @@ function App() {
   const isFridayMarchBreak = isFriday && isMarchBreakReducedScheduleDay;
   const isFridayOnly = isFriday && !isMarchBreakReducedScheduleDay;
   const isMarchBreakWeekday = isMarchBreakReducedScheduleDay && !isFriday;
-  const isFridayOrMarchBreak = isFriday || isMarchBreakReducedScheduleDay;
+  const isThursday = currentDay === "thu";
+  const isFridayHoliday = Boolean(
+    weeklyPublicHolidays.fri ?? weeklyExtraHolidays.fri,
+  );
+  const showFridayizeButton =
+    effectiveIsEditMode && isThursday && isFridayHoliday && !isViewingPastDate;
+  const isFridayizedThursday = isThursday && isFridayHoliday && isFridayized;
+  const isFridayOrMarchBreak =
+    isFriday || isMarchBreakReducedScheduleDay || isFridayizedThursday;
   const isBuildingsComponentEnabled = !isFridayOrMarchBreak;
   const isSeniorsComponentEnabled = isFridayOrMarchBreak;
-  const isGrade1ComponentEnabled = isFriday && !isMarchBreakReducedScheduleDay;
-  const isGrade2ComponentEnabled = isFriday && !isMarchBreakReducedScheduleDay;
+  const isGrade1ComponentEnabled =
+    (isFriday || isFridayizedThursday) && !isMarchBreakReducedScheduleDay;
+  const isGrade2ComponentEnabled =
+    (isFriday || isFridayizedThursday) && !isMarchBreakReducedScheduleDay;
   const isEducationComponentEnabled = isFridayOrMarchBreak;
   const isFieldhouseComponentEnabled = isFridayOrMarchBreak;
   const isSocialComponentEnabled = isFridayOrMarchBreak;
@@ -284,6 +296,14 @@ function App() {
     }
 
     setIsEditMode(true);
+  };
+
+  const handleToggleFridayize = () => {
+    if (isViewingPastDate || !isThursday || !isFridayHoliday) {
+      return;
+    }
+
+    setFridayizedForDay(currentDay, !isFridayized);
   };
 
   const clearHoldToEdit = () => {
@@ -582,6 +602,17 @@ function App() {
                   </div>
                 </div>
               )}
+
+              {showFridayizeButton && (
+                <div className="mt-3 flex justify-center">
+                  <Button
+                    label="FRIDAY-IZE IT!"
+                    onClick={handleToggleFridayize}
+                    disabled={isSavingSchedule}
+                    className={isFridayized ? "text-pink-400" : ""}
+                  />
+                </div>
+              )}
             </div>
           ) : null}
         </section>
@@ -759,13 +790,26 @@ function App() {
             {isFridayMarchBreak && showFieldhouseSection && <Fieldhouse />}
             {isFridayMarchBreak && showSocialSection && <Social />}
             {isFridayMarchBreak && showAnnexSection && <Annex />}
-            {isFridayOnly && showSeniorsSection && <Seniors />}
-            {isFridayOnly && showGrade1Section && <Grade1 />}
-            {isFridayOnly && showGrade2Section && <Grade2 />}
-            {isFridayOnly && showEducationSection && <Education />}
-            {isFridayOnly && showFieldhouseSection && <Fieldhouse />}
-            {isFridayOnly && showSocialSection && <Social />}
-            {isFridayOnly && showAnnexSection && <Annex />}
+            {(isFridayOnly || isFridayizedThursday) && showSeniorsSection && (
+              <Seniors />
+            )}
+            {(isFridayOnly || isFridayizedThursday) && showGrade1Section && (
+              <Grade1 />
+            )}
+            {(isFridayOnly || isFridayizedThursday) && showGrade2Section && (
+              <Grade2 />
+            )}
+            {(isFridayOnly || isFridayizedThursday) && showEducationSection && (
+              <Education />
+            )}
+            {(isFridayOnly || isFridayizedThursday) &&
+              showFieldhouseSection && <Fieldhouse />}
+            {(isFridayOnly || isFridayizedThursday) && showSocialSection && (
+              <Social />
+            )}
+            {(isFridayOnly || isFridayizedThursday) && showAnnexSection && (
+              <Annex />
+            )}
             {isMarchBreakWeekday && showSeniorsSection && <Seniors />}
             {isMarchBreakWeekday && showEducationSection && <Education />}
             {isMarchBreakWeekday && showFieldhouseSection && <Fieldhouse />}
@@ -775,24 +819,35 @@ function App() {
         )}
         {!isCurrentDayHoliday &&
           !isFriday &&
+          !isFridayizedThursday &&
           !isMarchBreakReducedScheduleDay &&
           showSeniorsSection && <Seniors />}
-        {!isCurrentDayHoliday && !isFriday && showGrade1Section && <Grade1 />}
-        {!isCurrentDayHoliday && !isFriday && showGrade2Section && <Grade2 />}
         {!isCurrentDayHoliday &&
           !isFriday &&
+          !isFridayizedThursday &&
+          showGrade1Section && <Grade1 />}
+        {!isCurrentDayHoliday &&
+          !isFriday &&
+          !isFridayizedThursday &&
+          showGrade2Section && <Grade2 />}
+        {!isCurrentDayHoliday &&
+          !isFriday &&
+          !isFridayizedThursday &&
           !isMarchBreakReducedScheduleDay &&
           showEducationSection && <Education />}
         {!isCurrentDayHoliday &&
           !isFriday &&
+          !isFridayizedThursday &&
           !isMarchBreakReducedScheduleDay &&
           showFieldhouseSection && <Fieldhouse />}
         {!isCurrentDayHoliday &&
           !isFriday &&
+          !isFridayizedThursday &&
           !isMarchBreakReducedScheduleDay &&
           showSocialSection && <Social />}
         {!isCurrentDayHoliday &&
           !isFriday &&
+          !isFridayizedThursday &&
           !isMarchBreakReducedScheduleDay &&
           showAnnexSection && <Annex />}
         {!isCurrentDayHoliday &&

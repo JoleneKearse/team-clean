@@ -61,6 +61,8 @@ interface ScheduleContextType {
     fromJobIndex: number,
     toJobIndex: number,
   ) => void;
+  isFridayized: boolean;
+  setFridayizedForDay: (day: DayKey, value: boolean) => void;
   flo1AtAnnex: boolean;
   setFlo1AtAnnexForDay: (day: DayKey, value: boolean) => void;
   moveDaycareAssignment: (
@@ -92,6 +94,7 @@ type SwapOperation = {
 type SwapOperationsByDay = Record<DayKey, SwapOperation[]>;
 type BuildingMoveOperationsByDay = Record<DayKey, SwapOperation[]>;
 type DaycareMoveOperationsByDay = Record<DayKey, SwapOperation[]>;
+type FridayizedByDay = Record<DayKey, boolean>;
 type Flo1AtAnnexByDay = Record<DayKey, boolean>;
 type ClosedItemsByDay = Record<DayKey, ClosureId[]>;
 type AssignmentEntriesByDay = Record<DayKey, string[]>;
@@ -157,6 +160,7 @@ interface PersistedScheduleState {
   presentCleanersByDay: PresentCleanersByDay;
   swapOperationsByDay: SwapOperationsByDay;
   buildingMoveOperationsByDay: BuildingMoveOperationsByDay;
+  fridayizedByDay: FridayizedByDay;
   flo1AtAnnexByDay: Flo1AtAnnexByDay;
   daycareMoveOperationsByDay: DaycareMoveOperationsByDay;
   closedItemsByDay: ClosedItemsByDay;
@@ -167,6 +171,7 @@ interface ScheduleSnapshot {
   presentCleanersByDay: PresentCleanersByDay;
   swapOperationsByDay: SwapOperationsByDay;
   buildingMoveOperationsByDay: BuildingMoveOperationsByDay;
+  fridayizedByDay: FridayizedByDay;
   flo1AtAnnexByDay: Flo1AtAnnexByDay;
   daycareMoveOperationsByDay: DaycareMoveOperationsByDay;
   closedItemsByDay: ClosedItemsByDay;
@@ -213,6 +218,16 @@ function getDefaultDaycareMoveOperationsByDay(): DaycareMoveOperationsByDay {
     wed: [],
     thu: [],
     fri: [],
+  };
+}
+
+function getDefaultFridayizedByDay(): FridayizedByDay {
+  return {
+    mon: false,
+    tue: false,
+    wed: false,
+    thu: false,
+    fri: false,
   };
 }
 
@@ -307,6 +322,7 @@ function getDefaultScheduleSnapshot(currentDay: DayKey): ScheduleSnapshot {
     presentCleanersByDay: getDefaultPresentCleanersByDay(),
     swapOperationsByDay: getDefaultSwapOperationsByDay(),
     buildingMoveOperationsByDay: getDefaultBuildingMoveOperationsByDay(),
+    fridayizedByDay: getDefaultFridayizedByDay(),
     flo1AtAnnexByDay: getDefaultFlo1AtAnnexByDay(),
     daycareMoveOperationsByDay: getDefaultDaycareMoveOperationsByDay(),
     closedItemsByDay: getDefaultClosedItemsByDay(),
@@ -364,6 +380,21 @@ function normalizePresentCleanersByDay(
 }
 
 function normalizeFlo1AtAnnexByDay(value: unknown): Flo1AtAnnexByDay {
+  const source =
+    value && typeof value === "object"
+      ? (value as Partial<Record<DayKey, unknown>>)
+      : {};
+
+  return {
+    mon: source.mon === true,
+    tue: source.tue === true,
+    wed: source.wed === true,
+    thu: source.thu === true,
+    fri: source.fri === true,
+  };
+}
+
+function normalizeFridayizedByDay(value: unknown): FridayizedByDay {
   const source =
     value && typeof value === "object"
       ? (value as Partial<Record<DayKey, unknown>>)
@@ -598,6 +629,7 @@ function loadPersistedScheduleState(
   | "presentCleanersByDay"
   | "swapOperationsByDay"
   | "buildingMoveOperationsByDay"
+  | "fridayizedByDay"
   | "flo1AtAnnexByDay"
   | "daycareMoveOperationsByDay"
   | "closedItemsByDay"
@@ -637,6 +669,7 @@ function loadPersistedScheduleState(
         parsed.buildingMoveOperationsByDay,
         JOBS.length,
       ),
+      fridayizedByDay: normalizeFridayizedByDay(parsed.fridayizedByDay),
       flo1AtAnnexByDay: normalizeFlo1AtAnnexByDay(parsed.flo1AtAnnexByDay),
       daycareMoveOperationsByDay: normalizeSwapOperationsByDay(
         parsed.daycareMoveOperationsByDay,
@@ -692,6 +725,7 @@ function getScheduleSnapshotFromFirestoreData(
       source.buildingMoveOperationsByDay,
       JOBS.length,
     ),
+    fridayizedByDay: normalizeFridayizedByDay(source.fridayizedByDay),
     flo1AtAnnexByDay: normalizeFlo1AtAnnexByDay(source.flo1AtAnnexByDay),
     daycareMoveOperationsByDay: normalizeSwapOperationsByDay(
       source.daycareMoveOperationsByDay,
@@ -778,6 +812,9 @@ export const ScheduleProvider = ({
       persistedScheduleState?.buildingMoveOperationsByDay ??
         getDefaultBuildingMoveOperationsByDay(),
     );
+  const [fridayizedByDay, setFridayizedByDay] = useState<FridayizedByDay>(
+    persistedScheduleState?.fridayizedByDay ?? getDefaultFridayizedByDay(),
+  );
   const [flo1AtAnnexByDay, setFlo1AtAnnexByDay] = useState<Flo1AtAnnexByDay>(
     persistedScheduleState?.flo1AtAnnexByDay ?? getDefaultFlo1AtAnnexByDay(),
   );
@@ -1121,6 +1158,7 @@ export const ScheduleProvider = ({
       presentCleanersByDay,
       swapOperationsByDay,
       buildingMoveOperationsByDay,
+      fridayizedByDay,
       flo1AtAnnexByDay,
       daycareMoveOperationsByDay,
       closedItemsByDay,
@@ -1130,6 +1168,7 @@ export const ScheduleProvider = ({
       closedItemsByDay,
       currentDay,
       daycareMoveOperationsByDay,
+      fridayizedByDay,
       flo1AtAnnexByDay,
       presentCleanersByDay,
       swapOperationsByDay,
@@ -1190,6 +1229,7 @@ export const ScheduleProvider = ({
 
   const presentCleaners = activeSnapshot.presentCleanersByDay[currentDay];
   const closedItems = activeSnapshot.closedItemsByDay[currentDay];
+  const isFridayized = activeSnapshot.fridayizedByDay[currentDay];
   const flo1AtAnnex = activeSnapshot.flo1AtAnnexByDay[currentDay];
   const peopleIn =
     activeSnapshot.presentCleanerCountsByDay?.[currentDay] ??
@@ -1254,6 +1294,15 @@ export const ScheduleProvider = ({
     }));
   };
 
+  const setFridayizedForDay = (day: DayKey, value: boolean) => {
+    if (isViewingPastDate) return;
+
+    setFridayizedByDay((current) => ({
+      ...current,
+      [day]: value,
+    }));
+  };
+
   const moveDaycareAssignment = (
     day: DayKey,
     fromJobIndex: number,
@@ -1313,6 +1362,7 @@ export const ScheduleProvider = ({
           presentCleanersByDay: snapshot.presentCleanersByDay,
           swapOperationsByDay: snapshot.swapOperationsByDay,
           buildingMoveOperationsByDay: snapshot.buildingMoveOperationsByDay,
+          fridayizedByDay: snapshot.fridayizedByDay,
           flo1AtAnnexByDay: snapshot.flo1AtAnnexByDay,
           daycareMoveOperationsByDay: snapshot.daycareMoveOperationsByDay,
           closedItemsByDay: snapshot.closedItemsByDay,
@@ -1362,6 +1412,7 @@ export const ScheduleProvider = ({
       presentCleanersByDay,
       swapOperationsByDay,
       buildingMoveOperationsByDay,
+      fridayizedByDay,
       flo1AtAnnexByDay,
       daycareMoveOperationsByDay,
       closedItemsByDay,
@@ -1376,6 +1427,7 @@ export const ScheduleProvider = ({
       presentCleanersByDay: getDefaultPresentCleanersByDay(),
       swapOperationsByDay: getDefaultSwapOperationsByDay(),
       buildingMoveOperationsByDay: getDefaultBuildingMoveOperationsByDay(),
+      fridayizedByDay: getDefaultFridayizedByDay(),
       flo1AtAnnexByDay: getDefaultFlo1AtAnnexByDay(),
       daycareMoveOperationsByDay: getDefaultDaycareMoveOperationsByDay(),
       closedItemsByDay: getDefaultClosedItemsByDay(),
@@ -1385,6 +1437,7 @@ export const ScheduleProvider = ({
     setPresentCleanersByDay(snapshot.presentCleanersByDay);
     setSwapOperationsByDay(snapshot.swapOperationsByDay);
     setBuildingMoveOperationsByDay(snapshot.buildingMoveOperationsByDay);
+    setFridayizedByDay(snapshot.fridayizedByDay);
     setFlo1AtAnnexByDay(snapshot.flo1AtAnnexByDay);
     setDaycareMoveOperationsByDay(snapshot.daycareMoveOperationsByDay);
     setClosedItemsByDay(snapshot.closedItemsByDay);
@@ -1424,6 +1477,7 @@ export const ScheduleProvider = ({
         setBuildingMoveOperationsByDay(
           syncedSnapshot.buildingMoveOperationsByDay,
         );
+        setFridayizedByDay(syncedSnapshot.fridayizedByDay);
         setFlo1AtAnnexByDay(syncedSnapshot.flo1AtAnnexByDay);
         setDaycareMoveOperationsByDay(
           syncedSnapshot.daycareMoveOperationsByDay,
@@ -1463,6 +1517,7 @@ export const ScheduleProvider = ({
       presentCleanersByDay,
       swapOperationsByDay,
       buildingMoveOperationsByDay,
+      fridayizedByDay,
       flo1AtAnnexByDay,
       daycareMoveOperationsByDay,
       closedItemsByDay,
@@ -1472,6 +1527,7 @@ export const ScheduleProvider = ({
   }, [
     buildingMoveOperationsByDay,
     closedItemsByDay,
+    fridayizedByDay,
     flo1AtAnnexByDay,
     daycareMoveOperationsByDay,
     presentCleanersByDay,
@@ -1509,6 +1565,8 @@ export const ScheduleProvider = ({
         setSelectedDate,
         swapAssignments,
         moveBuildingAssignment,
+        isFridayized,
+        setFridayizedForDay,
         flo1AtAnnex,
         setFlo1AtAnnexForDay,
         moveDaycareAssignment,
