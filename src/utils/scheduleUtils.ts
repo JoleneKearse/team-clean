@@ -22,6 +22,21 @@ function normalizePeopleIn(peopleIn: number): number {
   return Math.max(0, Math.min(8, peopleIn));
 }
 
+export function getLowStaffingSkippedJobs(peopleIn: number): JobId[] {
+  const staffing = normalizePeopleIn(peopleIn);
+  const skippedJobs: JobId[] = [];
+
+  if (staffing <= 4) {
+    skippedJobs.push("Vac");
+  }
+
+  if (staffing <= 3) {
+    skippedJobs.push("Gar");
+  }
+
+  return skippedJobs;
+}
+
 type DaycareScheduleOptions = {
   isMarchBreakReducedScheduleDay?: boolean;
 };
@@ -523,6 +538,7 @@ export function generateWeeklyAssignments(
 
   const rebalanceForPresence = (day: DayKey, dayAssignments: string[]) => {
     const presentForDay = presentCleanersByDay?.[day] ?? cleaners;
+    const peopleInForDay = presentForDay.length;
     const presentSet = new Set(presentForDay);
     const callInSet = new Set(callInCleaners);
     const nextAssignments = [...dayAssignments];
@@ -548,10 +564,19 @@ export function generateWeeklyAssignments(
         });
     }
 
-    return enforceNecessaryJobsBeforeFlo({
+    const rebalancedAssignments = enforceNecessaryJobsBeforeFlo({
       assignments: nextAssignments,
       jobs,
     });
+
+    getLowStaffingSkippedJobs(peopleInForDay).forEach((jobId) => {
+      const jobIndex = jobs.indexOf(jobId);
+      if (jobIndex >= 0) {
+        rebalancedAssignments[jobIndex] = "";
+      }
+    });
+
+    return rebalancedAssignments;
   };
 
   const weekly: Record<DayKey, string[]> = {

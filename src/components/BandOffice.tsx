@@ -1,7 +1,10 @@
 import { JOBS, getNecessaryJobStyle } from "../constants/consts";
 import { useSchedule } from "../context/ScheduleContext";
 
-import { getBandOfficeAssignmentsForDay } from "../utils/scheduleUtils";
+import {
+  getBandOfficeAssignmentsForDay,
+  getLowStaffingSkippedJobs,
+} from "../utils/scheduleUtils";
 import { getCleanerInitialsBadgeClassName } from "../utils/cleanerBadgeUtils";
 import type { JobId } from "../types/types";
 import bandOfficeImage from "../assets/band-office.webp";
@@ -36,6 +39,16 @@ function getBandOfficeNotices(
 const BandOffice = () => {
   const { currentDay, weeklyAssignments, weeklyReassignmentFlags, peopleIn } =
     useSchedule();
+  const lowStaffingSkippedJobs = getLowStaffingSkippedJobs(peopleIn);
+  const showLowStaffingAlert = lowStaffingSkippedJobs.length > 0;
+  const lowStaffingAlert =
+    peopleIn === 3 &&
+    lowStaffingSkippedJobs.includes("Vac") &&
+    lowStaffingSkippedJobs.includes("Gar")
+      ? "Only 3 people in, so no Vac or Gar."
+      : peopleIn === 4 && lowStaffingSkippedJobs.includes("Vac")
+        ? "Only 4 people in, so no Vac."
+        : "";
   const dayAssignments = weeklyAssignments[currentDay];
   const bathIndex = JOBS.indexOf("Bath");
   const bathInitials = bathIndex >= 0 ? (dayAssignments[bathIndex] ?? "") : "";
@@ -66,6 +79,9 @@ const BandOffice = () => {
       </h2>
 
       <div className="rounded-b-xl p-4">
+        {showLowStaffingAlert && (
+          <h3 className="font-semibold text-pink-700">{lowStaffingAlert}</h3>
+        )}
         {notices.length > 0 && (
           <ul className="mt-3 space-y-1">
             {notices.map((notice) => {

@@ -132,3 +132,69 @@ describe("enforceNecessaryJobsBeforeFlo float fallback", () => {
     expect(result.Flo3).toBe(""); // Flo3 vacated
   });
 });
+
+describe("generateWeeklyAssignments low staffing Vac/Gar handling", () => {
+  it("clears Vac first when only 4 people are in", () => {
+    const weekly = generateWeeklyAssignments(
+      STAFF_CLEANERS,
+      new Date(2026, 1, 23),
+      JOBS.length,
+      {
+        // Keep the four largest/necessary roles present and force Vac to be skipped.
+        mon: ["PW", "BM", "D", "TW"],
+      },
+      JOBS,
+      CALL_IN_CLEANERS,
+    );
+
+    const vacIndex = JOBS.indexOf("Vac");
+    const garIndex = JOBS.indexOf("Gar");
+
+    expect(vacIndex).toBeGreaterThanOrEqual(0);
+    expect(garIndex).toBeGreaterThanOrEqual(0);
+    expect(weekly.mon[vacIndex]).toBe("");
+    expect(weekly.mon[garIndex]).not.toBe("");
+  });
+
+  it("clears both Vac and Gar when only 3 people are in", () => {
+    const weekly = generateWeeklyAssignments(
+      STAFF_CLEANERS,
+      new Date(2026, 3, 14),
+      JOBS.length,
+      {
+        mon: ["PW", "JA", "BM"],
+      },
+      JOBS,
+      CALL_IN_CLEANERS,
+    );
+
+    const vacIndex = JOBS.indexOf("Vac");
+    const garIndex = JOBS.indexOf("Gar");
+
+    expect(vacIndex).toBeGreaterThanOrEqual(0);
+    expect(garIndex).toBeGreaterThanOrEqual(0);
+    expect(weekly.mon[vacIndex]).toBe("");
+    expect(weekly.mon[garIndex]).toBe("");
+  });
+
+  it("keeps Vac and Gar assignable when 5 people are in", () => {
+    const weekly = generateWeeklyAssignments(
+      STAFF_CLEANERS,
+      new Date(2026, 3, 14),
+      JOBS.length,
+      {
+        mon: ["PW", "JA", "BM", "AN", "RB"],
+      },
+      JOBS,
+      CALL_IN_CLEANERS,
+    );
+
+    const vacIndex = JOBS.indexOf("Vac");
+    const garIndex = JOBS.indexOf("Gar");
+
+    expect(vacIndex).toBeGreaterThanOrEqual(0);
+    expect(garIndex).toBeGreaterThanOrEqual(0);
+    expect(weekly.mon[vacIndex]).not.toBe("");
+    expect(weekly.mon[garIndex]).not.toBe("");
+  });
+});
