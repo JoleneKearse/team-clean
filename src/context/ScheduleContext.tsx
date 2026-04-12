@@ -945,7 +945,12 @@ export const ScheduleProvider = ({
   };
 
   const setSelectedDateToToday = () => {
-    setSelectedDateKey(todayDateKey);
+    // Use the same weekend-aware mapping used on initial load so that on
+    // Saturdays and Sundays the selection lands on the upcoming Monday rather
+    // than the literal today date. This keeps selectedDateKey consistent with
+    // effectiveTodayDateKey in CalendarWeekly, preventing the Reset to Today
+    // button from reappearing after a save/reset on weekends.
+    setSelectedDateKey(getDateKeyForDayInDisplayedWeek(todayDayKey, today));
     setCurrentDayState(todayDayKey);
   };
 

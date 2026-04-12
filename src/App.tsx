@@ -67,6 +67,14 @@ type EditableSectionEntry = {
   content: ReactNode;
 };
 
+type OutCleanerAssignment = {
+  initials: CleanerId;
+  jobId: JobId | null;
+  replacementInitials: CleanerId | null;
+  replacementJobId: JobId | null;
+  hasReassignedReplacement: boolean;
+};
+
 const EDITABLE_SECTION_LABELS: Record<EditableSectionId, string> = {
   seniors: "Seniors",
   grade1: "Grade 1",
@@ -220,6 +228,80 @@ function hasDefaultOrderClosures(closedItems: readonly ClosureId[]) {
 
   return DEFAULT_ORDER_CLOSED_ITEMS.every((closureId) =>
     closedItemSet.has(closureId),
+  );
+}
+
+type OutCleanerAssignmentsListProps = {
+  assignments: readonly OutCleanerAssignment[];
+};
+
+function OutCleanerAssignmentsList({
+  assignments,
+}: OutCleanerAssignmentsListProps) {
+  return (
+    <div className="space-y-2">
+      {assignments.map(
+        ({
+          initials,
+          jobId,
+          replacementInitials,
+          replacementJobId,
+          hasReassignedReplacement,
+        }) => (
+          <p
+            key={initials}
+            className="flex flex-wrap items-center gap-2 border-b-2 border-gray-100/60 pb-2 last:border-b-0 last:pb-0"
+          >
+            {jobId && hasReassignedReplacement && replacementInitials ? (
+              <>
+                {replacementJobId ? (
+                  <span
+                    className={getCleanerInitialsBadgeClassName(
+                      replacementJobId,
+                    )}
+                  >
+                    {replacementInitials}
+                  </span>
+                ) : (
+                  <span className="font-semibold">{replacementInitials}</span>
+                )}
+                <span>
+                  ( <span className="font-semibold">{replacementJobId}</span> )
+                  replaces
+                </span>
+                <span
+                  className={getCleanerInitialsBadgeClassName(
+                    jobId,
+                    "line-through decoration-2",
+                  )}
+                >
+                  {initials}
+                </span>
+                <span>
+                  as <span className="font-semibold">{jobId}</span>.
+                </span>
+              </>
+            ) : jobId ? (
+              <>
+                <span
+                  className={getCleanerInitialsBadgeClassName(
+                    jobId,
+                    "line-through decoration-2",
+                  )}
+                >
+                  {initials}
+                </span>
+                <span>
+                  is out as <span className="font-semibold">{jobId}</span>.
+                </span>
+              </>
+            ) : (
+              <span className="font-semibold">{initials} is out.</span>
+            )}
+          </p>
+        ),
+      )}
+    </div>
   );
 }
 
@@ -710,14 +792,6 @@ function App() {
       : "Confirm"
     : "Edit";
 
-  type OutCleanerAssignment = {
-    initials: CleanerId;
-    jobId: JobId | null;
-    replacementInitials: CleanerId | null;
-    replacementJobId: JobId | null;
-    hasReassignedReplacement: boolean;
-  };
-
   const outCleanerAssignments = useMemo(() => {
     if (peopleIn >= 8) {
       return [] as OutCleanerAssignment[];
@@ -737,8 +811,10 @@ function App() {
       const replacementInitialsRaw =
         jobIndex >= 0 ? (activeDayAssignments[jobIndex] ?? "") : "";
       const replacementInitials =
-        replacementInitialsRaw && replacementInitialsRaw !== cleaner
-          ? replacementInitialsRaw
+        replacementInitialsRaw &&
+        replacementInitialsRaw !== cleaner &&
+        CLEANERS.includes(replacementInitialsRaw as CleanerId)
+          ? (replacementInitialsRaw as CleanerId)
           : null;
       const replacementJobIndex = replacementInitials
         ? dayAssignments.findIndex(
@@ -892,80 +968,9 @@ function App() {
 
               {peopleIn < 8 && (
                 <div className="mt-3 rounded-lg border border-gray-300 bg-gray-300/60 p-3 text-pink-800">
-                  <div className="space-y-2">
-                    {outCleanerAssignments.map(
-                      ({
-                        initials,
-                        jobId,
-                        replacementInitials,
-                        replacementJobId,
-                        hasReassignedReplacement,
-                      }) => (
-                        <p
-                          key={initials}
-                          className="flex flex-wrap items-center gap-2 border-b-2 border-gray-100/60 pb-2 last:border-b-0 last:pb-0"
-                        >
-                          {jobId &&
-                          hasReassignedReplacement &&
-                          replacementInitials ? (
-                            <>
-                              {replacementJobId ? (
-                                <span
-                                  className={getCleanerInitialsBadgeClassName(
-                                    replacementJobId,
-                                  )}
-                                >
-                                  {replacementInitials}
-                                </span>
-                              ) : (
-                                <span className="font-semibold">
-                                  {replacementInitials}
-                                </span>
-                              )}
-                              <span>
-                                formerly{" "}
-                                <span className="font-semibold">
-                                  {replacementJobId}
-                                </span>{" "}
-                                replaces
-                              </span>
-                              <span
-                                className={getCleanerInitialsBadgeClassName(
-                                  jobId,
-                                  "line-through decoration-2",
-                                )}
-                              >
-                                {initials}
-                              </span>
-                              <span>
-                                as{" "}
-                                <span className="font-semibold">{jobId}</span>.
-                              </span>
-                            </>
-                          ) : jobId ? (
-                            <>
-                              <span
-                                className={getCleanerInitialsBadgeClassName(
-                                  jobId,
-                                  "line-through decoration-2",
-                                )}
-                              >
-                                {initials}
-                              </span>
-                              <span>
-                                is out as{" "}
-                                <span className="font-semibold">{jobId}</span>.
-                              </span>
-                            </>
-                          ) : (
-                            <span className="font-semibold">
-                              {initials} is out.
-                            </span>
-                          )}
-                        </p>
-                      ),
-                    )}
-                  </div>
+                  <OutCleanerAssignmentsList
+                    assignments={outCleanerAssignments}
+                  />
                 </div>
               )}
 
@@ -1146,6 +1151,16 @@ function App() {
           isEditMode={effectiveIsEditMode}
           onToggleCalendarView={handleToggleCalendarView}
         />
+        {calendarView === "weekly" && !isEditUiActive && peopleIn < 8 && (
+          <article className="w-full overflow-hidden rounded-xl border border-gray-500 bg-gray-200 shadow-lg">
+            <div className="p-3 text-pink-800">
+              <p className="pb-2 font-semibold">
+                Assignment changes for today:
+              </p>
+              <OutCleanerAssignmentsList assignments={outCleanerAssignments} />
+            </div>
+          </article>
+        )}
         {(calendarView === "monthly" || isCurrentDayHoliday) && (
           <DailyAssignments />
         )}
