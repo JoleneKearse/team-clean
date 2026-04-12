@@ -38,6 +38,22 @@ const WEEK_ROW_COLOR_STYLES = [
   },
 ];
 
+function getDisplayedWeekStart(referenceDate: Date): Date {
+  const date = new Date(referenceDate);
+  date.setHours(0, 0, 0, 0);
+
+  // On weekends, map the calendar to the upcoming work week.
+  while (date.getDay() === 0 || date.getDay() === 6) {
+    date.setDate(date.getDate() + 1);
+  }
+
+  const day = date.getDay();
+  const daysFromMonday = (day + 6) % 7;
+  date.setDate(date.getDate() - daysFromMonday);
+
+  return date;
+}
+
 const CalendarMonthly = ({ onToggleCalendarView }: CalendarMonthlyProps) => {
   const { selectedDateKey, setSelectedDate } = useSchedule();
   const [savedDateKeys, setSavedDateKeys] = useState<Set<string>>(new Set());
@@ -63,8 +79,17 @@ const CalendarMonthly = ({ onToggleCalendarView }: CalendarMonthlyProps) => {
     [selectedDate],
   );
 
-  const todayDateKey = useMemo(() => getLocalDateKey(new Date()), []);
-  const isSelectedToday = selectedDateKey === todayDateKey;
+  const effectiveTodayDateKey = useMemo(() => {
+    const today = new Date();
+    const day = today.getDay();
+
+    if (day !== 0 && day !== 6) {
+      return getLocalDateKey(today);
+    }
+
+    return getLocalDateKey(getDisplayedWeekStart(today));
+  }, []);
+  const isSelectedToday = selectedDateKey === effectiveTodayDateKey;
 
   const hasCurrentMonthSavedData = useMemo(
     () =>
@@ -255,7 +280,7 @@ const CalendarMonthly = ({ onToggleCalendarView }: CalendarMonthlyProps) => {
               return;
             }
 
-            setSelectedDate(todayDateKey);
+            setSelectedDate(effectiveTodayDateKey);
           }}
           className="w-48 whitespace-nowrap"
           icon={
