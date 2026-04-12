@@ -24,7 +24,13 @@ import {
   STAFF_CLEANERS,
 } from "../constants/consts";
 
-import type { CleanerId, ClosureId, DayKey } from "../types/types";
+import type {
+  CleanerId,
+  ClosureId,
+  DayKey,
+  EditableSectionId,
+} from "../types/types";
+import { EDITABLE_SECTION_IDS } from "../types/types";
 import { db, firebaseConfigError } from "../lib/firebase";
 
 interface ScheduleContextType {
@@ -70,6 +76,11 @@ interface ScheduleContextType {
     fromJobIndex: number,
     toJobIndex: number,
   ) => void;
+  sectionOrder: EditableSectionId[];
+  setSectionOrderForDay: (
+    day: DayKey,
+    order: readonly EditableSectionId[],
+  ) => void;
   saveScheduleToFirestore: () => Promise<void>;
   isSavingSchedule: boolean;
   saveScheduleError: string | null;
@@ -97,6 +108,7 @@ type DaycareMoveOperationsByDay = Record<DayKey, SwapOperation[]>;
 type FridayizedByDay = Record<DayKey, boolean>;
 type Flo1AtAnnexByDay = Record<DayKey, boolean>;
 type ClosedItemsByDay = Record<DayKey, ClosureId[]>;
+type SectionOrderByDay = Record<DayKey, EditableSectionId[]>;
 type AssignmentEntriesByDay = Record<DayKey, string[]>;
 type PresentCleanerCountsByDay = Record<DayKey, number>;
 
@@ -134,6 +146,11 @@ const LEGACY_DEFAULT_CLOSED_ITEMS_V5 = new Set<ClosureId>([
   "Drop-in Center",
   "Church",
 ]);
+const EDITABLE_SECTION_ID_SET = new Set<string>(EDITABLE_SECTION_IDS);
+
+function getDefaultEditableSectionOrder(): EditableSectionId[] {
+  return [...EDITABLE_SECTION_IDS];
+}
 
 function hasSameClosureSelection(
   selected: Set<ClosureId>,
@@ -164,6 +181,7 @@ interface PersistedScheduleState {
   flo1AtAnnexByDay: Flo1AtAnnexByDay;
   daycareMoveOperationsByDay: DaycareMoveOperationsByDay;
   closedItemsByDay: ClosedItemsByDay;
+  sectionOrderByDay: SectionOrderByDay;
 }
 
 interface ScheduleSnapshot {
@@ -175,6 +193,7 @@ interface ScheduleSnapshot {
   flo1AtAnnexByDay: Flo1AtAnnexByDay;
   daycareMoveOperationsByDay: DaycareMoveOperationsByDay;
   closedItemsByDay: ClosedItemsByDay;
+  sectionOrderByDay: SectionOrderByDay;
   savedWeeklyAssignments?: AssignmentEntriesByDay;
   savedBuildingWeeklyAssignments?: AssignmentEntriesByDay;
   savedDaycareWeeklyAssignments?: AssignmentEntriesByDay;
@@ -248,6 +267,16 @@ function getDefaultClosedItemsByDay(): ClosedItemsByDay {
     wed: [...DEFAULT_CLOSED_ITEMS],
     thu: [...DEFAULT_CLOSED_ITEMS],
     fri: [...DEFAULT_CLOSED_ITEMS],
+  };
+}
+
+function getDefaultSectionOrderByDay(): SectionOrderByDay {
+  return {
+    mon: getDefaultEditableSectionOrder(),
+    tue: getDefaultEditableSectionOrder(),
+    wed: getDefaultEditableSectionOrder(),
+    thu: getDefaultEditableSectionOrder(),
+    fri: getDefaultEditableSectionOrder(),
   };
 }
 
@@ -450,6 +479,49 @@ function normalizeClosedItemsByDay(
   };
 }
 
+function isEditableSectionId(value: unknown): value is EditableSectionId {
+  return typeof value === "string" && EDITABLE_SECTION_ID_SET.has(value);
+}
+
+function normalizeSectionOrderForDay(value: unknown): EditableSectionId[] {
+  if (!Array.isArray(value)) {
+    return getDefaultEditableSectionOrder();
+  }
+
+  const selected = new Set<EditableSectionId>();
+
+  value.forEach((item) => {
+    if (isEditableSectionId(item)) {
+      selected.add(item);
+    }
+  });
+
+  const normalized = [...selected];
+
+  EDITABLE_SECTION_IDS.forEach((sectionId) => {
+    if (!selected.has(sectionId)) {
+      normalized.push(sectionId);
+    }
+  });
+
+  return normalized;
+}
+
+function normalizeSectionOrderByDay(value: unknown): SectionOrderByDay {
+  const source =
+    value && typeof value === "object"
+      ? (value as Partial<Record<DayKey, unknown>>)
+      : {};
+
+  return {
+    mon: normalizeSectionOrderForDay(source.mon),
+    tue: normalizeSectionOrderForDay(source.tue),
+    wed: normalizeSectionOrderForDay(source.wed),
+    thu: normalizeSectionOrderForDay(source.thu),
+    fri: normalizeSectionOrderForDay(source.fri),
+  };
+}
+
 function normalizeSwapOperationsForDay(
   value: unknown,
   slotCount: number,
@@ -633,6 +705,7 @@ function loadPersistedScheduleState(
   | "flo1AtAnnexByDay"
   | "daycareMoveOperationsByDay"
   | "closedItemsByDay"
+  | "sectionOrderByDay"
 > | null {
   if (typeof window === "undefined") return null;
 
@@ -679,6 +752,7 @@ function loadPersistedScheduleState(
         parsed.closedItemsByDay,
         backfillDefaultWhenEmpty,
       ),
+      sectionOrderByDay: normalizeSectionOrderByDay(parsed.sectionOrderByDay),
     };
   } catch {
     window.localStorage.removeItem(STORAGE_KEY);
@@ -735,6 +809,7 @@ function getScheduleSnapshotFromFirestoreData(
       source.closedItemsByDay,
       backfillDefaultWhenEmpty,
     ),
+    sectionOrderByDay: normalizeSectionOrderByDay(source.sectionOrderByDay),
     savedWeeklyAssignments: preserveHistoricalAssignments
       ? normalizeAssignmentEntriesByDay(source.weeklyAssignments, JOBS.length)
       : undefined,
@@ -826,6 +901,10 @@ export const ScheduleProvider = ({
   const [closedItemsByDay, setClosedItemsByDay] = useState<ClosedItemsByDay>(
     persistedScheduleState?.closedItemsByDay ?? getDefaultClosedItemsByDay(),
   );
+  const [sectionOrderByDay, setSectionOrderByDay] =
+    useState<SectionOrderByDay>(
+      persistedScheduleState?.sectionOrderByDay ?? getDefaultSectionOrderByDay(),
+    );
   const [isSavingSchedule, setIsSavingSchedule] = useState(false);
   const [saveScheduleError, setSaveScheduleError] = useState<string | null>(
     null,
@@ -1162,6 +1241,7 @@ export const ScheduleProvider = ({
       flo1AtAnnexByDay,
       daycareMoveOperationsByDay,
       closedItemsByDay,
+      sectionOrderByDay,
     }),
     [
       buildingMoveOperationsByDay,
@@ -1171,6 +1251,7 @@ export const ScheduleProvider = ({
       fridayizedByDay,
       flo1AtAnnexByDay,
       presentCleanersByDay,
+      sectionOrderByDay,
       swapOperationsByDay,
     ],
   );
@@ -1231,6 +1312,7 @@ export const ScheduleProvider = ({
   const closedItems = activeSnapshot.closedItemsByDay[currentDay];
   const isFridayized = activeSnapshot.fridayizedByDay[currentDay];
   const flo1AtAnnex = activeSnapshot.flo1AtAnnexByDay[currentDay];
+  const sectionOrder = activeSnapshot.sectionOrderByDay[currentDay];
   const peopleIn =
     activeSnapshot.presentCleanerCountsByDay?.[currentDay] ??
     presentCleaners.length;
@@ -1328,6 +1410,18 @@ export const ScheduleProvider = ({
     }));
   };
 
+  const setSectionOrderForDay = (
+    day: DayKey,
+    order: readonly EditableSectionId[],
+  ) => {
+    if (isViewingPastDate) return;
+
+    setSectionOrderByDay((current) => ({
+      ...current,
+      [day]: normalizeSectionOrderForDay(order),
+    }));
+  };
+
   const persistScheduleSnapshotToFirestore = async (
     snapshot: ScheduleSnapshot,
   ) => {
@@ -1366,6 +1460,7 @@ export const ScheduleProvider = ({
           flo1AtAnnexByDay: snapshot.flo1AtAnnexByDay,
           daycareMoveOperationsByDay: snapshot.daycareMoveOperationsByDay,
           closedItemsByDay: snapshot.closedItemsByDay,
+          sectionOrderByDay: snapshot.sectionOrderByDay,
           weeklyAssignments: snapshotWeeklyAssignments,
           buildingWeeklyAssignments: snapshotBuildingWeeklyAssignments,
           daycareWeeklyAssignments: snapshotDaycareWeeklyAssignments,
@@ -1416,6 +1511,7 @@ export const ScheduleProvider = ({
       flo1AtAnnexByDay,
       daycareMoveOperationsByDay,
       closedItemsByDay,
+      sectionOrderByDay,
     });
   };
 
@@ -1431,6 +1527,7 @@ export const ScheduleProvider = ({
       flo1AtAnnexByDay: getDefaultFlo1AtAnnexByDay(),
       daycareMoveOperationsByDay: getDefaultDaycareMoveOperationsByDay(),
       closedItemsByDay: getDefaultClosedItemsByDay(),
+      sectionOrderByDay: getDefaultSectionOrderByDay(),
     };
 
     setSelectedDateToToday();
@@ -1441,6 +1538,7 @@ export const ScheduleProvider = ({
     setFlo1AtAnnexByDay(snapshot.flo1AtAnnexByDay);
     setDaycareMoveOperationsByDay(snapshot.daycareMoveOperationsByDay);
     setClosedItemsByDay(snapshot.closedItemsByDay);
+    setSectionOrderByDay(snapshot.sectionOrderByDay);
 
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(STORAGE_KEY);
@@ -1483,6 +1581,7 @@ export const ScheduleProvider = ({
           syncedSnapshot.daycareMoveOperationsByDay,
         );
         setClosedItemsByDay(syncedSnapshot.closedItemsByDay);
+        setSectionOrderByDay(syncedSnapshot.sectionOrderByDay);
 
         const updatedAtIso = getIsoDateFromFirestoreTimestamp(data.updatedAt);
         if (updatedAtIso) {
@@ -1521,6 +1620,7 @@ export const ScheduleProvider = ({
       flo1AtAnnexByDay,
       daycareMoveOperationsByDay,
       closedItemsByDay,
+      sectionOrderByDay,
     };
 
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -1530,6 +1630,7 @@ export const ScheduleProvider = ({
     fridayizedByDay,
     flo1AtAnnexByDay,
     daycareMoveOperationsByDay,
+    sectionOrderByDay,
     presentCleanersByDay,
     currentDay,
     isViewingPastDate,
@@ -1570,6 +1671,8 @@ export const ScheduleProvider = ({
         flo1AtAnnex,
         setFlo1AtAnnexForDay,
         moveDaycareAssignment,
+        sectionOrder,
+        setSectionOrderForDay,
         saveScheduleToFirestore,
         isSavingSchedule,
         saveScheduleError,

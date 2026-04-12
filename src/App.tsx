@@ -1,4 +1,18 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  DndContext,
+  DragOverlay,
+  MouseSensor,
+  TouchSensor,
+  closestCenter,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { useSchedule } from "./context/ScheduleContext";
 
@@ -9,7 +23,13 @@ import {
   STAFF_CLEANERS,
 } from "./constants/consts";
 
-import type { CleanerId, ClosureId, JobId } from "./types/types";
+import {
+  EDITABLE_SECTION_IDS,
+  type CleanerId,
+  type ClosureId,
+  type EditableSectionId,
+  type JobId,
+} from "./types/types";
 import { getCleanerInitialsBadgeClassName } from "./utils/cleanerBadgeUtils";
 
 import Calendar from "./components/Calendar";
@@ -40,6 +60,127 @@ const DEFAULT_ORDER_CLOSED_ITEMS: readonly ClosureId[] = [
   "Drop-in Center",
   "Church",
 ];
+
+type EditableSectionEntry = {
+  id: EditableSectionId;
+  label: string;
+  content: ReactNode;
+};
+
+const EDITABLE_SECTION_LABELS: Record<EditableSectionId, string> = {
+  seniors: "Seniors",
+  grade1: "Grade 1",
+  grade2: "Grade 2",
+  education: "Education",
+  fieldhouse: "Fieldhouse",
+  social: "Social",
+  annex: "Annex",
+  buildings: "Buildings",
+  daycare: "Daycare",
+  bandOffice: "Band Office",
+  healthCenter: "Health Center",
+};
+
+function isEditableSectionId(value: unknown): value is EditableSectionId {
+  return EDITABLE_SECTION_IDS.includes(value as EditableSectionId);
+}
+
+function createEditableSectionEntry(
+  id: EditableSectionId,
+  content: ReactNode,
+): EditableSectionEntry {
+  return {
+    id,
+    label: EDITABLE_SECTION_LABELS[id],
+    content,
+  };
+}
+
+function reorderSectionOrder(
+  currentOrder: readonly EditableSectionId[],
+  activeId: EditableSectionId,
+  overId: EditableSectionId,
+) {
+  const activeIndex = currentOrder.indexOf(activeId);
+  const overIndex = currentOrder.indexOf(overId);
+
+  if (activeIndex < 0 || overIndex < 0 || activeIndex === overIndex) {
+    return [...currentOrder];
+  }
+
+  const nextOrder = [...currentOrder];
+  const [movedSection] = nextOrder.splice(activeIndex, 1);
+
+  nextOrder.splice(overIndex, 0, movedSection);
+
+  return nextOrder;
+}
+
+type EditableSectionCardProps = {
+  id: EditableSectionId;
+  label: string;
+  isEditMode: boolean;
+  children: ReactNode;
+};
+
+function EditableSectionCard({
+  id,
+  label,
+  isEditMode,
+  children,
+}: EditableSectionCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setDraggableNodeRef,
+    transform,
+    isDragging,
+  } = useDraggable({
+    id,
+    disabled: !isEditMode,
+  });
+  const { setNodeRef: setDroppableNodeRef, isOver } = useDroppable({
+    id,
+    disabled: !isEditMode,
+  });
+
+  const setNodeRef = (node: HTMLDivElement | null) => {
+    setDraggableNodeRef(node);
+    setDroppableNodeRef(node);
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        opacity: isDragging ? 0.45 : 1,
+      }}
+      className={[
+        "relative transition-transform",
+        isEditMode && isOver && !isDragging
+          ? "rounded-2xl ring-4 ring-pink-300/80 ring-offset-2 ring-offset-pink-100"
+          : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      {isEditMode && (
+        <button
+          type="button"
+          aria-label={`Move ${label}`}
+          className="absolute top-3 right-3 z-10 rounded-full bg-gray-700/95 px-3 py-1 text-xs font-semibold tracking-wide text-gray-100 shadow-lg"
+          style={{ touchAction: "none" }}
+          {...listeners}
+          {...attributes}
+        >
+          Move
+        </button>
+      )}
+      {children}
+    </div>
+  );
+}
 
 function getEasternTimeParts(referenceDate: Date) {
   const formatter = new Intl.DateTimeFormat("en-US", {
@@ -95,6 +236,8 @@ function App() {
     weeklyAssignments,
     referenceWeeklyAssignments,
     setPresentCleaners,
+    sectionOrder,
+    setSectionOrderForDay,
     isFridayized,
     setFridayizedForDay,
     saveScheduleToFirestore,
@@ -112,6 +255,8 @@ function App() {
   const [showSaveSuccessMessage, setShowSaveSuccessMessage] = useState(false);
   const [saveSuccessMessageTick, setSaveSuccessMessageTick] = useState(0);
   const [isHoldToEditPending, setIsHoldToEditPending] = useState(false);
+  const [activeSectionId, setActiveSectionId] =
+    useState<EditableSectionId | null>(null);
   const holdToEditTimeoutRef = useRef<number | null>(null);
 
   const triggerSaveSuccessMessage = () => {
@@ -177,8 +322,6 @@ function App() {
     weeklyPublicHolidays[currentDay] ?? weeklyExtraHolidays[currentDay],
   );
   const isFridayMarchBreak = isFriday && isMarchBreakReducedScheduleDay;
-  const isFridayOnly = isFriday && !isMarchBreakReducedScheduleDay;
-  const isMarchBreakWeekday = isMarchBreakReducedScheduleDay && !isFriday;
   const isThursday = currentDay === "thu";
   const isFridayHoliday = Boolean(
     weeklyPublicHolidays.fri ?? weeklyExtraHolidays.fri,
@@ -219,6 +362,193 @@ function App() {
   const showBuildingsSection = isBuildingsComponentEnabled;
   const showDropInCenterSection = !closedItemSet.has("Drop-in Center");
   const showChurchSection = !closedItemSet.has("Church");
+  const sectionSensors = useSensors(
+    useSensor(MouseSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 150,
+        tolerance: 8,
+      },
+    }),
+  );
+  const editableSectionListClassName = isFriday ? "space-y-6" : "space-y-4";
+
+  const preSignOffSectionsById = useMemo(() => {
+    const sections: Partial<Record<EditableSectionId, EditableSectionEntry>> =
+      {};
+
+    if (!isCurrentDayHoliday && showSeniorsSection) {
+      sections.seniors = createEditableSectionEntry("seniors", <Seniors />);
+    }
+
+    if (!isCurrentDayHoliday && showGrade1Section) {
+      sections.grade1 = createEditableSectionEntry("grade1", <Grade1 />);
+    }
+
+    if (!isCurrentDayHoliday && showGrade2Section) {
+      sections.grade2 = createEditableSectionEntry("grade2", <Grade2 />);
+    }
+
+    if (!isCurrentDayHoliday && showEducationSection) {
+      sections.education = createEditableSectionEntry(
+        "education",
+        <Education />,
+      );
+    }
+
+    if (!isCurrentDayHoliday && showFieldhouseSection) {
+      sections.fieldhouse = createEditableSectionEntry(
+        "fieldhouse",
+        <Fieldhouse />,
+      );
+    }
+
+    if (!isCurrentDayHoliday && showSocialSection) {
+      sections.social = createEditableSectionEntry("social", <Social />);
+    }
+
+    if (!isCurrentDayHoliday && showAnnexSection) {
+      sections.annex = createEditableSectionEntry("annex", <Annex />);
+    }
+
+    if (
+      !isCurrentDayHoliday &&
+      showBuildingsSection &&
+      !isPastBuildingsVisibilityTime
+    ) {
+      sections.buildings = createEditableSectionEntry(
+        "buildings",
+        <Buildings
+          isEditMode={effectiveIsEditMode}
+          closedItems={closedItems}
+        />,
+      );
+    }
+
+    if (
+      !isCurrentDayHoliday &&
+      showDaycareSection &&
+      !isPastDaycareVisibilityTime
+    ) {
+      sections.daycare = createEditableSectionEntry(
+        "daycare",
+        <Daycare isEditMode={effectiveIsEditMode} />,
+      );
+    }
+
+    if (
+      !isCurrentDayHoliday &&
+      showBandOfficeSection &&
+      !isPastBandOfficeVisibilityTime
+    ) {
+      sections.bandOffice = createEditableSectionEntry(
+        "bandOffice",
+        <BandOffice />,
+      );
+    }
+
+    if (!isCurrentDayHoliday && showHealthCenterSection) {
+      sections.healthCenter = createEditableSectionEntry(
+        "healthCenter",
+        <HealthCenter />,
+      );
+    }
+
+    return sections;
+  }, [
+    closedItems,
+    effectiveIsEditMode,
+    isCurrentDayHoliday,
+    isPastBandOfficeVisibilityTime,
+    isPastBuildingsVisibilityTime,
+    isPastDaycareVisibilityTime,
+    showAnnexSection,
+    showBandOfficeSection,
+    showBuildingsSection,
+    showDaycareSection,
+    showEducationSection,
+    showFieldhouseSection,
+    showGrade1Section,
+    showGrade2Section,
+    showHealthCenterSection,
+    showSeniorsSection,
+    showSocialSection,
+  ]);
+
+  const deferredSectionsById = useMemo(() => {
+    const sections: Partial<Record<EditableSectionId, EditableSectionEntry>> =
+      {};
+
+    if (
+      !isCurrentDayHoliday &&
+      showBuildingsSection &&
+      isPastBuildingsVisibilityTime
+    ) {
+      sections.buildings = createEditableSectionEntry(
+        "buildings",
+        <Buildings
+          isEditMode={effectiveIsEditMode}
+          closedItems={closedItems}
+        />,
+      );
+    }
+
+    if (
+      !isCurrentDayHoliday &&
+      showDaycareSection &&
+      isPastDaycareVisibilityTime
+    ) {
+      sections.daycare = createEditableSectionEntry(
+        "daycare",
+        <Daycare isEditMode={effectiveIsEditMode} />,
+      );
+    }
+
+    if (
+      !isCurrentDayHoliday &&
+      showBandOfficeSection &&
+      isPastBandOfficeVisibilityTime
+    ) {
+      sections.bandOffice = createEditableSectionEntry(
+        "bandOffice",
+        <BandOffice />,
+      );
+    }
+
+    return sections;
+  }, [
+    closedItems,
+    effectiveIsEditMode,
+    isCurrentDayHoliday,
+    isPastBandOfficeVisibilityTime,
+    isPastBuildingsVisibilityTime,
+    isPastDaycareVisibilityTime,
+    showBandOfficeSection,
+    showBuildingsSection,
+    showDaycareSection,
+  ]);
+
+  const orderedPreSignOffSections = useMemo(() => {
+    return sectionOrder.flatMap((sectionId) => {
+      const section = preSignOffSectionsById[sectionId];
+
+      return section ? [section] : [];
+    });
+  }, [preSignOffSectionsById, sectionOrder]);
+
+  const orderedDeferredSections = useMemo(() => {
+    return sectionOrder.flatMap((sectionId) => {
+      const section = deferredSectionsById[sectionId];
+
+      return section ? [section] : [];
+    });
+  }, [deferredSectionsById, sectionOrder]);
+
+  const activeSectionLabel = activeSectionId
+    ? EDITABLE_SECTION_LABELS[activeSectionId]
+    : "";
 
   const toggleCleaner = (cleaner: CleanerId) => {
     if (isViewingPastDate) return;
@@ -304,6 +634,42 @@ function App() {
     }
 
     setFridayizedForDay(currentDay, !isFridayized);
+  };
+
+  const handleSectionDragStart = ({ active }: DragStartEvent) => {
+    if (!effectiveIsEditMode || !isEditableSectionId(active.id)) {
+      return;
+    }
+
+    setActiveSectionId(active.id);
+  };
+
+  const handleSectionDragEnd = ({ active, over }: DragEndEvent) => {
+    setActiveSectionId(null);
+
+    if (!effectiveIsEditMode || !over) {
+      return;
+    }
+
+    const activeId = active.id;
+    const overId = over.id;
+
+    if (
+      !isEditableSectionId(activeId) ||
+      !isEditableSectionId(overId) ||
+      activeId === overId
+    ) {
+      return;
+    }
+
+    setSectionOrderForDay(
+      currentDay,
+      reorderSectionOrder(sectionOrder, activeId, overId),
+    );
+  };
+
+  const handleSectionDragCancel = () => {
+    setActiveSectionId(null);
   };
 
   const clearHoldToEdit = () => {
@@ -783,118 +1149,65 @@ function App() {
         {(calendarView === "monthly" || isCurrentDayHoliday) && (
           <DailyAssignments />
         )}
-        {!isCurrentDayHoliday && (
-          <>
-            {isFridayMarchBreak && showSeniorsSection && <Seniors />}
-            {isFridayMarchBreak && showEducationSection && <Education />}
-            {isFridayMarchBreak && showFieldhouseSection && <Fieldhouse />}
-            {isFridayMarchBreak && showSocialSection && <Social />}
-            {isFridayMarchBreak && showAnnexSection && <Annex />}
-            {(isFridayOnly || isFridayizedThursday) && showSeniorsSection && (
-              <Seniors />
+        {!isCurrentDayHoliday && orderedPreSignOffSections.length > 0 && (
+          <div className={editableSectionListClassName}>
+            {effectiveIsEditMode ? (
+              <DndContext
+                sensors={sectionSensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleSectionDragStart}
+                onDragEnd={handleSectionDragEnd}
+                onDragCancel={handleSectionDragCancel}
+              >
+                <div className={editableSectionListClassName}>
+                  {orderedPreSignOffSections.map((section) => (
+                    <EditableSectionCard
+                      key={section.id}
+                      id={section.id}
+                      label={section.label}
+                      isEditMode={effectiveIsEditMode}
+                    >
+                      {section.content}
+                    </EditableSectionCard>
+                  ))}
+                </div>
+                <DragOverlay>
+                  {activeSectionLabel ? (
+                    <div className="w-80 max-w-full rounded-xl border border-pink-400 bg-white/95 px-4 py-3 shadow-2xl">
+                      <p className="text-xs font-semibold tracking-wide text-pink-700">
+                        Moving Section
+                      </p>
+                      <p className="text-lg font-bold text-gray-800">
+                        {activeSectionLabel}
+                      </p>
+                    </div>
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
+            ) : (
+              orderedPreSignOffSections.map((section) => (
+                <div key={section.id}>{section.content}</div>
+              ))
             )}
-            {(isFridayOnly || isFridayizedThursday) && showGrade1Section && (
-              <Grade1 />
-            )}
-            {(isFridayOnly || isFridayizedThursday) && showGrade2Section && (
-              <Grade2 />
-            )}
-            {(isFridayOnly || isFridayizedThursday) && showEducationSection && (
-              <Education />
-            )}
-            {(isFridayOnly || isFridayizedThursday) &&
-              showFieldhouseSection && <Fieldhouse />}
-            {(isFridayOnly || isFridayizedThursday) && showSocialSection && (
-              <Social />
-            )}
-            {(isFridayOnly || isFridayizedThursday) && showAnnexSection && (
-              <Annex />
-            )}
-            {isMarchBreakWeekday && showSeniorsSection && <Seniors />}
-            {isMarchBreakWeekday && showEducationSection && <Education />}
-            {isMarchBreakWeekday && showFieldhouseSection && <Fieldhouse />}
-            {isMarchBreakWeekday && showSocialSection && <Social />}
-            {isMarchBreakWeekday && showAnnexSection && <Annex />}
-          </>
+          </div>
         )}
-        {!isCurrentDayHoliday &&
-          !isFriday &&
-          !isFridayizedThursday &&
-          !isMarchBreakReducedScheduleDay &&
-          showSeniorsSection && <Seniors />}
-        {!isCurrentDayHoliday &&
-          !isFriday &&
-          !isFridayizedThursday &&
-          showGrade1Section && <Grade1 />}
-        {!isCurrentDayHoliday &&
-          !isFriday &&
-          !isFridayizedThursday &&
-          showGrade2Section && <Grade2 />}
-        {!isCurrentDayHoliday &&
-          !isFriday &&
-          !isFridayizedThursday &&
-          !isMarchBreakReducedScheduleDay &&
-          showEducationSection && <Education />}
-        {!isCurrentDayHoliday &&
-          !isFriday &&
-          !isFridayizedThursday &&
-          !isMarchBreakReducedScheduleDay &&
-          showFieldhouseSection && <Fieldhouse />}
-        {!isCurrentDayHoliday &&
-          !isFriday &&
-          !isFridayizedThursday &&
-          !isMarchBreakReducedScheduleDay &&
-          showSocialSection && <Social />}
-        {!isCurrentDayHoliday &&
-          !isFriday &&
-          !isFridayizedThursday &&
-          !isMarchBreakReducedScheduleDay &&
-          showAnnexSection && <Annex />}
-        {!isCurrentDayHoliday &&
-          showBuildingsSection &&
-          !isPastBuildingsVisibilityTime && (
-            <Buildings
-              isEditMode={effectiveIsEditMode}
-              closedItems={closedItems}
-            />
-          )}
-        {!isCurrentDayHoliday &&
-          showDaycareSection &&
-          !isPastDaycareVisibilityTime && (
-            <Daycare isEditMode={effectiveIsEditMode} />
-          )}
       </div>
-      {!isCurrentDayHoliday &&
-        showBandOfficeSection &&
-        !isPastBandOfficeVisibilityTime && <BandOffice />}
-      {!isCurrentDayHoliday && showHealthCenterSection && <HealthCenter />}
       {!isCurrentDayHoliday && <SignOffMessage />}
       {!isCurrentDayHoliday && (
         <div className="opacity-75">
-          {showBandOfficeSection && isPastBandOfficeVisibilityTime && (
-            <BandOffice />
-          )}
-          {showBuildingsSection && isPastBuildingsVisibilityTime && (
+          {orderedDeferredSections.map((section) => (
             <div
+              key={section.id}
               className={
-                effectiveIsEditMode ? "rounded-xl bg-pink-300/45 p-2" : ""
+                effectiveIsEditMode &&
+                (section.id === "buildings" || section.id === "daycare")
+                  ? "rounded-xl bg-pink-300/45 p-2"
+                  : ""
               }
             >
-              <Buildings
-                isEditMode={effectiveIsEditMode}
-                closedItems={closedItems}
-              />
+              {section.content}
             </div>
-          )}
-          {showDaycareSection && isPastDaycareVisibilityTime && (
-            <div
-              className={
-                effectiveIsEditMode ? "rounded-xl bg-pink-300/45 p-2" : ""
-              }
-            >
-              <Daycare isEditMode={effectiveIsEditMode} />
-            </div>
-          )}
+          ))}
           {!isFridayMarchBreak && showCommunityCenterSection && (
             <CommunityCenter />
           )}
