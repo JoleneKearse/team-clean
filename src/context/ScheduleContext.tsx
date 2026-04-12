@@ -355,6 +355,7 @@ function getDefaultScheduleSnapshot(currentDay: DayKey): ScheduleSnapshot {
     flo1AtAnnexByDay: getDefaultFlo1AtAnnexByDay(),
     daycareMoveOperationsByDay: getDefaultDaycareMoveOperationsByDay(),
     closedItemsByDay: getDefaultClosedItemsByDay(),
+    sectionOrderByDay: getDefaultSectionOrderByDay(),
   };
 }
 
