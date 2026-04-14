@@ -4,6 +4,9 @@ import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 import {
   enforceNecessaryJobsBeforeFlo,
   generateWeeklyAssignments,
+  getPendingShiftInCleanersAtMinute,
+  getPresentCleanersAtShiftMinute,
+  getShiftPhaseWindowsForDay,
   getWeeklyReassignmentFlags,
   getDayKeyFromDate,
   type WeeklyReassignmentFlags,
@@ -29,8 +32,18 @@ import type {
   ClosureId,
   DayKey,
   EditableSectionId,
+  ShiftEvent,
+  ShiftEventAction,
+  ShiftEventTimeQualifier,
+  ShiftEventTimingKind,
+  ShiftEventsByDay,
 } from "../types/types";
-import { EDITABLE_SECTION_IDS } from "../types/types";
+import {
+  EDITABLE_SECTION_IDS,
+  SHIFT_EVENT_ACTIONS,
+  SHIFT_EVENT_TIME_QUALIFIERS,
+  SHIFT_EVENT_TIMING_KINDS,
+} from "../types/types";
 import { db, firebaseConfigError } from "../lib/firebase";
 
 interface ScheduleContextType {
@@ -48,6 +61,9 @@ interface ScheduleContextType {
   buildingReassignmentFlags: WeeklyReassignmentFlags;
   daycareWeeklyAssignments: Record<DayKey, string[]>;
   daycareReassignmentFlags: WeeklyReassignmentFlags;
+  bandOfficeWeeklyAssignments: Record<DayKey, string[]>;
+  healthCenterWeeklyAssignments: Record<DayKey, string[]>;
+  pendingShiftInCleaners: CleanerId[];
   closedItems: ClosureId[];
   toggleClosedItem: (closureId: ClosureId) => void;
   presentCleaners: CleanerId[];
@@ -77,10 +93,12 @@ interface ScheduleContextType {
     toJobIndex: number,
   ) => void;
   sectionOrder: EditableSectionId[];
+  shiftEvents: ShiftEvent[];
   setSectionOrderForDay: (
     day: DayKey,
     order: readonly EditableSectionId[],
   ) => void;
+  setShiftEventsForDay: (day: DayKey, events: readonly ShiftEvent[]) => void;
   saveScheduleToFirestore: () => Promise<void>;
   isSavingSchedule: boolean;
   saveScheduleError: string | null;
@@ -122,6 +140,11 @@ const DAY_OFFSET_BY_KEY: Record<DayKey, number> = {
 
 const CLOSURE_IDS = CLOSURE_OPTIONS.map((option) => option.id) as ClosureId[];
 const CLOSURE_ID_SET = new Set<string>(CLOSURE_IDS);
+const SHIFT_EVENT_ACTION_SET = new Set<string>(SHIFT_EVENT_ACTIONS);
+const SHIFT_EVENT_TIME_QUALIFIER_SET = new Set<string>(
+  SHIFT_EVENT_TIME_QUALIFIERS,
+);
+const SHIFT_EVENT_TIMING_KIND_SET = new Set<string>(SHIFT_EVENT_TIMING_KINDS);
 const DEFAULT_CLOSED_ITEMS = CLOSURE_IDS.filter(
   (closureId) =>
     closureId === "Community Center" ||
@@ -182,6 +205,7 @@ interface PersistedScheduleState {
   daycareMoveOperationsByDay: DaycareMoveOperationsByDay;
   closedItemsByDay: ClosedItemsByDay;
   sectionOrderByDay: SectionOrderByDay;
+  shiftEventsByDay: ShiftEventsByDay;
 }
 
 interface ScheduleSnapshot {
@@ -194,9 +218,12 @@ interface ScheduleSnapshot {
   daycareMoveOperationsByDay: DaycareMoveOperationsByDay;
   closedItemsByDay: ClosedItemsByDay;
   sectionOrderByDay: SectionOrderByDay;
+  shiftEventsByDay: ShiftEventsByDay;
   savedWeeklyAssignments?: AssignmentEntriesByDay;
   savedBuildingWeeklyAssignments?: AssignmentEntriesByDay;
   savedDaycareWeeklyAssignments?: AssignmentEntriesByDay;
+  savedBandOfficeWeeklyAssignments?: AssignmentEntriesByDay;
+  savedHealthCenterWeeklyAssignments?: AssignmentEntriesByDay;
   presentCleanerCountsByDay?: PresentCleanerCountsByDay;
 }
 
@@ -280,6 +307,16 @@ function getDefaultSectionOrderByDay(): SectionOrderByDay {
   };
 }
 
+function getDefaultShiftEventsByDay(): ShiftEventsByDay {
+  return {
+    mon: [],
+    tue: [],
+    wed: [],
+    thu: [],
+    fri: [],
+  };
+}
+
 function getLocalDateKey(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -356,6 +393,7 @@ function getDefaultScheduleSnapshot(currentDay: DayKey): ScheduleSnapshot {
     daycareMoveOperationsByDay: getDefaultDaycareMoveOperationsByDay(),
     closedItemsByDay: getDefaultClosedItemsByDay(),
     sectionOrderByDay: getDefaultSectionOrderByDay(),
+    shiftEventsByDay: getDefaultShiftEventsByDay(),
   };
 }
 
@@ -520,6 +558,158 @@ function normalizeSectionOrderByDay(value: unknown): SectionOrderByDay {
     wed: normalizeSectionOrderForDay(source.wed),
     thu: normalizeSectionOrderForDay(source.thu),
     fri: normalizeSectionOrderForDay(source.fri),
+  };
+}
+
+function isShiftEventAction(value: unknown): value is ShiftEventAction {
+  return typeof value === "string" && SHIFT_EVENT_ACTION_SET.has(value);
+}
+
+function isShiftEventTimingKind(value: unknown): value is ShiftEventTimingKind {
+  return typeof value === "string" && SHIFT_EVENT_TIMING_KIND_SET.has(value);
+}
+
+function isShiftEventTimeQualifier(
+  value: unknown,
+): value is ShiftEventTimeQualifier {
+  return typeof value === "string" && SHIFT_EVENT_TIME_QUALIFIER_SET.has(value);
+}
+
+function normalizeShiftEventTimingKind(
+  value: unknown,
+): ShiftEventTimingKind | null {
+  if (value === "afterDaycare") {
+    return "forDaycare";
+  }
+
+  if (isShiftEventTimingKind(value)) {
+    return value;
+  }
+
+  return null;
+}
+
+function normalizeShiftEventTimeQualifier(
+  value: unknown,
+): ShiftEventTimeQualifier | undefined {
+  if (value === "approximate") {
+    return "around";
+  }
+
+  if (isShiftEventTimeQualifier(value)) {
+    return value;
+  }
+
+  return undefined;
+}
+
+function isValidShiftTime(value: string): boolean {
+  return /^([01]\d|2[0-3]):([0-5]\d)$/.test(value);
+}
+
+function normalizeShiftEventId(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  return trimmed;
+}
+
+function normalizeShiftEventNote(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  return trimmed.slice(0, 200);
+}
+
+function normalizeShiftEventEntry(
+  value: unknown,
+  index: number,
+): ShiftEvent | null {
+  if (!value || typeof value !== "object") return null;
+
+  const source = value as Partial<ShiftEvent>;
+  const cleanerId = source.cleanerId;
+  const action = source.action;
+  const timingKind = normalizeShiftEventTimingKind(source.timingKind);
+
+  if (
+    typeof cleanerId !== "string" ||
+    !CLEANERS.includes(cleanerId as CleanerId) ||
+    !isShiftEventAction(action) ||
+    !timingKind
+  ) {
+    return null;
+  }
+
+  const normalizedTime =
+    typeof source.time === "string" && isValidShiftTime(source.time)
+      ? source.time
+      : undefined;
+  const normalizedTimeQualifier = normalizeShiftEventTimeQualifier(
+    source.timeQualifier,
+  );
+
+  if (timingKind === "atTime" && !normalizedTime) {
+    return null;
+  }
+
+  const normalizedId =
+    normalizeShiftEventId(source.id) ??
+    `${cleanerId}-${action}-${timingKind}-${normalizedTime ?? "none"}-${index}`;
+
+  const normalizedEvent: ShiftEvent = {
+    id: normalizedId,
+    cleanerId,
+    action,
+    timingKind,
+  };
+
+  if (timingKind === "atTime") {
+    normalizedEvent.time = normalizedTime;
+    normalizedEvent.timeQualifier = normalizedTimeQualifier ?? "exact";
+  }
+
+  const note = normalizeShiftEventNote(source.note);
+  if (note) {
+    normalizedEvent.note = note;
+  }
+
+  return normalizedEvent;
+}
+
+function normalizeShiftEventsForDay(value: unknown): ShiftEvent[] {
+  if (!Array.isArray(value)) return [];
+
+  const seenIds = new Set<string>();
+
+  return value.reduce<ShiftEvent[]>((events, entry, index) => {
+    const normalized = normalizeShiftEventEntry(entry, index);
+    if (!normalized || seenIds.has(normalized.id)) {
+      return events;
+    }
+
+    seenIds.add(normalized.id);
+    events.push(normalized);
+    return events;
+  }, []);
+}
+
+function normalizeShiftEventsByDay(value: unknown): ShiftEventsByDay {
+  const source =
+    value && typeof value === "object"
+      ? (value as Partial<Record<DayKey, unknown>>)
+      : {};
+
+  return {
+    mon: normalizeShiftEventsForDay(source.mon),
+    tue: normalizeShiftEventsForDay(source.tue),
+    wed: normalizeShiftEventsForDay(source.wed),
+    thu: normalizeShiftEventsForDay(source.thu),
+    fri: normalizeShiftEventsForDay(source.fri),
   };
 }
 
@@ -707,6 +897,7 @@ function loadPersistedScheduleState(
   | "daycareMoveOperationsByDay"
   | "closedItemsByDay"
   | "sectionOrderByDay"
+  | "shiftEventsByDay"
 > | null {
   if (typeof window === "undefined") return null;
 
@@ -754,6 +945,7 @@ function loadPersistedScheduleState(
         backfillDefaultWhenEmpty,
       ),
       sectionOrderByDay: normalizeSectionOrderByDay(parsed.sectionOrderByDay),
+      shiftEventsByDay: normalizeShiftEventsByDay(parsed.shiftEventsByDay),
     };
   } catch {
     window.localStorage.removeItem(STORAGE_KEY);
@@ -811,6 +1003,7 @@ function getScheduleSnapshotFromFirestoreData(
       backfillDefaultWhenEmpty,
     ),
     sectionOrderByDay: normalizeSectionOrderByDay(source.sectionOrderByDay),
+    shiftEventsByDay: normalizeShiftEventsByDay(source.shiftEventsByDay),
     savedWeeklyAssignments: preserveHistoricalAssignments
       ? normalizeAssignmentEntriesByDay(source.weeklyAssignments, JOBS.length)
       : undefined,
@@ -823,6 +1016,18 @@ function getScheduleSnapshotFromFirestoreData(
     savedDaycareWeeklyAssignments: preserveHistoricalAssignments
       ? normalizeAssignmentEntriesByDay(
           source.daycareWeeklyAssignments,
+          JOBS.length,
+        )
+      : undefined,
+    savedBandOfficeWeeklyAssignments: preserveHistoricalAssignments
+      ? normalizeAssignmentEntriesByDay(
+          source.bandOfficeWeeklyAssignments,
+          JOBS.length,
+        )
+      : undefined,
+    savedHealthCenterWeeklyAssignments: preserveHistoricalAssignments
+      ? normalizeAssignmentEntriesByDay(
+          source.healthCenterWeeklyAssignments,
           JOBS.length,
         )
       : undefined,
@@ -902,10 +1107,12 @@ export const ScheduleProvider = ({
   const [closedItemsByDay, setClosedItemsByDay] = useState<ClosedItemsByDay>(
     persistedScheduleState?.closedItemsByDay ?? getDefaultClosedItemsByDay(),
   );
-  const [sectionOrderByDay, setSectionOrderByDay] =
-    useState<SectionOrderByDay>(
-      persistedScheduleState?.sectionOrderByDay ?? getDefaultSectionOrderByDay(),
-    );
+  const [sectionOrderByDay, setSectionOrderByDay] = useState<SectionOrderByDay>(
+    persistedScheduleState?.sectionOrderByDay ?? getDefaultSectionOrderByDay(),
+  );
+  const [shiftEventsByDay, setShiftEventsByDay] = useState<ShiftEventsByDay>(
+    persistedScheduleState?.shiftEventsByDay ?? getDefaultShiftEventsByDay(),
+  );
   const [isSavingSchedule, setIsSavingSchedule] = useState(false);
   const [saveScheduleError, setSaveScheduleError] = useState<string | null>(
     null,
@@ -915,6 +1122,7 @@ export const ScheduleProvider = ({
   );
   const [pastScheduleSnapshot, setPastScheduleSnapshot] =
     useState<ScheduleSnapshot | null>(null);
+  const [clockTick, setClockTick] = useState(() => Date.now());
 
   const selectedDate = useMemo(
     () => parseLocalDateKey(selectedDateKey) ?? today,
@@ -925,6 +1133,16 @@ export const ScheduleProvider = ({
     [selectedDate],
   );
   const isViewingPastDate = selectedDateKey < todayDateKey;
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setClockTick(Date.now());
+    }, 15000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, []);
 
   const setCurrentDay: React.Dispatch<React.SetStateAction<DayKey>> = (
     valueOrUpdater,
@@ -1046,11 +1264,121 @@ export const ScheduleProvider = ({
     snapshot: ScheduleSnapshot,
     referenceDate: Date,
   ) => {
+    const nowMinuteOfDay =
+      new Date(clockTick).getHours() * 60 + new Date(clockTick).getMinutes();
+    const shouldApplyLivePhaseDerivation =
+      !isViewingPastDate && selectedDateKey === todayDateKey;
+
+    const activePresentCleanersByDay: PresentCleanersByDay = {
+      ...snapshot.presentCleanersByDay,
+    };
+    const buildingsPresentCleanersByDay: PresentCleanersByDay = {
+      ...snapshot.presentCleanersByDay,
+    };
+    const daycarePresentCleanersByDay: PresentCleanersByDay = {
+      ...snapshot.presentCleanersByDay,
+    };
+    const bandOfficePresentCleanersByDay: PresentCleanersByDay = {
+      ...snapshot.presentCleanersByDay,
+    };
+    const healthCenterPresentCleanersByDay: PresentCleanersByDay = {
+      ...snapshot.presentCleanersByDay,
+    };
+
+    const shiftEventsForCurrentDay =
+      snapshot.shiftEventsByDay[currentDay] ?? [];
+    const phaseWindowsForCurrentDay = getShiftPhaseWindowsForDay({
+      day: currentDay,
+      isFridayized: snapshot.fridayizedByDay[currentDay],
+    });
+
+    if (shouldApplyLivePhaseDerivation) {
+      activePresentCleanersByDay[currentDay] = getPresentCleanersAtShiftMinute({
+        basePresentCleaners: snapshot.presentCleanersByDay[currentDay],
+        shiftEvents: shiftEventsForCurrentDay,
+        day: currentDay,
+        minuteOfDay: nowMinuteOfDay,
+        isFridayized: snapshot.fridayizedByDay[currentDay],
+      });
+    }
+
+    buildingsPresentCleanersByDay[currentDay] = getPresentCleanersAtShiftMinute(
+      {
+        basePresentCleaners: snapshot.presentCleanersByDay[currentDay],
+        shiftEvents: shiftEventsForCurrentDay,
+        day: currentDay,
+        minuteOfDay: phaseWindowsForCurrentDay.buildingsStartMinute,
+        isFridayized: snapshot.fridayizedByDay[currentDay],
+      },
+    );
+
+    daycarePresentCleanersByDay[currentDay] = getPresentCleanersAtShiftMinute({
+      basePresentCleaners: snapshot.presentCleanersByDay[currentDay],
+      shiftEvents: shiftEventsForCurrentDay,
+      day: currentDay,
+      minuteOfDay: phaseWindowsForCurrentDay.daycareStartMinute,
+      isFridayized: snapshot.fridayizedByDay[currentDay],
+    });
+
+    bandOfficePresentCleanersByDay[currentDay] =
+      getPresentCleanersAtShiftMinute({
+        basePresentCleaners: snapshot.presentCleanersByDay[currentDay],
+        shiftEvents: shiftEventsForCurrentDay,
+        day: currentDay,
+        minuteOfDay: phaseWindowsForCurrentDay.bandOfficeStartMinute,
+        isFridayized: snapshot.fridayizedByDay[currentDay],
+      });
+
+    healthCenterPresentCleanersByDay[currentDay] =
+      getPresentCleanersAtShiftMinute({
+        basePresentCleaners: snapshot.presentCleanersByDay[currentDay],
+        shiftEvents: shiftEventsForCurrentDay,
+        day: currentDay,
+        minuteOfDay: phaseWindowsForCurrentDay.healthCenterStartMinute,
+        isFridayized: snapshot.fridayizedByDay[currentDay],
+      });
+
     const generatedWeeklyAssignments = generateWeeklyAssignments(
       STAFF_CLEANERS,
       referenceDate,
       JOBS.length,
-      snapshot.presentCleanersByDay,
+      activePresentCleanersByDay,
+      JOBS,
+      CALL_IN_CLEANERS,
+    );
+
+    const generatedBuildingsWeeklyAssignments = generateWeeklyAssignments(
+      STAFF_CLEANERS,
+      referenceDate,
+      JOBS.length,
+      buildingsPresentCleanersByDay,
+      JOBS,
+      CALL_IN_CLEANERS,
+    );
+
+    const generatedDaycareWeeklyAssignments = generateWeeklyAssignments(
+      STAFF_CLEANERS,
+      referenceDate,
+      JOBS.length,
+      daycarePresentCleanersByDay,
+      JOBS,
+      CALL_IN_CLEANERS,
+    );
+
+    const generatedBandOfficeWeeklyAssignments = generateWeeklyAssignments(
+      STAFF_CLEANERS,
+      referenceDate,
+      JOBS.length,
+      bandOfficePresentCleanersByDay,
+      JOBS,
+      CALL_IN_CLEANERS,
+    );
+
+    const generatedHealthCenterWeeklyAssignments = generateWeeklyAssignments(
+      STAFF_CLEANERS,
+      referenceDate,
+      JOBS.length,
+      healthCenterPresentCleanersByDay,
       JOBS,
       CALL_IN_CLEANERS,
     );
@@ -1098,23 +1426,23 @@ export const ScheduleProvider = ({
 
     const computedBuildingWeeklyAssignments = {
       mon: applyDaySwapOperations(
-        snapshotWeeklyAssignments.mon,
+        generatedBuildingsWeeklyAssignments.mon,
         snapshot.buildingMoveOperationsByDay.mon,
       ),
       tue: applyDaySwapOperations(
-        snapshotWeeklyAssignments.tue,
+        generatedBuildingsWeeklyAssignments.tue,
         snapshot.buildingMoveOperationsByDay.tue,
       ),
       wed: applyDaySwapOperations(
-        snapshotWeeklyAssignments.wed,
+        generatedBuildingsWeeklyAssignments.wed,
         snapshot.buildingMoveOperationsByDay.wed,
       ),
       thu: applyDaySwapOperations(
-        snapshotWeeklyAssignments.thu,
+        generatedBuildingsWeeklyAssignments.thu,
         snapshot.buildingMoveOperationsByDay.thu,
       ),
       fri: applyDaySwapOperations(
-        snapshotWeeklyAssignments.fri,
+        generatedBuildingsWeeklyAssignments.fri,
         snapshot.buildingMoveOperationsByDay.fri,
       ),
     };
@@ -1125,26 +1453,60 @@ export const ScheduleProvider = ({
 
     const computedDaycareWeeklyAssignments = {
       mon: applyDaySwapOperations(
-        snapshotWeeklyAssignments.mon,
+        generatedDaycareWeeklyAssignments.mon,
         snapshot.daycareMoveOperationsByDay.mon,
       ),
       tue: applyDaySwapOperations(
-        snapshotWeeklyAssignments.tue,
+        generatedDaycareWeeklyAssignments.tue,
         snapshot.daycareMoveOperationsByDay.tue,
       ),
       wed: applyDaySwapOperations(
-        snapshotWeeklyAssignments.wed,
+        generatedDaycareWeeklyAssignments.wed,
         snapshot.daycareMoveOperationsByDay.wed,
       ),
       thu: applyDaySwapOperations(
-        snapshotWeeklyAssignments.thu,
+        generatedDaycareWeeklyAssignments.thu,
         snapshot.daycareMoveOperationsByDay.thu,
       ),
       fri: applyDaySwapOperations(
-        snapshotWeeklyAssignments.fri,
+        generatedDaycareWeeklyAssignments.fri,
         snapshot.daycareMoveOperationsByDay.fri,
       ),
     };
+
+    const snapshotBandOfficeWeeklyAssignments =
+      snapshot.savedBandOfficeWeeklyAssignments ??
+      (snapshot.savedWeeklyAssignments
+        ? snapshotWeeklyAssignments
+        : {
+            mon: generatedBandOfficeWeeklyAssignments.mon,
+            tue: generatedBandOfficeWeeklyAssignments.tue,
+            wed: generatedBandOfficeWeeklyAssignments.wed,
+            thu: generatedBandOfficeWeeklyAssignments.thu,
+            fri: generatedBandOfficeWeeklyAssignments.fri,
+          });
+
+    const snapshotHealthCenterWeeklyAssignments =
+      snapshot.savedHealthCenterWeeklyAssignments ??
+      (snapshot.savedWeeklyAssignments
+        ? snapshotWeeklyAssignments
+        : {
+            mon: generatedHealthCenterWeeklyAssignments.mon,
+            tue: generatedHealthCenterWeeklyAssignments.tue,
+            wed: generatedHealthCenterWeeklyAssignments.wed,
+            thu: generatedHealthCenterWeeklyAssignments.thu,
+            fri: generatedHealthCenterWeeklyAssignments.fri,
+          });
+
+    const pendingShiftInCleaners = shouldApplyLivePhaseDerivation
+      ? getPendingShiftInCleanersAtMinute({
+          shiftEvents: shiftEventsForCurrentDay,
+          day: currentDay,
+          minuteOfDay: nowMinuteOfDay,
+          isFridayized: snapshot.fridayizedByDay[currentDay],
+        })
+      : [];
+    const currentDayPeopleIn = activePresentCleanersByDay[currentDay].length;
 
     const snapshotDaycareWeeklyAssignments =
       snapshot.savedDaycareWeeklyAssignments ??
@@ -1234,6 +1596,10 @@ export const ScheduleProvider = ({
       snapshotBuildingReassignmentFlags,
       snapshotDaycareWeeklyAssignments,
       snapshotDaycareReassignmentFlags,
+      snapshotBandOfficeWeeklyAssignments,
+      snapshotHealthCenterWeeklyAssignments,
+      pendingShiftInCleaners,
+      currentDayPeopleIn,
     };
   };
 
@@ -1248,6 +1614,7 @@ export const ScheduleProvider = ({
       daycareMoveOperationsByDay,
       closedItemsByDay,
       sectionOrderByDay,
+      shiftEventsByDay,
     }),
     [
       buildingMoveOperationsByDay,
@@ -1258,6 +1625,7 @@ export const ScheduleProvider = ({
       flo1AtAnnexByDay,
       presentCleanersByDay,
       sectionOrderByDay,
+      shiftEventsByDay,
       swapOperationsByDay,
     ],
   );
@@ -1313,13 +1681,21 @@ export const ScheduleProvider = ({
     activeDerivedAssignments.snapshotDaycareWeeklyAssignments;
   const daycareReassignmentFlags =
     activeDerivedAssignments.snapshotDaycareReassignmentFlags;
+  const bandOfficeWeeklyAssignments =
+    activeDerivedAssignments.snapshotBandOfficeWeeklyAssignments;
+  const healthCenterWeeklyAssignments =
+    activeDerivedAssignments.snapshotHealthCenterWeeklyAssignments;
+  const pendingShiftInCleaners =
+    activeDerivedAssignments.pendingShiftInCleaners;
 
   const presentCleaners = activeSnapshot.presentCleanersByDay[currentDay];
   const closedItems = activeSnapshot.closedItemsByDay[currentDay];
   const isFridayized = activeSnapshot.fridayizedByDay[currentDay];
   const flo1AtAnnex = activeSnapshot.flo1AtAnnexByDay[currentDay];
   const sectionOrder = activeSnapshot.sectionOrderByDay[currentDay];
+  const shiftEvents = activeSnapshot.shiftEventsByDay[currentDay];
   const peopleIn =
+    activeDerivedAssignments.currentDayPeopleIn ??
     activeSnapshot.presentCleanerCountsByDay?.[currentDay] ??
     presentCleaners.length;
 
@@ -1428,6 +1804,15 @@ export const ScheduleProvider = ({
     }));
   };
 
+  const setShiftEventsForDay = (day: DayKey, events: readonly ShiftEvent[]) => {
+    if (isViewingPastDate) return;
+
+    setShiftEventsByDay((current) => ({
+      ...current,
+      [day]: normalizeShiftEventsForDay(events),
+    }));
+  };
+
   const persistScheduleSnapshotToFirestore = async (
     snapshot: ScheduleSnapshot,
   ) => {
@@ -1446,6 +1831,8 @@ export const ScheduleProvider = ({
       snapshotWeeklyAssignments,
       snapshotBuildingWeeklyAssignments,
       snapshotDaycareWeeklyAssignments,
+      snapshotBandOfficeWeeklyAssignments,
+      snapshotHealthCenterWeeklyAssignments,
     } = getDerivedAssignmentsForSnapshot(snapshot, today);
 
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -1467,9 +1854,12 @@ export const ScheduleProvider = ({
           daycareMoveOperationsByDay: snapshot.daycareMoveOperationsByDay,
           closedItemsByDay: snapshot.closedItemsByDay,
           sectionOrderByDay: snapshot.sectionOrderByDay,
+          shiftEventsByDay: snapshot.shiftEventsByDay,
           weeklyAssignments: snapshotWeeklyAssignments,
           buildingWeeklyAssignments: snapshotBuildingWeeklyAssignments,
           daycareWeeklyAssignments: snapshotDaycareWeeklyAssignments,
+          bandOfficeWeeklyAssignments: snapshotBandOfficeWeeklyAssignments,
+          healthCenterWeeklyAssignments: snapshotHealthCenterWeeklyAssignments,
           updatedAt: serverTimestamp(),
         },
         { merge: true },
@@ -1518,6 +1908,7 @@ export const ScheduleProvider = ({
       daycareMoveOperationsByDay,
       closedItemsByDay,
       sectionOrderByDay,
+      shiftEventsByDay,
     });
   };
 
@@ -1534,6 +1925,7 @@ export const ScheduleProvider = ({
       daycareMoveOperationsByDay: getDefaultDaycareMoveOperationsByDay(),
       closedItemsByDay: getDefaultClosedItemsByDay(),
       sectionOrderByDay: getDefaultSectionOrderByDay(),
+      shiftEventsByDay: getDefaultShiftEventsByDay(),
     };
 
     setSelectedDateToToday();
@@ -1545,6 +1937,7 @@ export const ScheduleProvider = ({
     setDaycareMoveOperationsByDay(snapshot.daycareMoveOperationsByDay);
     setClosedItemsByDay(snapshot.closedItemsByDay);
     setSectionOrderByDay(snapshot.sectionOrderByDay);
+    setShiftEventsByDay(snapshot.shiftEventsByDay);
 
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(STORAGE_KEY);
@@ -1588,6 +1981,7 @@ export const ScheduleProvider = ({
         );
         setClosedItemsByDay(syncedSnapshot.closedItemsByDay);
         setSectionOrderByDay(syncedSnapshot.sectionOrderByDay);
+        setShiftEventsByDay(syncedSnapshot.shiftEventsByDay);
 
         const updatedAtIso = getIsoDateFromFirestoreTimestamp(data.updatedAt);
         if (updatedAtIso) {
@@ -1627,6 +2021,7 @@ export const ScheduleProvider = ({
       daycareMoveOperationsByDay,
       closedItemsByDay,
       sectionOrderByDay,
+      shiftEventsByDay,
     };
 
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -1637,6 +2032,7 @@ export const ScheduleProvider = ({
     flo1AtAnnexByDay,
     daycareMoveOperationsByDay,
     sectionOrderByDay,
+    shiftEventsByDay,
     presentCleanersByDay,
     currentDay,
     isViewingPastDate,
@@ -1661,6 +2057,9 @@ export const ScheduleProvider = ({
         buildingReassignmentFlags,
         daycareWeeklyAssignments,
         daycareReassignmentFlags,
+        bandOfficeWeeklyAssignments,
+        healthCenterWeeklyAssignments,
+        pendingShiftInCleaners,
         closedItems,
         toggleClosedItem,
         presentCleaners,
@@ -1678,7 +2077,9 @@ export const ScheduleProvider = ({
         setFlo1AtAnnexForDay,
         moveDaycareAssignment,
         sectionOrder,
+        shiftEvents,
         setSectionOrderForDay,
+        setShiftEventsForDay,
         saveScheduleToFirestore,
         isSavingSchedule,
         saveScheduleError,

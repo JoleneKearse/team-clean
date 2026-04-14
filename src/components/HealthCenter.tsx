@@ -12,9 +12,13 @@ import healthCenterImage from "../assets/health-center.webp";
 const DEFAULT_HEALTH_CENTER_JOBS: readonly JobId[] = ["Flo1", "Flo2", "Flo3"];
 
 const HealthCenter = () => {
-  const { currentDay, weeklyAssignments, weeklyReassignmentFlags, peopleIn } =
-    useSchedule();
-  const dayAssignments = weeklyAssignments[currentDay];
+  const {
+    currentDay,
+    healthCenterWeeklyAssignments,
+    weeklyReassignmentFlags,
+    peopleIn,
+  } = useSchedule();
+  const dayAssignments = healthCenterWeeklyAssignments[currentDay];
   const lowStaffingSkippedJobs = getLowStaffingSkippedJobs(peopleIn);
   const showLowStaffingAlert = lowStaffingSkippedJobs.length > 0;
   const lowStaffingAlert =

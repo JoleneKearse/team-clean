@@ -37,8 +37,12 @@ function getBandOfficeNotices(
 }
 
 const BandOffice = () => {
-  const { currentDay, weeklyAssignments, weeklyReassignmentFlags, peopleIn } =
-    useSchedule();
+  const {
+    currentDay,
+    bandOfficeWeeklyAssignments,
+    weeklyReassignmentFlags,
+    peopleIn,
+  } = useSchedule();
   const lowStaffingSkippedJobs = getLowStaffingSkippedJobs(peopleIn);
   const showLowStaffingAlert = lowStaffingSkippedJobs.length > 0;
   const lowStaffingAlert =
@@ -49,7 +53,7 @@ const BandOffice = () => {
       : peopleIn === 4 && lowStaffingSkippedJobs.includes("Vac")
         ? "Only 4 people in, so no Vac."
         : "";
-  const dayAssignments = weeklyAssignments[currentDay];
+  const dayAssignments = bandOfficeWeeklyAssignments[currentDay];
   const bathIndex = JOBS.indexOf("Bath");
   const bathInitials = bathIndex >= 0 ? (dayAssignments[bathIndex] ?? "") : "";
   const notices = getBandOfficeNotices(peopleIn, bathInitials);

@@ -4,6 +4,9 @@ import { CALL_IN_CLEANERS, JOBS, STAFF_CLEANERS } from "../constants/consts";
 import {
   enforceNecessaryJobsBeforeFlo,
   generateWeeklyAssignments,
+  getPendingShiftInCleanersAtMinute,
+  getPresentCleanersAtShiftMinute,
+  getShiftPhaseWindowsForDay,
 } from "./scheduleUtils";
 
 function rotateDownByOne<T>(values: readonly T[]): T[] {
@@ -196,5 +199,171 @@ describe("generateWeeklyAssignments low staffing Vac/Gar handling", () => {
     expect(garIndex).toBeGreaterThanOrEqual(0);
     expect(weekly.mon[vacIndex]).not.toBe("");
     expect(weekly.mon[garIndex]).not.toBe("");
+  });
+});
+
+describe("shift phase windows", () => {
+  it("uses weekday defaults for Monday", () => {
+    const windows = getShiftPhaseWindowsForDay({ day: "mon" });
+
+    expect(windows.buildingsStartMinute).toBe(16 * 60);
+    expect(windows.daycareStartMinute).toBe(18 * 60 + 30);
+    expect(windows.lunchEndMinute).toBe(21 * 60 + 15);
+    expect(windows.bandOfficeStartMinute).toBe(21 * 60 + 15);
+    expect(windows.healthCenterStartMinute).toBe(22 * 60);
+  });
+
+  it("uses Friday defaults for Friday and Fridayized Thursday", () => {
+    const fri = getShiftPhaseWindowsForDay({ day: "fri" });
+    const thuFridayized = getShiftPhaseWindowsForDay({
+      day: "thu",
+      isFridayized: true,
+    });
+
+    expect(fri).toEqual(thuFridayized);
+    expect(fri.daycareStartMinute).toBe(17 * 60 + 30);
+    expect(fri.buildingsStartMinute).toBe(19 * 60);
+  });
+});
+
+describe("phase-aware staffing derivation", () => {
+  it("keeps an 'in atTime' cleaner out before event and in after event", () => {
+    const shiftEvents = [
+      {
+        id: "d-in-1815",
+        cleanerId: "D",
+        action: "in",
+        timingKind: "atTime",
+        time: "18:15",
+        timeQualifier: "exact",
+      },
+    ] as const;
+
+    const before = getPresentCleanersAtShiftMinute({
+      basePresentCleaners: STAFF_CLEANERS,
+      shiftEvents,
+      day: "mon",
+      minuteOfDay: 18 * 60,
+    });
+    const after = getPresentCleanersAtShiftMinute({
+      basePresentCleaners: STAFF_CLEANERS,
+      shiftEvents,
+      day: "mon",
+      minuteOfDay: 18 * 60 + 20,
+    });
+
+    expect(before).not.toContain("D");
+    expect(after).toContain("D");
+  });
+
+  it("applies forDaycare at daycare checkpoint", () => {
+    const shiftEvents = [
+      {
+        id: "d-in-for-daycare",
+        cleanerId: "D",
+        action: "in",
+        timingKind: "forDaycare",
+      },
+    ] as const;
+
+    const buildingsPhase = getPresentCleanersAtShiftMinute({
+      basePresentCleaners: STAFF_CLEANERS,
+      shiftEvents,
+      day: "mon",
+      minuteOfDay: 17 * 60,
+    });
+    const daycarePhase = getPresentCleanersAtShiftMinute({
+      basePresentCleaners: STAFF_CLEANERS,
+      shiftEvents,
+      day: "mon",
+      minuteOfDay: 18 * 60 + 35,
+    });
+
+    expect(buildingsPhase).not.toContain("D");
+    expect(daycarePhase).toContain("D");
+  });
+
+  it("removes an 'out afterLunch' cleaner at/after lunch end", () => {
+    const shiftEvents = [
+      {
+        id: "ja-out-after-lunch",
+        cleanerId: "JA",
+        action: "out",
+        timingKind: "afterLunch",
+      },
+    ] as const;
+
+    const beforeLunchEnd = getPresentCleanersAtShiftMinute({
+      basePresentCleaners: STAFF_CLEANERS,
+      shiftEvents,
+      day: "mon",
+      minuteOfDay: 21 * 60,
+    });
+    const afterLunchEnd = getPresentCleanersAtShiftMinute({
+      basePresentCleaners: STAFF_CLEANERS,
+      shiftEvents,
+      day: "mon",
+      minuteOfDay: 21 * 60 + 20,
+    });
+
+    expect(beforeLunchEnd).toContain("JA");
+    expect(afterLunchEnd).not.toContain("JA");
+  });
+
+  it("treats 'in sometime' as pending and not yet active", () => {
+    const shiftEvents = [
+      {
+        id: "tw-in-sometime",
+        cleanerId: "TW",
+        action: "in",
+        timingKind: "sometime",
+      },
+    ] as const;
+
+    const present = getPresentCleanersAtShiftMinute({
+      basePresentCleaners: STAFF_CLEANERS,
+      shiftEvents,
+      day: "mon",
+      minuteOfDay: 22 * 60,
+    });
+
+    expect(present).not.toContain("TW");
+  });
+});
+
+describe("pending shift-in cleaners", () => {
+  it("returns in-events that have not reached trigger time", () => {
+    const shiftEvents = [
+      {
+        id: "d-in-1815",
+        cleanerId: "D",
+        action: "in",
+        timingKind: "atTime",
+        time: "18:15",
+        timeQualifier: "around",
+      },
+      {
+        id: "tw-in-sometime",
+        cleanerId: "TW",
+        action: "in",
+        timingKind: "sometime",
+      },
+    ] as const;
+
+    const pendingBefore = getPendingShiftInCleanersAtMinute({
+      shiftEvents,
+      day: "mon",
+      minuteOfDay: 18 * 60,
+    });
+    const pendingAfter = getPendingShiftInCleanersAtMinute({
+      shiftEvents,
+      day: "mon",
+      minuteOfDay: 19 * 60,
+    });
+
+    expect(pendingBefore).toContain("D");
+    expect(pendingBefore).toContain("TW");
+    expect(pendingAfter).not.toContain("D");
+    expect(pendingAfter).toContain("TW");
   });
 });

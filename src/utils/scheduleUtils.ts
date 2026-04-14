@@ -1,4 +1,4 @@
-import type { DayKey, JobId } from "../types/types";
+import type { CleanerId, DayKey, JobId, ShiftEvent } from "../types/types";
 import { ANCHOR_MONDAY, isNecessaryJob } from "../constants/consts";
 import {
   getExtraHolidayOnDate,
@@ -17,6 +17,149 @@ function rotate<T>(arr: readonly T[], shiftDown: number): T[] {
 
 const BACKFILL_PRIORITY: readonly JobId[] = ["Flo3", "Flo2", "Flo1"];
 const WEEK_DAY_KEYS: readonly DayKey[] = ["mon", "tue", "wed", "thu", "fri"];
+
+type ShiftPhaseWindows = {
+  buildingsStartMinute: number;
+  daycareStartMinute: number;
+  lunchEndMinute: number;
+  bandOfficeStartMinute: number;
+  healthCenterStartMinute: number;
+};
+
+const WEEKDAY_SHIFT_PHASE_WINDOWS: ShiftPhaseWindows = {
+  buildingsStartMinute: 16 * 60,
+  daycareStartMinute: 18 * 60 + 30,
+  lunchEndMinute: 21 * 60 + 15,
+  bandOfficeStartMinute: 21 * 60 + 15,
+  healthCenterStartMinute: 22 * 60,
+};
+
+const FRIDAY_SHIFT_PHASE_WINDOWS: ShiftPhaseWindows = {
+  buildingsStartMinute: 19 * 60,
+  daycareStartMinute: 17 * 60 + 30,
+  lunchEndMinute: 20 * 60 + 15,
+  bandOfficeStartMinute: 20 * 60 + 15,
+  healthCenterStartMinute: 21 * 60 + 30,
+};
+
+function parseShiftTimeToMinute(time: string): number | null {
+  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(time);
+  if (!match) return null;
+
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (!Number.isInteger(hour) || !Number.isInteger(minute)) return null;
+
+  return hour * 60 + minute;
+}
+
+export function getShiftPhaseWindowsForDay(params: {
+  day: DayKey;
+  isFridayized?: boolean;
+}): ShiftPhaseWindows {
+  const { day, isFridayized = false } = params;
+
+  if (day === "fri" || (day === "thu" && isFridayized)) {
+    return FRIDAY_SHIFT_PHASE_WINDOWS;
+  }
+
+  return WEEKDAY_SHIFT_PHASE_WINDOWS;
+}
+
+function getShiftEventMinute(params: {
+  event: ShiftEvent;
+  windows: ShiftPhaseWindows;
+}): number | null {
+  const { event, windows } = params;
+
+  switch (event.timingKind) {
+    case "atTime":
+      return event.time ? parseShiftTimeToMinute(event.time) : null;
+    case "forDaycare":
+      return windows.daycareStartMinute;
+    case "afterLunch":
+      return windows.lunchEndMinute;
+    case "sometime":
+      return null;
+    default:
+      return null;
+  }
+}
+
+export function getPresentCleanersAtShiftMinute(params: {
+  basePresentCleaners: readonly CleanerId[];
+  shiftEvents: readonly ShiftEvent[];
+  day: DayKey;
+  minuteOfDay: number;
+  isFridayized?: boolean;
+}): CleanerId[] {
+  const {
+    basePresentCleaners,
+    shiftEvents,
+    day,
+    minuteOfDay,
+    isFridayized = false,
+  } = params;
+  const windows = getShiftPhaseWindowsForDay({ day, isFridayized });
+  const presentSet = new Set<CleanerId>(basePresentCleaners);
+
+  const normalizedEvents = shiftEvents
+    .map((event) => ({
+      event,
+      minute: getShiftEventMinute({ event, windows }),
+    }))
+    .sort((a, b) => {
+      const minuteA = a.minute ?? Number.POSITIVE_INFINITY;
+      const minuteB = b.minute ?? Number.POSITIVE_INFINITY;
+      return minuteA - minuteB;
+    });
+
+  normalizedEvents.forEach(({ event, minute }) => {
+    if (event.action === "in") {
+      if (minute === null || minute > minuteOfDay) {
+        presentSet.delete(event.cleanerId);
+        return;
+      }
+
+      presentSet.add(event.cleanerId);
+      return;
+    }
+
+    if (minute !== null && minute <= minuteOfDay) {
+      presentSet.delete(event.cleanerId);
+      return;
+    }
+
+    presentSet.add(event.cleanerId);
+  });
+
+  return basePresentCleaners.filter((cleaner) => presentSet.has(cleaner));
+}
+
+export function getPendingShiftInCleanersAtMinute(params: {
+  shiftEvents: readonly ShiftEvent[];
+  day: DayKey;
+  minuteOfDay: number;
+  isFridayized?: boolean;
+}): CleanerId[] {
+  const { shiftEvents, day, minuteOfDay, isFridayized = false } = params;
+  const windows = getShiftPhaseWindowsForDay({ day, isFridayized });
+  const pendingSet = new Set<CleanerId>();
+
+  shiftEvents.forEach((event) => {
+    if (event.action !== "in") return;
+
+    const minute = getShiftEventMinute({ event, windows });
+    if (minute === null || minute > minuteOfDay) {
+      pendingSet.add(event.cleanerId);
+      return;
+    }
+
+    pendingSet.delete(event.cleanerId);
+  });
+
+  return Array.from(pendingSet);
+}
 
 function normalizePeopleIn(peopleIn: number): number {
   return Math.max(0, Math.min(8, peopleIn));
