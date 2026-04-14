@@ -194,6 +194,37 @@ type BuildingsProps = {
   closedItems: ClosureId[];
 };
 
+const ITALIC_BUILDING_SEGMENT_IDS = new Set<ClosureId>([
+  "Education",
+  "Drop-in Center",
+]);
+
+function renderBuildingLabel(
+  segmentIds: readonly ClosureId[],
+  options: { hasOnlyOneAssignedCleaner: boolean },
+) {
+  const { hasOnlyOneAssignedCleaner } = options;
+
+  return segmentIds.map((segmentId, index) => (
+    <span key={`${segmentId}-${index}`}>
+      {index > 0 ? " / " : ""}
+      <span
+        className={[
+          ITALIC_BUILDING_SEGMENT_IDS.has(segmentId) ? "italic" : "",
+          ITALIC_BUILDING_SEGMENT_IDS.has(segmentId) &&
+          !hasOnlyOneAssignedCleaner
+            ? "text-sky-700"
+            : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        {getClosureLabelById(segmentId)}
+      </span>
+    </span>
+  ));
+}
+
 const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
   const {
     currentDay,
@@ -224,14 +255,7 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
       return [];
     }
 
-    const label = isMarchBreakReducedScheduleDay
-      ? building.closureSegmentIds
-          .filter((segmentId) => !marchBreakHiddenSegmentIds.has(segmentId))
-          .map((segmentId) => getClosureLabelById(segmentId))
-          .join(" / ")
-      : building.label;
-
-    return [{ building, label }];
+    return [{ building, visibleSegmentIds }];
   });
 
   const sensors = useSensors(
@@ -321,7 +345,7 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
           </h2>
 
           <div className="space-y-2 p-4">
-            {visibleBuildings.map(({ building, label }) => {
+            {visibleBuildings.map(({ building, visibleSegmentIds }) => {
               const baseAssignments = getBuildingAssignmentsForDay({
                 day: currentDay,
                 jobs: JOBS,
@@ -364,15 +388,16 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
                 <section key={building.key}>
                   <h3
                     className={[
-                      "font-semibold",
+                      "font-semibold text-gray-900",
                       hasOnlyOneAssignedCleaner ? "text-pink-700" : "",
                     ]
                       .filter(Boolean)
                       .join(" ")}
                   >
-                    {hasOnlyOneAssignedCleaner
-                      ? `${label} needs another cleaner`
-                      : label}
+                    {renderBuildingLabel(visibleSegmentIds, {
+                      hasOnlyOneAssignedCleaner,
+                    })}
+                    {hasOnlyOneAssignedCleaner ? " needs another cleaner" : ""}
                   </h3>
                   <div className="mt-1 rounded-xl overflow-hidden border ">
                     <table className="w-full table-fixed text-center border-collapse">

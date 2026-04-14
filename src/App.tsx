@@ -46,7 +46,6 @@ import Education from "./components/Education";
 import Fieldhouse from "./components/Fieldhouse";
 import Social from "./components/Social";
 import Annex from "./components/Annex";
-import DropInCenter from "./components/DropInCenter";
 import Church from "./components/Church";
 import SignOffMessage from "./components/SignOffMessage";
 import Button from "./components/Button";
@@ -57,7 +56,6 @@ const HOLD_TO_EDIT_DELAY_MS = 1000;
 const EASTERN_TIME_ZONE = "America/Toronto";
 const DEFAULT_ORDER_CLOSED_ITEMS: readonly ClosureId[] = [
   "Community Center",
-  "Drop-in Center",
   "Church",
 ];
 
@@ -442,7 +440,6 @@ function App() {
   const showAnnexSection =
     isAnnexComponentEnabled && !closedItemSet.has("Annex");
   const showBuildingsSection = isBuildingsComponentEnabled;
-  const showDropInCenterSection = !closedItemSet.has("Drop-in Center");
   const showChurchSection = !closedItemSet.has("Church");
   const sectionSensors = useSensors(
     useSensor(MouseSensor, {
@@ -1226,7 +1223,6 @@ function App() {
           {!isFridayMarchBreak && showCommunityCenterSection && (
             <CommunityCenter />
           )}
-          {!isFridayMarchBreak && showDropInCenterSection && <DropInCenter />}
           {!isFridayMarchBreak && showChurchSection && <Church />}
         </div>
       )}

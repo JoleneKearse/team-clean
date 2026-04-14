@@ -119,7 +119,7 @@ export const CLOSURE_OPTIONS = [
   },
   {
     id: "Drop-in Center",
-    label: "Drop-in Center",
+    label: "Drop-in",
     colorClass: "bg-red-300",
   },
   {
@@ -140,8 +140,8 @@ export function getClosureLabelById(closureId: string): string {
 export const BUILDINGS = [
   {
     key: "seniors_fieldhouse_education",
-    label: "Seniors / Fieldhouse / Education",
-    closureSegmentIds: ["Seniors", "Fieldhouse", "Education"],
+    label: "Seniors / Fieldhouse / Education / Drop-in",
+    closureSegmentIds: ["Seniors", "Fieldhouse", "Education", "Drop-in Center"],
     jobIds: ["SW", "San", "Flo3"],
   },
   {

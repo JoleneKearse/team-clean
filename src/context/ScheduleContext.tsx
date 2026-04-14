@@ -89,7 +89,7 @@ interface ScheduleContextType {
 }
 
 const STORAGE_KEY = "team-clean:schedule-state";
-const CLOSED_ITEMS_DEFAULTS_VERSION = 6;
+const CLOSED_ITEMS_DEFAULTS_VERSION = 7;
 const STAFF_CLEANERS_DEFAULTS_VERSION = 2;
 const FIRESTORE_SAVE_TIMEOUT_MS = 15000;
 const FIREBASE_NOT_CONFIGURED_MESSAGE =
@@ -123,10 +123,7 @@ const DAY_OFFSET_BY_KEY: Record<DayKey, number> = {
 const CLOSURE_IDS = CLOSURE_OPTIONS.map((option) => option.id) as ClosureId[];
 const CLOSURE_ID_SET = new Set<string>(CLOSURE_IDS);
 const DEFAULT_CLOSED_ITEMS = CLOSURE_IDS.filter(
-  (closureId) =>
-    closureId === "Community Center" ||
-    closureId === "Drop-in Center" ||
-    closureId === "Church",
+  (closureId) => closureId === "Community Center" || closureId === "Church",
 );
 
 const LEGACY_DEFAULT_CLOSED_ITEMS_V4 = new Set<ClosureId>([
@@ -143,6 +140,12 @@ const LEGACY_DEFAULT_CLOSED_ITEMS_V5 = new Set<ClosureId>([
   "Community Center",
   "Social",
   "Annex",
+  "Drop-in Center",
+  "Church",
+]);
+
+const LEGACY_DEFAULT_CLOSED_ITEMS_V6 = new Set<ClosureId>([
+  "Community Center",
   "Drop-in Center",
   "Church",
 ]);
@@ -454,7 +457,8 @@ function normalizeClosedItemsForDay(
     backfillDefaultWhenEmpty &&
     (value.length === 0 ||
       hasSameClosureSelection(selected, LEGACY_DEFAULT_CLOSED_ITEMS_V4) ||
-      hasSameClosureSelection(selected, LEGACY_DEFAULT_CLOSED_ITEMS_V5))
+      hasSameClosureSelection(selected, LEGACY_DEFAULT_CLOSED_ITEMS_V5) ||
+      hasSameClosureSelection(selected, LEGACY_DEFAULT_CLOSED_ITEMS_V6))
   ) {
     return [...DEFAULT_CLOSED_ITEMS];
   }
@@ -902,10 +906,9 @@ export const ScheduleProvider = ({
   const [closedItemsByDay, setClosedItemsByDay] = useState<ClosedItemsByDay>(
     persistedScheduleState?.closedItemsByDay ?? getDefaultClosedItemsByDay(),
   );
-  const [sectionOrderByDay, setSectionOrderByDay] =
-    useState<SectionOrderByDay>(
-      persistedScheduleState?.sectionOrderByDay ?? getDefaultSectionOrderByDay(),
-    );
+  const [sectionOrderByDay, setSectionOrderByDay] = useState<SectionOrderByDay>(
+    persistedScheduleState?.sectionOrderByDay ?? getDefaultSectionOrderByDay(),
+  );
   const [isSavingSchedule, setIsSavingSchedule] = useState(false);
   const [saveScheduleError, setSaveScheduleError] = useState<string | null>(
     null,
