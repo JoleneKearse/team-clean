@@ -16,16 +16,28 @@ import { CSS } from "@dnd-kit/utilities";
 
 import { useSchedule } from "../context/ScheduleContext";
 import {
-  BUILDINGS,
   JOBS,
   getClosureLabelById,
   getNecessaryJobStyle,
 } from "../constants/consts";
-import { getBuildingAssignmentsForDay } from "../utils/scheduleUtils";
 import type { ClosureId, DayKey } from "../types/types";
 import aamjiwnaangImage from "../assets/aamjiwnaang.webp";
 
-type BuildingSlotId = "default" | "annex-flo1";
+type BuildingSlotId =
+  | "seniors-sw"
+  | "seniors-san"
+  | "seniors-flo3"
+  | "grade1-bath"
+  | "grade1-flo2"
+  | "grade1-flo1"
+  | "grade2-vac"
+  | "grade2-gar"
+  | "social-vac"
+  | "social-gar"
+  | "social-flo1"
+  | "annex-bath"
+  | "annex-flo2"
+  | "annex-flo1";
 
 type DragAssignmentPayload = {
   source: "buildings";
@@ -42,7 +54,22 @@ type DropPayload = {
 };
 
 function isBuildingSlotId(value: unknown): value is BuildingSlotId {
-  return value === "default" || value === "annex-flo1";
+  return (
+    value === "seniors-sw" ||
+    value === "seniors-san" ||
+    value === "seniors-flo3" ||
+    value === "grade1-bath" ||
+    value === "grade1-flo2" ||
+    value === "grade1-flo1" ||
+    value === "grade2-vac" ||
+    value === "grade2-gar" ||
+    value === "social-vac" ||
+    value === "social-gar" ||
+    value === "social-flo1" ||
+    value === "annex-bath" ||
+    value === "annex-flo2" ||
+    value === "annex-flo1"
+  );
 }
 
 function isDayKey(value: unknown): value is DayKey {
@@ -199,6 +226,65 @@ const ITALIC_BUILDING_SEGMENT_IDS = new Set<ClosureId>([
   "Drop-in Center",
 ]);
 
+type BuildingSection = {
+  key: string;
+  closureSegmentIds: readonly ClosureId[];
+  slotDefinitions: readonly {
+    slotId: BuildingSlotId;
+    job: (typeof JOBS)[number];
+    label: string;
+  }[];
+  containerClassName?: string;
+};
+
+const BUILDING_SECTIONS: readonly BuildingSection[] = [
+  {
+    key: "seniors_fieldhouse_education_dropin",
+    closureSegmentIds: ["Seniors", "Fieldhouse", "Education", "Drop-in Center"],
+    slotDefinitions: [
+      { slotId: "seniors-sw", job: "SW", label: "SW" },
+      { slotId: "seniors-san", job: "San", label: "San" },
+      { slotId: "seniors-flo3", job: "Flo3", label: "Flo3" },
+    ],
+  },
+  {
+    key: "grade1",
+    closureSegmentIds: ["Grade 1"],
+    slotDefinitions: [
+      { slotId: "grade1-bath", job: "Bath", label: "Bath" },
+      { slotId: "grade1-flo2", job: "Flo2", label: "Flo2" },
+      { slotId: "grade1-flo1", job: "Flo1", label: "Flo1" },
+    ],
+  },
+  {
+    key: "grade2",
+    closureSegmentIds: ["Grade 2"],
+    slotDefinitions: [
+      { slotId: "grade2-vac", job: "Vac", label: "Vac" },
+      { slotId: "grade2-gar", job: "Gar", label: "Gar" },
+    ],
+    containerClassName: "w-2/3 min-w-52",
+  },
+  {
+    key: "social",
+    closureSegmentIds: ["Social"],
+    slotDefinitions: [
+      { slotId: "social-vac", job: "Vac", label: "Vac" },
+      { slotId: "social-gar", job: "Gar", label: "Gar" },
+      { slotId: "social-flo1", job: "Flo1", label: "Flo1" },
+    ],
+  },
+  {
+    key: "annex",
+    closureSegmentIds: ["Annex"],
+    slotDefinitions: [
+      { slotId: "annex-bath", job: "Bath", label: "Bath" },
+      { slotId: "annex-flo2", job: "Flo2", label: "Flo2" },
+      { slotId: "annex-flo1", job: "Flo1", label: "" },
+    ],
+  },
+];
+
 function renderBuildingLabel(
   segmentIds: readonly ClosureId[],
   options: { hasOnlyOneAssignedCleaner: boolean },
@@ -245,8 +331,8 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
   const marchBreakHiddenSegmentIds = isMarchBreakReducedScheduleDay
     ? new Set<ClosureId>(["Grade 1", "Grade 2"])
     : new Set<ClosureId>();
-  const visibleBuildings = BUILDINGS.flatMap((building) => {
-    const visibleSegmentIds = building.closureSegmentIds.filter(
+  const visibleSections = BUILDING_SECTIONS.flatMap((section) => {
+    const visibleSegmentIds = section.closureSegmentIds.filter(
       (segmentId) =>
         !closedSet.has(segmentId) && !marchBreakHiddenSegmentIds.has(segmentId),
     );
@@ -255,7 +341,7 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
       return [];
     }
 
-    return [{ building, visibleSegmentIds }];
+    return [{ section, visibleSegmentIds }];
   });
 
   const sensors = useSensors(
@@ -270,7 +356,7 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
     }),
   );
 
-  if (visibleBuildings.length === 0) {
+  if (visibleSections.length === 0) {
     return null;
   }
 
@@ -345,37 +431,34 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
           </h2>
 
           <div className="space-y-2 p-4">
-            {visibleBuildings.map(({ building, visibleSegmentIds }) => {
-              const baseAssignments = getBuildingAssignmentsForDay({
-                day: currentDay,
-                jobs: JOBS,
-                weeklyAssignments: buildingWeeklyAssignments,
-                buildingJobs: building.jobIds,
-              });
-              const assignments = [
-                ...baseAssignments.map((assignment) => ({
-                  ...assignment,
-                  initials:
-                    building.key === "grade2_social" &&
-                    assignment.job === "Flo1" &&
-                    flo1JobIndex >= 0
+            {visibleSections.map(({ section, visibleSegmentIds }) => {
+              const assignments = section.slotDefinitions.map(
+                ({ slotId, job, label }) => {
+                  const jobIndex = JOBS.indexOf(job);
+                  const assignedInitials =
+                    jobIndex >= 0
+                      ? (buildingWeeklyAssignments[currentDay][jobIndex] ?? "")
+                      : "";
+                  const initials =
+                    slotId === "annex-flo1"
                       ? flo1AtAnnex
-                        ? ""
-                        : flo1Initials
-                      : assignment.initials,
-                  slotId: "default" as const,
-                })),
-                ...(building.key === "grade1_annex" && flo1JobIndex >= 0
-                  ? [
-                      {
-                        job: "Flo1" as const,
-                        initials: flo1AtAnnex ? flo1Initials : "",
-                        missing: false,
-                        slotId: "annex-flo1" as const,
-                      },
-                    ]
-                  : []),
-              ];
+                        ? flo1Initials
+                        : ""
+                      : job === "Flo1"
+                        ? flo1AtAnnex
+                          ? ""
+                          : assignedInitials
+                        : assignedInitials;
+
+                  return {
+                    slotId,
+                    job,
+                    label,
+                    jobIndex,
+                    initials,
+                  };
+                },
+              );
               const uniqueAssignedCleaners = new Set(
                 assignments
                   .map((assignment) => assignment.initials)
@@ -385,7 +468,7 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
                 uniqueAssignedCleaners.size === 1;
 
               return (
-                <section key={building.key}>
+                <section key={section.key}>
                   <h3
                     className={[
                       "font-semibold text-gray-900",
@@ -399,24 +482,32 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
                     })}
                     {hasOnlyOneAssignedCleaner ? " needs another cleaner" : ""}
                   </h3>
-                  <div className="mt-1 rounded-xl overflow-hidden border ">
-                    <table className="w-full table-fixed text-center border-collapse">
+                  <div
+                    className={[
+                      "mt-1 rounded-xl overflow-hidden border",
+                      section.containerClassName ?? "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                  >
+                    <table
+                      className={[
+                        "w-full table-fixed text-center border-collapse",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    >
                       <tbody>
                         <tr>
                           {assignments.map((assignment) => {
-                            const jobIndex = JOBS.indexOf(assignment.job);
-                            const jobLabel =
-                              assignment.slotId === "annex-flo1"
-                                ? ""
-                                : assignment.job;
                             const necessaryJobStyle = getNecessaryJobStyle(
                               assignment.job,
                             );
                             const isReassigned =
-                              jobIndex >= 0 &&
+                              assignment.jobIndex >= 0 &&
                               Boolean(
                                 buildingReassignmentFlags[currentDay]?.[
-                                  jobIndex
+                                  assignment.jobIndex
                                 ],
                               );
 
@@ -439,22 +530,21 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
                                   .filter(Boolean)
                                   .join(" ")}
                               >
-                                {jobLabel}
+                                {assignment.label}
                               </td>
                             );
                           })}
                         </tr>
                         <tr>
                           {assignments.map((assignment) => {
-                            const jobIndex = JOBS.indexOf(assignment.job);
                             const necessaryJobStyle = getNecessaryJobStyle(
                               assignment.job,
                             );
                             const isReassigned =
-                              jobIndex >= 0 &&
+                              assignment.jobIndex >= 0 &&
                               Boolean(
                                 buildingReassignmentFlags[currentDay]?.[
-                                  jobIndex
+                                  assignment.jobIndex
                                 ],
                               );
 
@@ -462,7 +552,7 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
                               <BuildingDroppableCell
                                 key={`${assignment.job}-${assignment.slotId}-cleaner`}
                                 day={currentDay}
-                                jobIndex={jobIndex}
+                                jobIndex={assignment.jobIndex}
                                 slotId={assignment.slotId}
                                 isEditMode={isEditMode}
                                 className={[
@@ -483,10 +573,10 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
                                   .filter(Boolean)
                                   .join(" ")}
                               >
-                                {jobIndex >= 0 ? (
+                                {assignment.jobIndex >= 0 ? (
                                   <BuildingDraggableInitials
                                     day={currentDay}
-                                    jobIndex={jobIndex}
+                                    jobIndex={assignment.jobIndex}
                                     initials={assignment.initials}
                                     isEditMode={isEditMode}
                                     slotId={assignment.slotId}
