@@ -209,9 +209,12 @@ describe("generateWeeklyAssignments call-in replacement order", () => {
         // PW and D are out; JK is the call-in.
         // Wednesday base assignments for this week are:
         // Vac=D, San=SN, Flo3=TW, Gar=PW
-        wed: STAFF_CLEANERS.filter(
-          (cleaner) => cleaner !== "PW" && cleaner !== "D",
-        ).concat("JK"),
+        wed: [
+          ...STAFF_CLEANERS.filter(
+            (cleaner) => cleaner !== "PW" && cleaner !== "D",
+          ),
+          "JK",
+        ],
       },
       JOBS,
       CALL_IN_CLEANERS,
