@@ -542,13 +542,13 @@ export function generateWeeklyAssignments(
     const presentSet = new Set(presentForDay);
     const callInSet = new Set(callInCleaners);
     const nextAssignments = [...dayAssignments];
-    const missingStaffIndexes: number[] = [];
+    const missingStaffIndexByInitials = new Map<string, number>();
 
     for (let index = 0; index < jobs.length; index += 1) {
       const initials = nextAssignments[index] ?? "";
       if (initials && !presentSet.has(initials)) {
         nextAssignments[index] = "";
-        missingStaffIndexes.push(index);
+        missingStaffIndexByInitials.set(initials, index);
       }
     }
 
@@ -556,11 +556,19 @@ export function generateWeeklyAssignments(
       callInSet.has(initials),
     );
 
-    if (missingStaffIndexes.length > 0 && selectedCallIns.length > 0) {
-      missingStaffIndexes
+    if (missingStaffIndexByInitials.size > 0 && selectedCallIns.length > 0) {
+      const missingStaffInCleanerOrder = cleaners.filter((cleaner) =>
+        missingStaffIndexByInitials.has(cleaner),
+      );
+
+      missingStaffInCleanerOrder
         .slice(0, selectedCallIns.length)
-        .forEach((index, replacementOrder) => {
-          nextAssignments[index] = selectedCallIns[replacementOrder] ?? "";
+        .forEach((missingCleaner, replacementOrder) => {
+          const replacementIndex =
+            missingStaffIndexByInitials.get(missingCleaner) ?? -1;
+          if (replacementIndex < 0) return;
+          nextAssignments[replacementIndex] =
+            selectedCallIns[replacementOrder] ?? "";
         });
     }
 
