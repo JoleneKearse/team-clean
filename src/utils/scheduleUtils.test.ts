@@ -48,7 +48,7 @@ describe("scheduleUtils rotation", () => {
     expect(asByJob.Bath).toBe("AN");
     expect(asByJob.Flo1).toBe("RB");
     expect(asByJob.SW).toBe("D");
-    expect(asByJob.Flo2).toBe("JK");
+    expect(asByJob.Flo2).toBe("SN");
     expect(asByJob.Vac).toBe("TW");
     expect(asByJob.San).toBe("PW");
   });
@@ -199,6 +199,37 @@ describe("generateWeeklyAssignments low staffing Vac/Gar handling", () => {
     expect(garIndex).toBeGreaterThanOrEqual(0);
     expect(weekly.mon[vacIndex]).not.toBe("");
     expect(weekly.mon[garIndex]).not.toBe("");
+  });
+});
+
+describe("generateWeeklyAssignments call-in replacement order", () => {
+  it("fills the missing cleaner's job with call-in before float fallback", () => {
+    const weekly = generateWeeklyAssignments(
+      STAFF_CLEANERS,
+      new Date(2026, 2, 4),
+      JOBS.length,
+      {
+        // PW and D are out; JK is the call-in.
+        // Wednesday base assignments for this week are:
+        // Vac=D, San=SN, Flo3=TW, Gar=PW
+        wed: [
+          ...STAFF_CLEANERS.filter(
+            (cleaner) => cleaner !== "PW" && cleaner !== "D",
+          ),
+          "JK",
+        ],
+      },
+      JOBS,
+      CALL_IN_CLEANERS,
+    );
+
+    const vacIndex = JOBS.indexOf("Vac");
+    const garIndex = JOBS.indexOf("Gar");
+    const flo3Index = JOBS.indexOf("Flo3");
+
+    expect(weekly.wed[garIndex]).toBe("JK");
+    expect(weekly.wed[vacIndex]).toBe("TW");
+    expect(weekly.wed[flo3Index]).toBe("");
   });
 });
 

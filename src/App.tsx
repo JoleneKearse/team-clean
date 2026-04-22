@@ -71,6 +71,7 @@ type OutCleanerAssignment = {
   replacementInitials: CleanerId | null;
   replacementJobId: JobId | null;
   hasReassignedReplacement: boolean;
+  isCallInReplacement: boolean;
 };
 
 const EDITABLE_SECTION_LABELS: Record<EditableSectionId, string> = {
@@ -245,17 +246,20 @@ function OutCleanerAssignmentsList({
           replacementInitials,
           replacementJobId,
           hasReassignedReplacement,
+          isCallInReplacement,
         }) => (
           <p
             key={initials}
             className="flex flex-wrap items-center gap-2 border-b-2 border-gray-100/60 pb-2 last:border-b-0 last:pb-0"
           >
-            {jobId && hasReassignedReplacement && replacementInitials ? (
+            {jobId &&
+            replacementInitials &&
+            (hasReassignedReplacement || isCallInReplacement) ? (
               <>
-                {replacementJobId ? (
+                {replacementJobId || jobId ? (
                   <span
                     className={getCleanerInitialsBadgeClassName(
-                      replacementJobId,
+                      replacementJobId ?? jobId,
                     )}
                   >
                     {replacementInitials}
@@ -263,10 +267,14 @@ function OutCleanerAssignmentsList({
                 ) : (
                   <span className="font-semibold">{replacementInitials}</span>
                 )}
-                <span>
-                  ( <span className="font-semibold">{replacementJobId}</span> )
-                  replaces
-                </span>
+                {replacementJobId && replacementJobId !== jobId ? (
+                  <span>
+                    ( <span className="font-semibold">{replacementJobId}</span>{" "}
+                    ) replaces
+                  </span>
+                ) : (
+                  <span>replaces</span>
+                )}
                 <span
                   className={getCleanerInitialsBadgeClassName(
                     jobId,
@@ -826,6 +834,9 @@ function App() {
         replacementJobId &&
         replacementJobId !== jobId,
       );
+      const isCallInReplacement = Boolean(
+        replacementInitials && CALL_IN_CLEANER_SET.has(replacementInitials),
+      );
 
       return {
         initials: cleaner,
@@ -833,6 +844,7 @@ function App() {
         replacementInitials,
         replacementJobId,
         hasReassignedReplacement,
+        isCallInReplacement,
       };
     });
   }, [
