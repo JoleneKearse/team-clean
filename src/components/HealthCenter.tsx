@@ -14,6 +14,7 @@ const DEFAULT_HEALTH_CENTER_JOBS: readonly JobId[] = ["Flo1", "Flo2", "Flo3"];
 const HealthCenter = () => {
   const { currentDay, weeklyAssignments, weeklyReassignmentFlags, peopleIn } =
     useSchedule();
+  const isThursdayMoppingDay = currentDay === "thu";
   const dayAssignments = weeklyAssignments[currentDay];
   const lowStaffingSkippedJobs = getLowStaffingSkippedJobs(peopleIn);
   const showLowStaffingAlert = lowStaffingSkippedJobs.length > 0;
@@ -50,8 +51,13 @@ const HealthCenter = () => {
           aria-hidden="true"
           className="pointer-events-none absolute -left-3 top-7 h-18 w-18 -translate-y-1/2 rounded-full border-2 border-gray-700 object-cover"
         />
-        Health Center
+        Health Center {isThursdayMoppingDay ? "🫧" : ""}
       </h2>
+      {isThursdayMoppingDay && (
+        <p className="border-b border-gray-300 px-4 py-2 text-center font-semibold text-sky-800">
+          Mopping back buildings today.
+        </p>
+      )}
 
       <div className="p-4">
         {showLowStaffingAlert && (
