@@ -50,6 +50,7 @@ import Church from "./components/Church";
 import SignOffMessage from "./components/SignOffMessage";
 import Button from "./components/Button";
 import Closures from "./components/Closures";
+import InOutShift from "./components/InOutShift";
 
 const CALL_IN_CLEANER_SET = new Set<CleanerId>(CALL_IN_CLEANERS);
 const HOLD_TO_EDIT_DELAY_MS = 1000;
@@ -1160,6 +1161,7 @@ function App() {
           isEditMode={effectiveIsEditMode}
           onToggleCalendarView={handleToggleCalendarView}
         />
+        <InOutShift />
         {calendarView === "weekly" && !isEditUiActive && peopleIn < 8 && (
           <article className="w-full overflow-hidden rounded-xl border border-gray-500 bg-gray-200 shadow-lg">
             <div className="p-3 text-pink-800">

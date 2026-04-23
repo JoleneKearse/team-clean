@@ -91,6 +91,8 @@ At full staffing, float roles can include `Flo1`, `Flo2`, and `Flo3`.
 
 ### Staffing reduction rules
 
+When a staff-cleaner is out and a call-in cleaner is added, that call in cleaner replaces that staff-cleaner.
+
 #### Staffing reduced from 8 to 7
 
 When **1 cleaner calls off** and staffing is reduced to **7**:
