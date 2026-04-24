@@ -159,3 +159,21 @@ export const BUILDINGS = [
 ] as const;
 
 export const ANCHOR_MONDAY = "2026-02-23" as const;
+
+export type MopLocation =
+  | "seniors"
+  | "backBuildings"
+  | "healthCenter"
+  | "bandOffice";
+
+export const MOP_SCHEDULE: Partial<Record<string, readonly MopLocation[]>> = {
+  mon: ["seniors"],
+  tue: ["bandOffice"],
+  wed: ["seniors", "backBuildings"],
+  thu: ["healthCenter"],
+  fri: ["seniors"],
+} as const;
+
+export function getMopLocationsForDay(day: string): readonly MopLocation[] {
+  return MOP_SCHEDULE[day] ?? [];
+}

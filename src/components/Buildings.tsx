@@ -18,10 +18,12 @@ import { useSchedule } from "../context/ScheduleContext";
 import {
   JOBS,
   getClosureLabelById,
+  getMopLocationsForDay,
   getNecessaryJobStyle,
 } from "../constants/consts";
 import type { ClosureId, DayKey } from "../types/types";
 import aamjiwnaangImage from "../assets/aamjiwnaang.webp";
+import mopIcon from "../assets/mop.svg";
 
 type BuildingSlotId =
   | "seniors-sw"
@@ -321,7 +323,10 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
     setFlo1AtAnnexForDay,
     isMarchBreakReducedScheduleDay,
   } = useSchedule();
-  const isMoppingDay = currentDay === "wed";
+  const mopLocations = getMopLocationsForDay(currentDay);
+  const isMoppingDay = mopLocations.length > 0;
+  const isMoppingSeniors = mopLocations.includes("seniors");
+  const isMoppingBackBuildings = mopLocations.includes("backBuildings");
   const [activeInitials, setActiveInitials] = useState("");
   const flo1JobIndex = JOBS.indexOf("Flo1");
   const flo1Initials =
@@ -428,15 +433,25 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
               aria-hidden="true"
               className="pointer-events-none absolute -left-3 top-7 h-18 w-18 -translate-y-1/2 rounded-full border-2 border-gray-700 object-cover"
             />
-            Buildings {isMoppingDay ? "🫧" : ""}
+            Buildings{" "}
+            {isMoppingDay ? (
+              <img
+                src={mopIcon}
+                alt="mop"
+                aria-hidden="true"
+                className="inline-block h-5 w-5 align-middle"
+              />
+            ) : (
+              ""
+            )}
           </h2>
           {isMoppingDay && (
             <p className="border-b border-gray-300 px-4 py-2 text-center font-semibold text-sky-800">
-              {visibleSections.some((vs) =>
-                vs.visibleSegmentIds.some((id) => id === "Seniors")
-              )
-                ? "Mop the Seniors today."
-                : "Mop the back buildings today."}
+              {isMoppingSeniors && isMoppingBackBuildings
+                ? "Mop the Seniors and back buildings today."
+                : isMoppingSeniors
+                  ? "Mop the Seniors today."
+                  : "Mop the back buildings today."}
             </p>
           )}
 
@@ -490,10 +505,17 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
                     {renderBuildingLabel(visibleSegmentIds, {
                       hasOnlyOneAssignedCleaner,
                     })}
-                    {isMoppingDay &&
-                    section.key === "seniors_fieldhouse_education_dropin"
-                      ? " 🫧"
-                      : ""}
+                    {(isMoppingSeniors &&
+                      section.key === "seniors_fieldhouse_education_dropin") ||
+                    (isMoppingBackBuildings &&
+                      section.key !== "seniors_fieldhouse_education_dropin") ? (
+                      <img
+                        src={mopIcon}
+                        alt="mop"
+                        aria-hidden="true"
+                        className="inline-block h-4 w-4 align-middle"
+                      />
+                    ) : null}
                     {hasOnlyOneAssignedCleaner ? " needs another cleaner" : ""}
                   </h3>
                   <div

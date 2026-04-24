@@ -7,14 +7,17 @@ import {
 } from "../utils/scheduleUtils";
 import { getCleanerInitialsBadgeClassName } from "../utils/cleanerBadgeUtils";
 import type { JobId } from "../types/types";
+import { getMopLocationsForDay } from "../constants/consts";
 import healthCenterImage from "../assets/health-center.webp";
+import mopIcon from "../assets/mop.svg";
 
 const DEFAULT_HEALTH_CENTER_JOBS: readonly JobId[] = ["Flo1", "Flo2", "Flo3"];
 
 const HealthCenter = () => {
   const { currentDay, weeklyAssignments, weeklyReassignmentFlags, peopleIn } =
     useSchedule();
-  const isMoppingDay = currentDay === "thu";
+  const isMoppingDay =
+    getMopLocationsForDay(currentDay).includes("healthCenter");
   const dayAssignments = weeklyAssignments[currentDay];
   const lowStaffingSkippedJobs = getLowStaffingSkippedJobs(peopleIn);
   const showLowStaffingAlert = lowStaffingSkippedJobs.length > 0;
@@ -51,7 +54,17 @@ const HealthCenter = () => {
           aria-hidden="true"
           className="pointer-events-none absolute -left-3 top-7 h-18 w-18 -translate-y-1/2 rounded-full border-2 border-gray-700 object-cover"
         />
-        Health Center {isMoppingDay ? "🫧" : ""}
+        Health Center{" "}
+        {isMoppingDay ? (
+          <img
+            src={mopIcon}
+            alt="mop"
+            aria-hidden="true"
+            className="inline-block h-5 w-5 align-middle"
+          />
+        ) : (
+          ""
+        )}
       </h2>
       {isMoppingDay && (
         <p className="border-b border-gray-300 px-4 py-2 text-center font-semibold text-sky-800">

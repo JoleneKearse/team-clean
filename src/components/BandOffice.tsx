@@ -7,7 +7,9 @@ import {
 } from "../utils/scheduleUtils";
 import { getCleanerInitialsBadgeClassName } from "../utils/cleanerBadgeUtils";
 import type { JobId } from "../types/types";
+import { getMopLocationsForDay } from "../constants/consts";
 import bandOfficeImage from "../assets/band-office.webp";
+import mopIcon from "../assets/mop.svg";
 
 const BAND_OFFICE_JOBS: readonly JobId[] = ["Flo1", "Flo2", "Flo3"];
 const BATHROOM_NOTICE_SUFFIX = " needs to do all the bathrooms.";
@@ -39,7 +41,7 @@ function getBandOfficeNotices(
 const BandOffice = () => {
   const { currentDay, weeklyAssignments, weeklyReassignmentFlags, peopleIn } =
     useSchedule();
-  const isMoppingDay = currentDay === "thu";
+  const isMoppingDay = getMopLocationsForDay(currentDay).includes("bandOffice");
   const lowStaffingSkippedJobs = getLowStaffingSkippedJobs(peopleIn);
   const showLowStaffingAlert = lowStaffingSkippedJobs.length > 0;
   const lowStaffingAlert =
@@ -76,7 +78,17 @@ const BandOffice = () => {
           aria-hidden="true"
           className="pointer-events-none absolute -left-3 top-7 h-18 w-18 -translate-y-1/2 rounded-full border-2 border-gray-700 object-cover"
         />
-        Band Office {isMoppingDay ? "🫧" : ""}
+        Band Office{" "}
+        {isMoppingDay ? (
+          <img
+            src={mopIcon}
+            alt="mop"
+            aria-hidden="true"
+            className="inline-block h-5 w-5 align-middle"
+          />
+        ) : (
+          ""
+        )}
       </h2>
       {isMoppingDay && (
         <p className="border-b border-gray-300 px-4 py-2 text-center font-semibold text-sky-800">
