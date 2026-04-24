@@ -39,6 +39,7 @@ function getBandOfficeNotices(
 const BandOffice = () => {
   const { currentDay, weeklyAssignments, weeklyReassignmentFlags, peopleIn } =
     useSchedule();
+  const isMoppingDay = currentDay === "thu";
   const lowStaffingSkippedJobs = getLowStaffingSkippedJobs(peopleIn);
   const showLowStaffingAlert = lowStaffingSkippedJobs.length > 0;
   const lowStaffingAlert =
@@ -75,8 +76,13 @@ const BandOffice = () => {
           aria-hidden="true"
           className="pointer-events-none absolute -left-3 top-7 h-18 w-18 -translate-y-1/2 rounded-full border-2 border-gray-700 object-cover"
         />
-        Band Office
+        Band Office {isMoppingDay ? "🫧" : ""}
       </h2>
+      {isMoppingDay && (
+        <p className="border-b border-gray-300 px-4 py-2 text-center font-semibold text-sky-800">
+          It's a mop day!
+        </p>
+      )}
 
       <div className="rounded-b-xl p-4">
         {showLowStaffingAlert && (

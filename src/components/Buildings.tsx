@@ -321,7 +321,7 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
     setFlo1AtAnnexForDay,
     isMarchBreakReducedScheduleDay,
   } = useSchedule();
-  const isWednesdayMoppingDay = currentDay === "wed";
+  const isMoppingDay = currentDay === "wed";
   const [activeInitials, setActiveInitials] = useState("");
   const flo1JobIndex = JOBS.indexOf("Flo1");
   const flo1Initials =
@@ -428,11 +428,15 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
               aria-hidden="true"
               className="pointer-events-none absolute -left-3 top-7 h-18 w-18 -translate-y-1/2 rounded-full border-2 border-gray-700 object-cover"
             />
-            Buildings {isWednesdayMoppingDay ? "🫧" : ""}
+            Buildings {isMoppingDay ? "🫧" : ""}
           </h2>
-          {isWednesdayMoppingDay && (
+          {isMoppingDay && (
             <p className="border-b border-gray-300 px-4 py-2 text-center font-semibold text-sky-800">
-              Mopping Seniors today.
+              {visibleSections.some((vs) =>
+                vs.visibleSegmentIds.some((id) => id === "Seniors")
+              )
+                ? "Mop the Seniors today."
+                : "Mop the back buildings today."}
             </p>
           )}
 
@@ -486,7 +490,7 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
                     {renderBuildingLabel(visibleSegmentIds, {
                       hasOnlyOneAssignedCleaner,
                     })}
-                    {isWednesdayMoppingDay &&
+                    {isMoppingDay &&
                     section.key === "seniors_fieldhouse_education_dropin"
                       ? " 🫧"
                       : ""}
