@@ -19,6 +19,7 @@ export const EDITABLE_SECTION_IDS = [
   "fieldhouse",
   "social",
   "annex",
+  "dropIn",
   "buildings",
   "daycare",
   "bandOffice",

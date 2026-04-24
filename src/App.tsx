@@ -46,6 +46,7 @@ import Education from "./components/Education";
 import Fieldhouse from "./components/Fieldhouse";
 import Social from "./components/Social";
 import Annex from "./components/Annex";
+import DropIn from "./components/DropIn.tsx";
 import Church from "./components/Church";
 import SignOffMessage from "./components/SignOffMessage";
 import Button from "./components/Button";
@@ -83,11 +84,27 @@ const EDITABLE_SECTION_LABELS: Record<EditableSectionId, string> = {
   fieldhouse: "Fieldhouse",
   social: "Social",
   annex: "Annex",
+  dropIn: "DropIn",
   buildings: "Buildings",
   daycare: "Daycare",
   bandOffice: "Band Office",
   healthCenter: "Health Center",
 };
+
+const FRIDAY_SECTION_ORDER: readonly EditableSectionId[] = [
+  "seniors",
+  "grade1",
+  "grade2",
+  "daycare",
+  "education",
+  "fieldhouse",
+  "social",
+  "annex",
+  "dropIn",
+  "bandOffice",
+  "healthCenter",
+  "buildings",
+];
 
 function isEditableSectionId(value: unknown): value is EditableSectionId {
   return EDITABLE_SECTION_IDS.includes(value as EditableSectionId);
@@ -430,6 +447,7 @@ function App() {
   const isFieldhouseComponentEnabled = isFridayOrMarchBreak;
   const isSocialComponentEnabled = isFridayOrMarchBreak;
   const isAnnexComponentEnabled = isFridayOrMarchBreak;
+  const isDropInComponentEnabled = isFridayOrMarchBreak;
   const showDaycareSection = !closedItemSet.has("Daycare");
   const showBandOfficeSection = !closedItemSet.has("Band Office");
   const showHealthCenterSection = !closedItemSet.has("Health Center");
@@ -448,6 +466,8 @@ function App() {
     isSocialComponentEnabled && !closedItemSet.has("Social");
   const showAnnexSection =
     isAnnexComponentEnabled && !closedItemSet.has("Annex");
+  const showDropInSection =
+    isDropInComponentEnabled && !closedItemSet.has("Drop-in Center");
   const showBuildingsSection = isBuildingsComponentEnabled;
   const showChurchSection = !closedItemSet.has("Church");
   const sectionSensors = useSensors(
@@ -499,6 +519,10 @@ function App() {
 
     if (!isCurrentDayHoliday && showAnnexSection) {
       sections.annex = createEditableSectionEntry("annex", <Annex />);
+    }
+
+    if (!isCurrentDayHoliday && showDropInSection) {
+      sections.dropIn = createEditableSectionEntry("dropIn", <DropIn />);
     }
 
     if (
@@ -556,6 +580,7 @@ function App() {
     showBandOfficeSection,
     showBuildingsSection,
     showDaycareSection,
+    showDropInSection,
     showEducationSection,
     showFieldhouseSection,
     showGrade1Section,
@@ -619,20 +644,26 @@ function App() {
   ]);
 
   const orderedPreSignOffSections = useMemo(() => {
-    return sectionOrder.flatMap((sectionId) => {
+    const orderedSectionIds =
+      isFriday || isFridayizedThursday ? FRIDAY_SECTION_ORDER : sectionOrder;
+
+    return orderedSectionIds.flatMap((sectionId) => {
       const section = preSignOffSectionsById[sectionId];
 
       return section ? [section] : [];
     });
-  }, [preSignOffSectionsById, sectionOrder]);
+  }, [isFriday, isFridayizedThursday, preSignOffSectionsById, sectionOrder]);
 
   const orderedDeferredSections = useMemo(() => {
-    return sectionOrder.flatMap((sectionId) => {
+    const orderedSectionIds =
+      isFriday || isFridayizedThursday ? FRIDAY_SECTION_ORDER : sectionOrder;
+
+    return orderedSectionIds.flatMap((sectionId) => {
       const section = deferredSectionsById[sectionId];
 
       return section ? [section] : [];
     });
-  }, [deferredSectionsById, sectionOrder]);
+  }, [deferredSectionsById, isFriday, isFridayizedThursday, sectionOrder]);
 
   const activeSectionLabel = activeSectionId
     ? EDITABLE_SECTION_LABELS[activeSectionId]
