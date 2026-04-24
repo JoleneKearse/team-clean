@@ -37,7 +37,7 @@ const MopAlert = () => {
   if (!message) return null;
 
   return (
-    <div className="relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-xl bg-sky-800 px-4 py-3 shadow-lg">
+    <div className="relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-xl bg-sky-800 px-4 py-5 shadow-lg">
       <span
         aria-hidden="true"
         className="mop-ball pointer-events-none absolute h-5 w-5 rounded-full bg-sky-400/40"
