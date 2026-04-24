@@ -40,17 +40,17 @@ const MopAlert = () => {
     <div className="relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-xl bg-sky-800 px-4 py-3 shadow-lg">
       <span
         aria-hidden="true"
-        className="mop-ball pointer-events-none absolute h-5 w-5 rounded-full bg-sky-300"
+        className="mop-ball pointer-events-none absolute h-5 w-5 rounded-full bg-sky-400/40"
         style={{ top: "15%", left: "6%", animationDelay: "0s" }}
       />
       <span
         aria-hidden="true"
-        className="mop-ball pointer-events-none absolute h-3.5 w-3.5 rounded-full bg-sky-600"
+        className="mop-ball pointer-events-none absolute h-3.5 w-3.5 rounded-full bg-sky-600/70"
         style={{ top: "50%", left: "48%", animationDelay: "-5s" }}
       />
       <span
         aria-hidden="true"
-        className="mop-ball pointer-events-none absolute h-4 w-4 rounded-full bg-sky-600"
+        className="mop-ball pointer-events-none absolute h-4 w-4 rounded-full bg-sky-500/50"
         style={{ top: "25%", right: "5%", animationDelay: "-9s" }}
       />
       <img
