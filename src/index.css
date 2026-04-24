@@ -32,3 +32,22 @@
   paint-order: stroke fill;
   text-shadow: 0 0 1px rgb(255 255 255 / 0.35);
 }
+
+@keyframes mop-float {
+  0%,
+  100% {
+    transform: translateY(0) translateX(0);
+  }
+  33% {
+    transform: translateY(-9px) translateX(6px);
+  }
+  66% {
+    transform: translateY(5px) translateX(-5px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mop-ball {
+    animation: mop-float 14s ease-in-out infinite;
+  }
+}

@@ -37,14 +37,29 @@ const MopAlert = () => {
   if (!message) return null;
 
   return (
-    <div className="flex w-full items-center justify-center gap-3 rounded-xl bg-sky-800 px-4 py-3 shadow-lg">
+    <div className="relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-xl bg-sky-800 px-4 py-3 shadow-lg">
+      <span
+        aria-hidden="true"
+        className="mop-ball pointer-events-none absolute h-5 w-5 rounded-full bg-sky-300"
+        style={{ top: "15%", left: "6%", animationDelay: "0s" }}
+      />
+      <span
+        aria-hidden="true"
+        className="mop-ball pointer-events-none absolute h-3.5 w-3.5 rounded-full bg-sky-600"
+        style={{ top: "50%", left: "48%", animationDelay: "-5s" }}
+      />
+      <span
+        aria-hidden="true"
+        className="mop-ball pointer-events-none absolute h-4 w-4 rounded-full bg-sky-600"
+        style={{ top: "25%", right: "5%", animationDelay: "-9s" }}
+      />
       <img
         src={mopIcon}
         alt="mop"
         aria-hidden="true"
-        className="h-6 w-6 shrink-0 brightness-[5]"
+        className="relative h-6 w-6 shrink-0 brightness-[5]"
       />
-      <p className="text-center font-semibold text-white">{message}</p>
+      <p className="relative text-center font-semibold text-white">{message}</p>
     </div>
   );
 };
