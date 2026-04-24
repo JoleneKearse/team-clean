@@ -93,7 +93,15 @@ export const STAFF_CLEANERS = [
   "TW",
 ] as const;
 
-export const CALL_IN_CLEANERS = ["JK", "KR", "MB", "EB", "KK", "new"] as const;
+export const CALL_IN_CLEANERS = [
+  "JK",
+  "KR",
+  "MB",
+  "EB",
+  "AP",
+  "KK",
+  "new",
+] as const;
 
 export const CLEANERS = [...STAFF_CLEANERS, ...CALL_IN_CLEANERS] as const;
 
