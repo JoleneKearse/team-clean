@@ -1,6 +1,6 @@
 # Team Clean
 
-Team Clean is a mobile-friendly schedule app built with React + Vite + Firebase Firestore that helps the Aamjiwanng First Nation cleaning team coordinate daily assignments in real time.
+Team Clean is a mobile-friendly schedule app built with React + Vite + Firebase Firestore that helps the Aamjiwnaang First Nation cleaning team coordinate daily assignments in real time.
 
 It eliminates the need for team members to recall the details of how to fairly and effectively reassign staff when I member is out.  This was a drawn out process where a number of things needed to be considered, including:
 - how many staff are present at each stage of the shift
