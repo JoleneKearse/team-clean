@@ -1,8 +1,14 @@
 # Team Clean
 
-Team Clean is a mobile-friendly schedule board built with React + Vite + Firebase Firestore that helps cleaning teams coordinate daily assignments in real time.
+Team Clean is a mobile-friendly schedule app built with React + Vite + Firebase Firestore that helps the Aamjiwanng First Nation cleaning team coordinate daily assignments in real time.
 
-It replaces handwritten rotation sheets with a live shared schedule that automatically adjusts when staff are absent and ensures required roles are always covered.
+It eliminates the need for team members to recall the details of how to fairly and effectively reassign staff when I member is out.  This was a drawn out process where a number of things needed to be considered, including:
+- how many staff are present at each stage of the shift
+- which buildings need how many cleaners, dependent on how many there are
+- where staff should mop
+- ensuring necessary jobs are always completed. 
+
+This live shared schedule automatically adjusts when staff are absent and ensures required roles are always covered.
 
 ## Overview
 
@@ -27,11 +33,15 @@ Team Clean solves this by providing a real-time shared weekly board that dynamic
 
 ## Tech Stack
 
-- React
-- TypeScript
-- Vite
-- Firebase Firestore (real-time sync)
-- Tailwind CSS
+<p align="center">
+   <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/react/react-original.svg" width="40" />
+   <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/typescript/typescript-original.svg" width="40" />
+   <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/vitejs/vitejs-original.svg" width="40" />
+   <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/tailwindcss/tailwindcss-original.svg" width="40" />
+   <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/firebase/firebase-original.svg" width="40" />
+</p>
+
+
 
 ## How It Works
 Each day:
