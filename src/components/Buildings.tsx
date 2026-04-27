@@ -15,6 +15,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 import { useSchedule } from "../context/ScheduleContext";
+import { getCleanerInitialsBadgeClassName } from "../utils/cleanerBadgeUtils";
 import {
   JOBS,
   getClosureLabelById,
@@ -223,13 +224,12 @@ type BuildingsProps = {
   closedItems: ClosureId[];
 };
 
-const ITALIC_BUILDING_SEGMENT_IDS = new Set<ClosureId>([
-  "Education",
-  "Drop-in Center",
-]);
+const ITALIC_BUILDING_SEGMENT_IDS = new Set<ClosureId>(["Education"]);
 
 type BuildingSection = {
   key: string;
+  phase: 1 | 3;
+  readOnly?: boolean;
   closureSegmentIds: readonly ClosureId[];
   slotDefinitions: readonly {
     slotId: BuildingSlotId;
@@ -241,8 +241,9 @@ type BuildingSection = {
 
 const BUILDING_SECTIONS: readonly BuildingSection[] = [
   {
-    key: "seniors_fieldhouse_education_dropin",
-    closureSegmentIds: ["Seniors", "Fieldhouse", "Education", "Drop-in Center"],
+    key: "seniors_fieldhouse",
+    phase: 1,
+    closureSegmentIds: ["Seniors", "Fieldhouse"],
     slotDefinitions: [
       { slotId: "seniors-sw", job: "SW", label: "SW" },
       { slotId: "seniors-san", job: "San", label: "San" },
@@ -251,6 +252,7 @@ const BUILDING_SECTIONS: readonly BuildingSection[] = [
   },
   {
     key: "grade1",
+    phase: 1,
     closureSegmentIds: ["Grade 1"],
     slotDefinitions: [
       { slotId: "grade1-bath", job: "Bath", label: "Bath" },
@@ -260,6 +262,7 @@ const BUILDING_SECTIONS: readonly BuildingSection[] = [
   },
   {
     key: "grade2",
+    phase: 1,
     closureSegmentIds: ["Grade 2"],
     slotDefinitions: [
       { slotId: "grade2-vac", job: "Vac", label: "Vac" },
@@ -269,6 +272,7 @@ const BUILDING_SECTIONS: readonly BuildingSection[] = [
   },
   {
     key: "social",
+    phase: 3,
     closureSegmentIds: ["Social"],
     slotDefinitions: [
       { slotId: "social-vac", job: "Vac", label: "Vac" },
@@ -278,11 +282,23 @@ const BUILDING_SECTIONS: readonly BuildingSection[] = [
   },
   {
     key: "annex",
+    phase: 3,
     closureSegmentIds: ["Annex"],
     slotDefinitions: [
       { slotId: "annex-bath", job: "Bath", label: "Bath" },
       { slotId: "annex-flo2", job: "Flo2", label: "Flo2" },
-      { slotId: "annex-flo1", job: "Flo1", label: "" },
+    ],
+    containerClassName: "w-2/3 min-w-52",
+  },
+  {
+    key: "fieldhouse_dropin_final",
+    phase: 3,
+    readOnly: true,
+    closureSegmentIds: ["Drop-in Center"],
+    slotDefinitions: [
+      { slotId: "seniors-sw", job: "SW", label: "SW" },
+      { slotId: "seniors-san", job: "San", label: "San" },
+      { slotId: "seniors-flo3", job: "Flo3", label: "Flo3" },
     ],
   },
 ];
@@ -333,6 +349,16 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
     flo1JobIndex >= 0
       ? (buildingWeeklyAssignments[currentDay][flo1JobIndex] ?? "")
       : "";
+  const flo2JobIndex = JOBS.indexOf("Flo2");
+  const flo2Initials =
+    flo2JobIndex >= 0
+      ? (buildingWeeklyAssignments[currentDay][flo2JobIndex] ?? "")
+      : "";
+  const flo3JobIndex = JOBS.indexOf("Flo3");
+  const flo3Initials =
+    flo3JobIndex >= 0
+      ? (buildingWeeklyAssignments[currentDay][flo3JobIndex] ?? "")
+      : "";
   const closedSet = new Set(closedItems);
   const marchBreakHiddenSegmentIds = isMarchBreakReducedScheduleDay
     ? new Set<ClosureId>(["Grade 1", "Grade 2"])
@@ -350,6 +376,30 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
     return [{ section, visibleSegmentIds }];
   });
 
+  const isEducationVisible = !closedSet.has("Education");
+  const sanJobIndex = JOBS.indexOf("San");
+  const swJobIndex = JOBS.indexOf("SW");
+  const bathJobIndex = JOBS.indexOf("Bath");
+  const sanInitials =
+    sanJobIndex >= 0
+      ? (buildingWeeklyAssignments[currentDay][sanJobIndex] ?? "")
+      : "";
+  const swInitials =
+    swJobIndex >= 0
+      ? (buildingWeeklyAssignments[currentDay][swJobIndex] ?? "")
+      : "";
+  const bathInitials =
+    bathJobIndex >= 0
+      ? (buildingWeeklyAssignments[currentDay][bathJobIndex] ?? "")
+      : "";
+
+  const phase1Sections = visibleSections.filter(
+    ({ section }) => section.phase === 1,
+  );
+  const phase3Sections = visibleSections.filter(
+    ({ section }) => section.phase === 3,
+  );
+
   const sensors = useSensors(
     useSensor(MouseSensor, {
       activationConstraint: { distance: 6 },
@@ -362,7 +412,11 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
     }),
   );
 
-  if (visibleSections.length === 0) {
+  if (
+    phase1Sections.length === 0 &&
+    !isEducationVisible &&
+    phase3Sections.length === 0
+  ) {
     return null;
   }
 
@@ -417,6 +471,190 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
     setActiveInitials("");
   };
 
+  function renderSectionContent(
+    section: BuildingSection,
+    visibleSegmentIds: readonly ClosureId[],
+  ) {
+    const assignments = section.slotDefinitions.map(
+      ({ slotId, job, label }) => {
+        const jobIndex = JOBS.indexOf(job);
+        const assignedInitials =
+          jobIndex >= 0
+            ? (buildingWeeklyAssignments[currentDay][jobIndex] ?? "")
+            : "";
+        const initials =
+          slotId === "annex-flo1"
+            ? flo1AtAnnex
+              ? flo1Initials
+              : ""
+            : job === "Flo1"
+              ? flo1AtAnnex
+                ? ""
+                : assignedInitials
+              : assignedInitials;
+
+        return { slotId, job, label, jobIndex, initials };
+      },
+    );
+    const uniqueAssignedCleaners = new Set(
+      assignments
+        .map((assignment) => assignment.initials)
+        .filter((initials) => initials !== ""),
+    );
+    const hasOnlyOneAssignedCleaner = uniqueAssignedCleaners.size === 1;
+
+    return (
+      <section key={section.key}>
+        <h3
+          className={[
+            "font-semibold text-gray-900",
+            hasOnlyOneAssignedCleaner ? "text-pink-700" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
+          {renderBuildingLabel(visibleSegmentIds, {
+            hasOnlyOneAssignedCleaner,
+          })}
+          {(isMoppingSeniors && section.key === "seniors_fieldhouse") ||
+          (isMoppingBackBuildings &&
+            section.key !== "seniors_fieldhouse" &&
+            !section.readOnly) ? (
+            <img
+              src={mopIcon}
+              alt="mop"
+              aria-hidden="true"
+              className="inline-block h-4 w-4 align-middle"
+            />
+          ) : null}
+          {hasOnlyOneAssignedCleaner ? " needs another cleaner" : ""}
+        </h3>
+        <div
+          className={[
+            "mt-1 rounded-xl overflow-hidden border",
+            section.containerClassName ?? "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
+          <table className="w-full table-fixed text-center border-collapse">
+            <tbody>
+              <tr>
+                {assignments.map((assignment) => {
+                  const necessaryJobStyle = getNecessaryJobStyle(
+                    assignment.job,
+                  );
+                  const isReassigned =
+                    assignment.jobIndex >= 0 &&
+                    Boolean(
+                      buildingReassignmentFlags[currentDay]?.[
+                        assignment.jobIndex
+                      ],
+                    );
+
+                  return (
+                    <td
+                      key={`${assignment.job}-${assignment.slotId}-job`}
+                      className={[
+                        "min-w-20 italic border border-gray-400 px-2 py-1",
+                        necessaryJobStyle ? necessaryJobStyle.solidClass : "",
+                        hasOnlyOneAssignedCleaner && assignment.initials === ""
+                          ? "text-pink-700"
+                          : "",
+                        isReassigned
+                          ? "text-pink-700 pink-change-contrast"
+                          : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    >
+                      {assignment.label}
+                    </td>
+                  );
+                })}
+              </tr>
+              <tr>
+                {assignments.map((assignment) => {
+                  const necessaryJobStyle = getNecessaryJobStyle(
+                    assignment.job,
+                  );
+                  const isReassigned =
+                    assignment.jobIndex >= 0 &&
+                    Boolean(
+                      buildingReassignmentFlags[currentDay]?.[
+                        assignment.jobIndex
+                      ],
+                    );
+
+                  if (section.readOnly) {
+                    return (
+                      <td
+                        key={`${assignment.job}-${assignment.slotId}-cleaner`}
+                        className={[
+                          "min-w-20 border border-gray-400 px-2 py-1",
+                          hasOnlyOneAssignedCleaner &&
+                          assignment.initials === ""
+                            ? "bg-pink-100"
+                            : necessaryJobStyle
+                              ? necessaryJobStyle.lineBgClass
+                              : "bg-gray-100",
+                          necessaryJobStyle ? necessaryJobStyle.textClass : "",
+                          isReassigned
+                            ? "text-pink-700 pink-change-contrast"
+                            : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                      >
+                        {assignment.initials}
+                      </td>
+                    );
+                  }
+
+                  return (
+                    <BuildingDroppableCell
+                      key={`${assignment.job}-${assignment.slotId}-cleaner`}
+                      day={currentDay}
+                      jobIndex={assignment.jobIndex}
+                      slotId={assignment.slotId}
+                      isEditMode={isEditMode}
+                      className={[
+                        "min-w-20 border border-gray-400 px-2 py-1",
+                        hasOnlyOneAssignedCleaner && assignment.initials === ""
+                          ? "bg-pink-100"
+                          : necessaryJobStyle
+                            ? necessaryJobStyle.lineBgClass
+                            : "bg-gray-100",
+                        necessaryJobStyle ? necessaryJobStyle.textClass : "",
+                        isReassigned
+                          ? "text-pink-700 pink-change-contrast"
+                          : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    >
+                      {assignment.jobIndex >= 0 ? (
+                        <BuildingDraggableInitials
+                          day={currentDay}
+                          jobIndex={assignment.jobIndex}
+                          initials={assignment.initials}
+                          isEditMode={isEditMode}
+                          slotId={assignment.slotId}
+                        />
+                      ) : (
+                        assignment.initials
+                      )}
+                    </BuildingDroppableCell>
+                  );
+                })}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <DndContext
       sensors={sensors}
@@ -456,180 +694,102 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
           )}
 
           <div className="space-y-2 p-4">
-            {visibleSections.map(({ section, visibleSegmentIds }) => {
-              const assignments = section.slotDefinitions.map(
-                ({ slotId, job, label }) => {
-                  const jobIndex = JOBS.indexOf(job);
-                  const assignedInitials =
-                    jobIndex >= 0
-                      ? (buildingWeeklyAssignments[currentDay][jobIndex] ?? "")
-                      : "";
-                  const initials =
-                    slotId === "annex-flo1"
-                      ? flo1AtAnnex
-                        ? flo1Initials
-                        : ""
-                      : job === "Flo1"
-                        ? flo1AtAnnex
-                          ? ""
-                          : assignedInitials
-                        : assignedInitials;
-
-                  return {
-                    slotId,
-                    job,
-                    label,
-                    jobIndex,
-                    initials,
-                  };
-                },
-              );
-              const uniqueAssignedCleaners = new Set(
-                assignments
-                  .map((assignment) => assignment.initials)
-                  .filter((initials) => initials !== ""),
-              );
-              const hasOnlyOneAssignedCleaner =
-                uniqueAssignedCleaners.size === 1;
-
-              return (
-                <section key={section.key}>
-                  <h3
-                    className={[
-                      "font-semibold text-gray-900",
-                      hasOnlyOneAssignedCleaner ? "text-pink-700" : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                  >
-                    {renderBuildingLabel(visibleSegmentIds, {
-                      hasOnlyOneAssignedCleaner,
-                    })}
-                    {(isMoppingSeniors &&
-                      section.key === "seniors_fieldhouse_education_dropin") ||
-                    (isMoppingBackBuildings &&
-                      section.key !== "seniors_fieldhouse_education_dropin") ? (
-                      <img
-                        src={mopIcon}
-                        alt="mop"
-                        aria-hidden="true"
-                        className="inline-block h-4 w-4 align-middle"
-                      />
-                    ) : null}
-                    {hasOnlyOneAssignedCleaner ? " needs another cleaner" : ""}
-                  </h3>
-                  <div
-                    className={[
-                      "mt-1 rounded-xl overflow-hidden border",
-                      section.containerClassName ?? "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                  >
-                    <table
-                      className={[
-                        "w-full table-fixed text-center border-collapse",
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
-                    >
-                      <tbody>
-                        <tr>
-                          {assignments.map((assignment) => {
-                            const necessaryJobStyle = getNecessaryJobStyle(
-                              assignment.job,
-                            );
-                            const isReassigned =
-                              assignment.jobIndex >= 0 &&
-                              Boolean(
-                                buildingReassignmentFlags[currentDay]?.[
-                                  assignment.jobIndex
-                                ],
-                              );
-
-                            return (
-                              <td
-                                key={`${assignment.job}-${assignment.slotId}-job`}
-                                className={[
-                                  "min-w-20 italic border border-gray-400 px-2 py-1",
-                                  necessaryJobStyle
-                                    ? necessaryJobStyle.solidClass
-                                    : "",
-                                  hasOnlyOneAssignedCleaner &&
-                                  assignment.initials === ""
-                                    ? "text-pink-700"
-                                    : "",
-                                  isReassigned
-                                    ? "text-pink-700 pink-change-contrast"
-                                    : "",
-                                ]
-                                  .filter(Boolean)
-                                  .join(" ")}
-                              >
-                                {assignment.label}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                        <tr>
-                          {assignments.map((assignment) => {
-                            const necessaryJobStyle = getNecessaryJobStyle(
-                              assignment.job,
-                            );
-                            const isReassigned =
-                              assignment.jobIndex >= 0 &&
-                              Boolean(
-                                buildingReassignmentFlags[currentDay]?.[
-                                  assignment.jobIndex
-                                ],
-                              );
-
-                            return (
-                              <BuildingDroppableCell
-                                key={`${assignment.job}-${assignment.slotId}-cleaner`}
-                                day={currentDay}
-                                jobIndex={assignment.jobIndex}
-                                slotId={assignment.slotId}
-                                isEditMode={isEditMode}
-                                className={[
-                                  "min-w-20 border border-gray-400 px-2 py-1",
-                                  hasOnlyOneAssignedCleaner &&
-                                  assignment.initials === ""
-                                    ? "bg-pink-100"
-                                    : necessaryJobStyle
-                                      ? necessaryJobStyle.lineBgClass
-                                      : "bg-gray-100",
-                                  necessaryJobStyle
-                                    ? necessaryJobStyle.textClass
-                                    : "",
-                                  isReassigned
-                                    ? "text-pink-700 pink-change-contrast"
-                                    : "",
-                                ]
-                                  .filter(Boolean)
-                                  .join(" ")}
-                              >
-                                {assignment.jobIndex >= 0 ? (
-                                  <BuildingDraggableInitials
-                                    day={currentDay}
-                                    jobIndex={assignment.jobIndex}
-                                    initials={assignment.initials}
-                                    isEditMode={isEditMode}
-                                    slotId={assignment.slotId}
-                                  />
-                                ) : (
-                                  assignment.initials
-                                )}
-                              </BuildingDroppableCell>
-                            );
-                          })}
-                        </tr>
-                      </tbody>
-                    </table>
+            {/* Phase 1: Start in Groups */}
+            {phase1Sections.length > 0 && (
+              <div className="rounded-xl border border-gray-300 bg-white p-3">
+                <div className="mb-3 flex items-center gap-3">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sky-700 text-sm font-bold text-white">
+                    1
+                  </span>
+                  <div>
+                    <p className="font-bold text-gray-900">Start in Groups</p>
+                    <p className="text-sm text-gray-500">
+                      Split into 3 groups.
+                    </p>
                   </div>
-                </section>
-              );
-            })}
+                </div>
+                <div className="space-y-2">
+                  {phase1Sections.map(({ section, visibleSegmentIds }) =>
+                    renderSectionContent(section, visibleSegmentIds),
+                  )}
+                </div>
+              </div>
+            )}
+
+            {phase1Sections.length > 0 && isEducationVisible && (
+              <div className="pointer-events-none relative z-10 -mt-5 -mb-0.5 flex justify-center text-4xl font-black leading-none text-sky-700">
+                ↓
+              </div>
+            )}
+
+            {/* Phase 2: Education All Together */}
+            {isEducationVisible && (
+              <div className="rounded-xl border border-gray-300 bg-white p-3">
+                <div className="mb-3 flex items-center gap-3">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sky-700 text-sm font-bold text-white">
+                    2
+                  </span>
+                  <p className="font-bold text-gray-900">
+                    Education All Together
+                  </p>
+                </div>
+                <p className="flex flex-wrap items-center gap-1.5 text-sm text-gray-700">
+                  {flo1Initials && (
+                    <span className={getCleanerInitialsBadgeClassName("Flo1")}>
+                      {flo1Initials}
+                    </span>
+                  )}
+                  {flo2Initials && (
+                    <span className={getCleanerInitialsBadgeClassName("Flo2")}>
+                      {flo2Initials}
+                    </span>
+                  )}
+                  {flo3Initials && (
+                    <span className={getCleanerInitialsBadgeClassName("Flo3")}>
+                      {flo3Initials}
+                    </span>
+                  )}
+                  <span>can help</span>
+                  <span className={getCleanerInitialsBadgeClassName("San")}>
+                    {sanInitials || "—"}
+                  </span>
+                  <span className={getCleanerInitialsBadgeClassName("SW")}>
+                    {swInitials || "—"}
+                  </span>
+                  <span className={getCleanerInitialsBadgeClassName("Bath")}>
+                    {bathInitials || "—"}
+                  </span>
+                </p>
+              </div>
+            )}
+
+            {isEducationVisible && phase3Sections.length > 0 && (
+              <div className="pointer-events-none relative z-10 -mt-5 -mb-0.5 flex justify-center text-4xl font-black leading-none text-sky-700">
+                ↓
+              </div>
+            )}
+
+            {/* Phase 3: Final Groups */}
+            {phase3Sections.length > 0 && (
+              <div className="rounded-xl border border-gray-300 bg-white p-3">
+                <div className="mb-3 flex items-center gap-3">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sky-700 text-sm font-bold text-white">
+                    3
+                  </span>
+                  <div>
+                    <p className="font-bold text-gray-900">Final Groups</p>
+                    <p className="text-sm text-gray-500">
+                      Split into 3 groups again.
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {phase3Sections.map(({ section, visibleSegmentIds }) =>
+                    renderSectionContent(section, visibleSegmentIds),
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </article>
       </div>
