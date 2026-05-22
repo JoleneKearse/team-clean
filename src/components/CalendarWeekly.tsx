@@ -466,7 +466,7 @@ const CalendarWeekly = ({
                                 initials={initials}
                                 isEditMode={isEditMode}
                                 className={
-                                  isHighlightedDay && isReassigned
+                                  isReassigned
                                     ? "text-pink-700 pink-change-contrast"
                                     : ""
                                 }

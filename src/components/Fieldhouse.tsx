@@ -7,7 +7,12 @@ const FIELDHOUSE_JOBS: readonly JobId[] = ["SW", "San", "Flo3"];
 const TOTAL_COLUMNS = 3;
 
 const Fieldhouse = () => {
-  const { currentDay, buildingWeeklyAssignments } = useSchedule();
+  const {
+    currentDay,
+    buildingWeeklyAssignments,
+    weeklyReassignmentFlags,
+    buildingReassignmentFlags,
+  } = useSchedule();
   const fieldhouseAssignments = getBuildingAssignmentsForDay({
     day: currentDay,
     jobs: JOBS,
@@ -49,12 +54,22 @@ const Fieldhouse = () => {
                   const necessaryJobStyle = cell.job
                     ? getNecessaryJobStyle(cell.job)
                     : null;
+                  const jobIndex = cell.job ? JOBS.indexOf(cell.job) : -1;
+                  const isReassigned =
+                    jobIndex >= 0 &&
+                    Boolean(
+                      weeklyReassignmentFlags[currentDay]?.[jobIndex] ||
+                      buildingReassignmentFlags[currentDay]?.[jobIndex],
+                    );
 
                   return (
                     <td
                       key={`fieldhouse-cell-${index}`}
                       className={[
                         "min-w-20 border border-gray-400 px-2 py-1",
+                        isReassigned
+                          ? "text-pink-700 pink-change-contrast"
+                          : "",
                         cell.initials !== ""
                           ? necessaryJobStyle
                             ? necessaryJobStyle.solidClass

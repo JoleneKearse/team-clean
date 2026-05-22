@@ -228,4 +228,36 @@ describe("generateWeeklyAssignments call-in replacement order", () => {
     expect(weekly.wed[vacIndex]).toBe("TW");
     expect(weekly.wed[flo3Index]).toBe("");
   });
+
+  it("honors pinned call-in mapping when multiple staff are out", () => {
+    const weekly = generateWeeklyAssignments(
+      STAFF_CLEANERS,
+      new Date(2026, 2, 4),
+      JOBS.length,
+      {
+        // PW and D are out; JK is the call-in.
+        wed: [
+          ...STAFF_CLEANERS.filter(
+            (cleaner) => cleaner !== "PW" && cleaner !== "D",
+          ),
+          "JK",
+        ],
+      },
+      JOBS,
+      CALL_IN_CLEANERS,
+      {
+        wed: {
+          JK: "D",
+        },
+      },
+    );
+
+    const vacIndex = JOBS.indexOf("Vac");
+    const garIndex = JOBS.indexOf("Gar");
+    const flo3Index = JOBS.indexOf("Flo3");
+
+    expect(weekly.wed[vacIndex]).toBe("JK");
+    expect(weekly.wed[garIndex]).toBe("TW");
+    expect(weekly.wed[flo3Index]).toBe("");
+  });
 });

@@ -288,10 +288,10 @@ function OutCleanerAssignmentsList({
                 {replacementJobId && replacementJobId !== jobId ? (
                   <span>
                     ( <span className="font-semibold">{replacementJobId}</span>{" "}
-                    ) replaces
+                    ) {isCallInReplacement ? "is in for" : "replaces"}
                   </span>
                 ) : (
-                  <span>replaces</span>
+                  <span>{isCallInReplacement ? "is in for" : "replaces"}</span>
                 )}
                 <span
                   className={getCleanerInitialsBadgeClassName(
@@ -342,6 +342,8 @@ function App() {
     weeklyAssignments,
     referenceWeeklyAssignments,
     setPresentCleaners,
+    callInReplacements,
+    setCallInReplacementForDay,
     sectionOrder,
     setSectionOrderForDay,
     isFridayized,
@@ -829,6 +831,16 @@ function App() {
       : "Confirm"
     : "Edit";
 
+  const absentStaffCleaners = useMemo(() => {
+    const presentCleanerSet = new Set(presentCleaners);
+    return STAFF_CLEANERS.filter((cleaner) => !presentCleanerSet.has(cleaner));
+  }, [presentCleaners]);
+
+  const selectedCallInCleaners = useMemo(() => {
+    const presentCleanerSet = new Set(presentCleaners);
+    return CALL_IN_CLEANERS.filter((cleaner) => presentCleanerSet.has(cleaner));
+  }, [presentCleaners]);
+
   const outCleanerAssignments = useMemo(() => {
     if (peopleIn >= 8) {
       return [] as OutCleanerAssignment[];
@@ -1014,6 +1026,81 @@ function App() {
                   />
                 </div>
               )}
+
+              {selectedCallInCleaners.length > 0 &&
+                absentStaffCleaners.length > 0 && (
+                  <div className="mt-3 rounded-lg border border-gray-300 bg-white/60 p-3">
+                    <p className="text-sm font-semibold text-gray-800">
+                      Call-in pairing
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      Pin each call-in to the staff cleaner they are filling in
+                      for.
+                    </p>
+                    <div className="mt-2 space-y-2">
+                      {selectedCallInCleaners.map((callInCleaner) => {
+                        const mappedCleaner = callInReplacements[callInCleaner];
+                        const selectedValue =
+                          mappedCleaner &&
+                          absentStaffCleaners.some(
+                            (staffCleaner) => staffCleaner === mappedCleaner,
+                          )
+                            ? mappedCleaner
+                            : "";
+
+                        return (
+                          <label
+                            key={callInCleaner}
+                            className="flex items-center gap-2 text-sm text-gray-800"
+                          >
+                            <span className="font-semibold">
+                              {callInCleaner}
+                            </span>
+                            <span className="text-gray-600">in for</span>
+                            <select
+                              value={selectedValue}
+                              disabled={isViewingPastDate}
+                              onChange={(event) => {
+                                setIsEditMode(true);
+                                setCallInReplacementForDay(
+                                  currentDay,
+                                  callInCleaner,
+                                  event.target.value
+                                    ? (event.target.value as CleanerId)
+                                    : null,
+                                );
+                              }}
+                              className="rounded-md border border-gray-400 bg-white px-2 py-1 text-sm"
+                            >
+                              <option value="">Auto</option>
+                              {absentStaffCleaners
+                                .filter((staffCleaner) => {
+                                  if (staffCleaner === selectedValue) {
+                                    return true;
+                                  }
+
+                                  return !selectedCallInCleaners.some(
+                                    (otherCallIn) =>
+                                      otherCallIn !== callInCleaner &&
+                                      callInReplacements[otherCallIn] ===
+                                        staffCleaner,
+                                  );
+                                })
+                                .map((staffCleaner) => (
+                                  <option
+                                    key={staffCleaner}
+                                    value={staffCleaner}
+                                  >
+                                    {staffCleaner}
+                                  </option>
+                                ))}
+                            </select>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
               {showFridayizeButton && (
                 <div className="mt-3 flex justify-center">

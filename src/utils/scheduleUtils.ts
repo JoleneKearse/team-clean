@@ -1,4 +1,4 @@
-import type { DayKey, JobId } from "../types/types";
+import type { CleanerId, DayKey, JobId } from "../types/types";
 import { ANCHOR_MONDAY, isNecessaryJob } from "../constants/consts";
 import {
   getExtraHolidayOnDate,
@@ -17,6 +17,10 @@ function rotate<T>(arr: readonly T[], shiftDown: number): T[] {
 
 const BACKFILL_PRIORITY: readonly JobId[] = ["Flo3", "Flo2", "Flo1"];
 const WEEK_DAY_KEYS: readonly DayKey[] = ["mon", "tue", "wed", "thu", "fri"];
+
+export type CallInReplacementMapByDay = Partial<
+  Record<DayKey, Partial<Record<CleanerId, CleanerId>>>
+>;
 
 function normalizePeopleIn(peopleIn: number): number {
   return Math.max(0, Math.min(8, peopleIn));
@@ -520,6 +524,7 @@ export function generateWeeklyAssignments(
     "Gar",
   ],
   callInCleaners: readonly string[] = [],
+  callInReplacementsByDay?: CallInReplacementMapByDay,
 ) {
   const totalSlots = Math.max(0, slotCount);
   const base =
@@ -556,19 +561,52 @@ export function generateWeeklyAssignments(
       callInSet.has(initials),
     );
 
+    const callInReplacementTargets = callInReplacementsByDay?.[day] ?? {};
+    const assignedCallIns = new Set<string>();
+    const matchedMissingStaff = new Set<string>();
+
+    selectedCallIns.forEach((callInInitials) => {
+      const mappedMissingCleaner =
+        callInReplacementTargets[callInInitials as CleanerId];
+
+      if (
+        !mappedMissingCleaner ||
+        matchedMissingStaff.has(mappedMissingCleaner)
+      ) {
+        return;
+      }
+
+      const replacementIndex =
+        missingStaffIndexByInitials.get(mappedMissingCleaner) ?? -1;
+
+      if (replacementIndex < 0) {
+        return;
+      }
+
+      nextAssignments[replacementIndex] = callInInitials;
+      assignedCallIns.add(callInInitials);
+      matchedMissingStaff.add(mappedMissingCleaner);
+    });
+
     if (missingStaffIndexByInitials.size > 0 && selectedCallIns.length > 0) {
-      const missingStaffInCleanerOrder = cleaners.filter((cleaner) =>
-        missingStaffIndexByInitials.has(cleaner),
+      const missingStaffInCleanerOrder = cleaners.filter(
+        (cleaner) =>
+          missingStaffIndexByInitials.has(cleaner) &&
+          !matchedMissingStaff.has(cleaner),
+      );
+
+      const unassignedCallIns = selectedCallIns.filter(
+        (callInInitials) => !assignedCallIns.has(callInInitials),
       );
 
       missingStaffInCleanerOrder
-        .slice(0, selectedCallIns.length)
+        .slice(0, unassignedCallIns.length)
         .forEach((missingCleaner, replacementOrder) => {
           const replacementIndex =
             missingStaffIndexByInitials.get(missingCleaner) ?? -1;
           if (replacementIndex < 0) return;
           nextAssignments[replacementIndex] =
-            selectedCallIns[replacementOrder] ?? "";
+            unassignedCallIns[replacementOrder] ?? "";
         });
     }
 

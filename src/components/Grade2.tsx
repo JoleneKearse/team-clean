@@ -8,7 +8,12 @@ const GRADE_2_JOBS: readonly JobId[] = ["Vac", "Gar"];
 const TOTAL_COLUMNS = 4;
 
 const Grade2 = () => {
-  const { currentDay, buildingWeeklyAssignments } = useSchedule();
+  const {
+    currentDay,
+    buildingWeeklyAssignments,
+    weeklyReassignmentFlags,
+    buildingReassignmentFlags,
+  } = useSchedule();
   const grade2Assignments = getBuildingAssignmentsForDay({
     day: currentDay,
     jobs: JOBS,
@@ -54,12 +59,22 @@ const Grade2 = () => {
                   const necessaryJobStyle = cell.job
                     ? getNecessaryJobStyle(cell.job)
                     : null;
+                  const jobIndex = cell.job ? JOBS.indexOf(cell.job) : -1;
+                  const isReassigned =
+                    jobIndex >= 0 &&
+                    Boolean(
+                      weeklyReassignmentFlags[currentDay]?.[jobIndex] ||
+                      buildingReassignmentFlags[currentDay]?.[jobIndex],
+                    );
 
                   return (
                     <td
                       key={`grade2-cell-${index}`}
                       className={[
                         "min-w-20 border border-gray-400 px-2 py-1",
+                        isReassigned
+                          ? "text-pink-700 pink-change-contrast"
+                          : "",
                         cell.initials !== ""
                           ? necessaryJobStyle
                             ? necessaryJobStyle.solidClass

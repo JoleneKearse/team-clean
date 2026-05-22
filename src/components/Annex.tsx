@@ -28,8 +28,14 @@ function getAnnexTotalColumns(options: {
 }
 
 const Annex = () => {
-  const { currentDay, buildingWeeklyAssignments, closedItems, isFridayized } =
-    useSchedule();
+  const {
+    currentDay,
+    buildingWeeklyAssignments,
+    weeklyReassignmentFlags,
+    buildingReassignmentFlags,
+    closedItems,
+    isFridayized,
+  } = useSchedule();
   const isMoppingDay =
     getMopLocationsForDay(currentDay).includes("backBuildings");
   const totalColumns = getAnnexTotalColumns({
@@ -91,12 +97,22 @@ const Annex = () => {
                   const necessaryJobStyle = cell.job
                     ? getNecessaryJobStyle(cell.job)
                     : null;
+                  const jobIndex = cell.job ? JOBS.indexOf(cell.job) : -1;
+                  const isReassigned =
+                    jobIndex >= 0 &&
+                    Boolean(
+                      weeklyReassignmentFlags[currentDay]?.[jobIndex] ||
+                      buildingReassignmentFlags[currentDay]?.[jobIndex],
+                    );
 
                   return (
                     <td
                       key={`annex-cell-${index}`}
                       className={[
                         "min-w-20 border border-gray-400 px-2 py-1",
+                        isReassigned
+                          ? "text-pink-700 pink-change-contrast"
+                          : "",
                         cell.initials !== ""
                           ? necessaryJobStyle
                             ? necessaryJobStyle.solidClass

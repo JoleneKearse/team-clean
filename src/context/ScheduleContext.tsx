@@ -6,6 +6,7 @@ import {
   generateWeeklyAssignments,
   getWeeklyReassignmentFlags,
   getDayKeyFromDate,
+  type CallInReplacementMapByDay,
   type WeeklyReassignmentFlags,
 } from "../utils/scheduleUtils";
 import {
@@ -52,6 +53,12 @@ interface ScheduleContextType {
   toggleClosedItem: (closureId: ClosureId) => void;
   presentCleaners: CleanerId[];
   setPresentCleaners: React.Dispatch<React.SetStateAction<CleanerId[]>>;
+  callInReplacements: Partial<Record<CleanerId, CleanerId>>;
+  setCallInReplacementForDay: (
+    day: DayKey,
+    callInCleaner: CleanerId,
+    replacedStaffCleaner: CleanerId | null,
+  ) => void;
   peopleIn: number;
   currentDay: DayKey;
   setCurrentDay: React.Dispatch<React.SetStateAction<DayKey>>;
@@ -96,6 +103,8 @@ const FIREBASE_NOT_CONFIGURED_MESSAGE =
   "Firebase is not configured. For local development, add the required VITE_FIREBASE_* values to .env and restart the app. For hosted builds, configure the same variables in your deployment environment and redeploy.";
 
 const STAFF_CLEANERS_ADDED_IN_V2 = new Set<CleanerId>(["AN", "RB"]);
+const CALL_IN_CLEANER_SET = new Set<CleanerId>(CALL_IN_CLEANERS);
+const STAFF_CLEANER_SET = new Set<CleanerId>(STAFF_CLEANERS);
 
 type PresentCleanersByDay = Record<DayKey, CleanerId[]>;
 type SwapOperation = {
@@ -111,6 +120,8 @@ type ClosedItemsByDay = Record<DayKey, ClosureId[]>;
 type SectionOrderByDay = Record<DayKey, EditableSectionId[]>;
 type AssignmentEntriesByDay = Record<DayKey, string[]>;
 type PresentCleanerCountsByDay = Record<DayKey, number>;
+type CallInReplacementsForDay = Partial<Record<CleanerId, CleanerId>>;
+type CallInReplacementsByDay = Record<DayKey, CallInReplacementsForDay>;
 
 const DAY_OFFSET_BY_KEY: Record<DayKey, number> = {
   mon: 0,
@@ -178,6 +189,7 @@ interface PersistedScheduleState {
   staffCleanersDefaultsVersion: number;
   currentDay: DayKey;
   presentCleanersByDay: PresentCleanersByDay;
+  callInReplacementsByDay: CallInReplacementsByDay;
   swapOperationsByDay: SwapOperationsByDay;
   buildingMoveOperationsByDay: BuildingMoveOperationsByDay;
   fridayizedByDay: FridayizedByDay;
@@ -190,6 +202,7 @@ interface PersistedScheduleState {
 interface ScheduleSnapshot {
   currentDay: DayKey;
   presentCleanersByDay: PresentCleanersByDay;
+  callInReplacementsByDay: CallInReplacementsByDay;
   swapOperationsByDay: SwapOperationsByDay;
   buildingMoveOperationsByDay: BuildingMoveOperationsByDay;
   fridayizedByDay: FridayizedByDay;
@@ -220,6 +233,16 @@ function getDefaultSwapOperationsByDay(): SwapOperationsByDay {
     wed: [],
     thu: [],
     fri: [],
+  };
+}
+
+function getDefaultCallInReplacementsByDay(): CallInReplacementsByDay {
+  return {
+    mon: {},
+    tue: {},
+    wed: {},
+    thu: {},
+    fri: {},
   };
 }
 
@@ -352,6 +375,7 @@ function getDefaultScheduleSnapshot(currentDay: DayKey): ScheduleSnapshot {
   return {
     currentDay,
     presentCleanersByDay: getDefaultPresentCleanersByDay(),
+    callInReplacementsByDay: getDefaultCallInReplacementsByDay(),
     swapOperationsByDay: getDefaultSwapOperationsByDay(),
     buildingMoveOperationsByDay: getDefaultBuildingMoveOperationsByDay(),
     fridayizedByDay: getDefaultFridayizedByDay(),
@@ -409,6 +433,46 @@ function normalizePresentCleanersByDay(
     wed: normalizeCleanersForDay(source.wed, backfillMissingStaffCleaners),
     thu: normalizeCleanersForDay(source.thu, backfillMissingStaffCleaners),
     fri: normalizeCleanersForDay(source.fri, backfillMissingStaffCleaners),
+  };
+}
+
+function normalizeCallInReplacementsForDay(
+  value: unknown,
+): CallInReplacementsForDay {
+  if (!value || typeof value !== "object") {
+    return {};
+  }
+
+  const source = value as Partial<Record<string, unknown>>;
+  const normalized: CallInReplacementsForDay = {};
+
+  Object.entries(source).forEach(([callInCleaner, replacedCleaner]) => {
+    if (
+      CALL_IN_CLEANER_SET.has(callInCleaner as CleanerId) &&
+      typeof replacedCleaner === "string" &&
+      STAFF_CLEANER_SET.has(replacedCleaner as CleanerId)
+    ) {
+      normalized[callInCleaner as CleanerId] = replacedCleaner as CleanerId;
+    }
+  });
+
+  return normalized;
+}
+
+function normalizeCallInReplacementsByDay(
+  value: unknown,
+): CallInReplacementsByDay {
+  const source =
+    value && typeof value === "object"
+      ? (value as Partial<Record<DayKey, unknown>>)
+      : {};
+
+  return {
+    mon: normalizeCallInReplacementsForDay(source.mon),
+    tue: normalizeCallInReplacementsForDay(source.tue),
+    wed: normalizeCallInReplacementsForDay(source.wed),
+    thu: normalizeCallInReplacementsForDay(source.thu),
+    fri: normalizeCallInReplacementsForDay(source.fri),
   };
 }
 
@@ -704,6 +768,7 @@ function loadPersistedScheduleState(
   PersistedScheduleState,
   | "currentDay"
   | "presentCleanersByDay"
+  | "callInReplacementsByDay"
   | "swapOperationsByDay"
   | "buildingMoveOperationsByDay"
   | "fridayizedByDay"
@@ -738,6 +803,9 @@ function loadPersistedScheduleState(
       presentCleanersByDay: normalizePresentCleanersByDay(
         parsed.presentCleanersByDay,
         backfillMissingStaffCleaners,
+      ),
+      callInReplacementsByDay: normalizeCallInReplacementsByDay(
+        parsed.callInReplacementsByDay,
       ),
       swapOperationsByDay: normalizeSwapOperationsByDay(
         parsed.swapOperationsByDay,
@@ -795,6 +863,9 @@ function getScheduleSnapshotFromFirestoreData(
     presentCleanersByDay: normalizePresentCleanersByDay(
       source.presentCleanersByDay,
       backfillMissingStaffCleaners,
+    ),
+    callInReplacementsByDay: normalizeCallInReplacementsByDay(
+      source.callInReplacementsByDay,
     ),
     swapOperationsByDay: normalizeSwapOperationsByDay(
       source.swapOperationsByDay,
@@ -881,6 +952,11 @@ export const ScheduleProvider = ({
     useState<PresentCleanersByDay>(
       persistedScheduleState?.presentCleanersByDay ??
         getDefaultPresentCleanersByDay(),
+    );
+  const [callInReplacementsByDay, setCallInReplacementsByDay] =
+    useState<CallInReplacementsByDay>(
+      persistedScheduleState?.callInReplacementsByDay ??
+        getDefaultCallInReplacementsByDay(),
     );
   const [swapOperationsByDay, setSwapOperationsByDay] =
     useState<SwapOperationsByDay>(
@@ -1056,6 +1132,7 @@ export const ScheduleProvider = ({
       snapshot.presentCleanersByDay,
       JOBS,
       CALL_IN_CLEANERS,
+      snapshot.callInReplacementsByDay as CallInReplacementMapByDay,
     );
 
     const computedWeeklyAssignments = {
@@ -1244,6 +1321,7 @@ export const ScheduleProvider = ({
     () => ({
       currentDay,
       presentCleanersByDay,
+      callInReplacementsByDay,
       swapOperationsByDay,
       buildingMoveOperationsByDay,
       fridayizedByDay,
@@ -1254,6 +1332,7 @@ export const ScheduleProvider = ({
     }),
     [
       buildingMoveOperationsByDay,
+      callInReplacementsByDay,
       closedItemsByDay,
       currentDay,
       daycareMoveOperationsByDay,
@@ -1318,6 +1397,7 @@ export const ScheduleProvider = ({
     activeDerivedAssignments.snapshotDaycareReassignmentFlags;
 
   const presentCleaners = activeSnapshot.presentCleanersByDay[currentDay];
+  const callInReplacements = activeSnapshot.callInReplacementsByDay[currentDay];
   const closedItems = activeSnapshot.closedItemsByDay[currentDay];
   const isFridayized = activeSnapshot.fridayizedByDay[currentDay];
   const flo1AtAnnex = activeSnapshot.flo1AtAnnexByDay[currentDay];
@@ -1325,6 +1405,43 @@ export const ScheduleProvider = ({
   const peopleIn =
     activeSnapshot.presentCleanerCountsByDay?.[currentDay] ??
     presentCleaners.length;
+
+  const setCallInReplacementForDay = (
+    day: DayKey,
+    callInCleaner: CleanerId,
+    replacedStaffCleaner: CleanerId | null,
+  ) => {
+    if (isViewingPastDate) return;
+    if (!CALL_IN_CLEANER_SET.has(callInCleaner)) return;
+
+    setCallInReplacementsByDay((current) => {
+      const nextForDay = { ...current[day] };
+
+      if (
+        replacedStaffCleaner === null ||
+        !STAFF_CLEANER_SET.has(replacedStaffCleaner)
+      ) {
+        delete nextForDay[callInCleaner];
+      } else {
+        Object.keys(nextForDay).forEach((otherCallIn) => {
+          if (otherCallIn === callInCleaner) {
+            return;
+          }
+
+          if (nextForDay[otherCallIn as CleanerId] === replacedStaffCleaner) {
+            delete nextForDay[otherCallIn as CleanerId];
+          }
+        });
+
+        nextForDay[callInCleaner] = replacedStaffCleaner;
+      }
+
+      return {
+        ...current,
+        [day]: nextForDay,
+      };
+    });
+  };
 
   const swapAssignments = (
     day: DayKey,
@@ -1463,6 +1580,7 @@ export const ScheduleProvider = ({
           todayDayKey,
           currentDay: snapshot.currentDay,
           presentCleanersByDay: snapshot.presentCleanersByDay,
+          callInReplacementsByDay: snapshot.callInReplacementsByDay,
           swapOperationsByDay: snapshot.swapOperationsByDay,
           buildingMoveOperationsByDay: snapshot.buildingMoveOperationsByDay,
           fridayizedByDay: snapshot.fridayizedByDay,
@@ -1514,6 +1632,7 @@ export const ScheduleProvider = ({
     await persistScheduleSnapshotToFirestore({
       currentDay,
       presentCleanersByDay,
+      callInReplacementsByDay,
       swapOperationsByDay,
       buildingMoveOperationsByDay,
       fridayizedByDay,
@@ -1530,6 +1649,7 @@ export const ScheduleProvider = ({
     const snapshot: ScheduleSnapshot = {
       currentDay: todayDayKey,
       presentCleanersByDay: getDefaultPresentCleanersByDay(),
+      callInReplacementsByDay: getDefaultCallInReplacementsByDay(),
       swapOperationsByDay: getDefaultSwapOperationsByDay(),
       buildingMoveOperationsByDay: getDefaultBuildingMoveOperationsByDay(),
       fridayizedByDay: getDefaultFridayizedByDay(),
@@ -1541,6 +1661,7 @@ export const ScheduleProvider = ({
 
     setSelectedDateToToday();
     setPresentCleanersByDay(snapshot.presentCleanersByDay);
+    setCallInReplacementsByDay(snapshot.callInReplacementsByDay);
     setSwapOperationsByDay(snapshot.swapOperationsByDay);
     setBuildingMoveOperationsByDay(snapshot.buildingMoveOperationsByDay);
     setFridayizedByDay(snapshot.fridayizedByDay);
@@ -1580,6 +1701,7 @@ export const ScheduleProvider = ({
         if (!syncedSnapshot) return;
 
         setPresentCleanersByDay(syncedSnapshot.presentCleanersByDay);
+        setCallInReplacementsByDay(syncedSnapshot.callInReplacementsByDay);
         setSwapOperationsByDay(syncedSnapshot.swapOperationsByDay);
         setBuildingMoveOperationsByDay(
           syncedSnapshot.buildingMoveOperationsByDay,
@@ -1623,6 +1745,7 @@ export const ScheduleProvider = ({
       staffCleanersDefaultsVersion: STAFF_CLEANERS_DEFAULTS_VERSION,
       currentDay,
       presentCleanersByDay,
+      callInReplacementsByDay,
       swapOperationsByDay,
       buildingMoveOperationsByDay,
       fridayizedByDay,
@@ -1635,6 +1758,7 @@ export const ScheduleProvider = ({
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   }, [
     buildingMoveOperationsByDay,
+    callInReplacementsByDay,
     closedItemsByDay,
     fridayizedByDay,
     flo1AtAnnexByDay,
@@ -1668,6 +1792,8 @@ export const ScheduleProvider = ({
         toggleClosedItem,
         presentCleaners,
         setPresentCleaners,
+        callInReplacements,
+        setCallInReplacementForDay,
         peopleIn,
         currentDay,
         setCurrentDay,

@@ -149,7 +149,7 @@ const BandOffice = () => {
                   <span
                     className={getCleanerInitialsBadgeClassName(
                       assignment.jobId,
-                      isReassigned ? "text-pink-700" : "",
+                      isReassigned ? "text-pink-700 pink-change-contrast" : "",
                     )}
                   >
                     {assignment.initials}

@@ -94,13 +94,18 @@ const HealthCenter = () => {
               );
               const isStaffingChanged = assignment.label !== baselineLabel;
               const shouldHighlight = isReassigned || isStaffingChanged;
+              const initialsHighlightClass = isReassigned
+                ? "text-pink-700 pink-change-contrast"
+                : shouldHighlight
+                  ? "text-pink-700"
+                  : "";
 
               return (
                 <li key={assignment.jobId}>
                   <span
                     className={getCleanerInitialsBadgeClassName(
                       assignment.jobId,
-                      shouldHighlight ? "text-pink-700" : "",
+                      initialsHighlightClass,
                     )}
                   >
                     {assignment.initials}

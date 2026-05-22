@@ -311,7 +311,7 @@ const Daycare = ({ isEditMode }: DaycareProps) => {
                   isNeedsAssignment || isReassigned || isAreaChanged;
                 const badgeClassName = getCleanerInitialsBadgeClassName(
                   assignment.job,
-                  isReassigned ? "text-pink-700" : "",
+                  isReassigned ? "text-pink-700 pink-change-contrast" : "",
                 );
 
                 if (jobIndex < 0) {
