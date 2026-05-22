@@ -10,12 +10,33 @@ import mopIcon from "../assets/mop.svg";
 import type { JobId } from "../types/types";
 
 const SOCIAL_JOBS: readonly JobId[] = ["Vac", "Gar", "Flo1"];
-const TOTAL_COLUMNS = 4;
+const DEFAULT_CLOSED_ITEMS = new Set(["Community Center", "Church"]);
+
+function getSocialTotalColumns(options: {
+  currentDay: string;
+  isFridayized: boolean;
+  closedItems: readonly string[];
+}) {
+  const { currentDay, isFridayized, closedItems } = options;
+  const hasAdditionalBuildingClosures = closedItems.some(
+    (closureId) => !DEFAULT_CLOSED_ITEMS.has(closureId),
+  );
+
+  return currentDay === "fri" || isFridayized || hasAdditionalBuildingClosures
+    ? 3
+    : 4;
+}
 
 const Social = () => {
-  const { currentDay, buildingWeeklyAssignments } = useSchedule();
+  const { currentDay, buildingWeeklyAssignments, closedItems, isFridayized } =
+    useSchedule();
   const isMoppingDay =
     getMopLocationsForDay(currentDay).includes("backBuildings");
+  const totalColumns = getSocialTotalColumns({
+    currentDay,
+    isFridayized,
+    closedItems,
+  });
   const socialAssignments = getBuildingAssignmentsForDay({
     day: currentDay,
     jobs: JOBS,
@@ -28,7 +49,7 @@ const Social = () => {
       initials: assignment.initials,
     })),
     ...Array.from(
-      { length: Math.max(0, TOTAL_COLUMNS - socialAssignments.length) },
+      { length: Math.max(0, totalColumns - socialAssignments.length) },
       () => ({
         job: null,
         initials: "",
