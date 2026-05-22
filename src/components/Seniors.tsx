@@ -1,10 +1,37 @@
 import { getMopLocationsForDay } from "../constants/consts";
+import { JOBS } from "../constants/consts";
 import { useSchedule } from "../context/ScheduleContext";
 import mopIcon from "../assets/mop.svg";
+import { getCleanerInitialsBadgeClassName } from "../utils/cleanerBadgeUtils";
 
 const Seniors = () => {
-  const { currentDay } = useSchedule();
+  const { currentDay, buildingWeeklyAssignments } = useSchedule();
   const isMoppingDay = getMopLocationsForDay(currentDay).includes("seniors");
+  const flo1JobIndex = JOBS.indexOf("Flo1");
+  const flo2JobIndex = JOBS.indexOf("Flo2");
+  const flo3JobIndex = JOBS.indexOf("Flo3");
+  const sanJobIndex = JOBS.indexOf("San");
+  const swJobIndex = JOBS.indexOf("SW");
+  const flo1Initials =
+    flo1JobIndex >= 0
+      ? (buildingWeeklyAssignments[currentDay][flo1JobIndex] ?? "")
+      : "";
+  const flo2Initials =
+    flo2JobIndex >= 0
+      ? (buildingWeeklyAssignments[currentDay][flo2JobIndex] ?? "")
+      : "";
+  const flo3Initials =
+    flo3JobIndex >= 0
+      ? (buildingWeeklyAssignments[currentDay][flo3JobIndex] ?? "")
+      : "";
+  const sanInitials =
+    sanJobIndex >= 0
+      ? (buildingWeeklyAssignments[currentDay][sanJobIndex] ?? "")
+      : "";
+  const swInitials =
+    swJobIndex >= 0
+      ? (buildingWeeklyAssignments[currentDay][swJobIndex] ?? "")
+      : "";
 
   return (
     <article className="w-full border border-gray-500 rounded-xl shadow-lg bg-gray-200">
@@ -34,6 +61,34 @@ const Seniors = () => {
           It's a mop day!
         </p>
       )}
+      <p className="border-t border-gray-300 px-4 py-3 text-center text-sm text-gray-700">
+        <span className="flex flex-wrap items-center justify-center gap-1.5">
+          {flo1Initials && (
+            <span className={getCleanerInitialsBadgeClassName("Flo1")}>
+              {flo1Initials}
+            </span>
+          )}
+          {flo2Initials && (
+            <span className={getCleanerInitialsBadgeClassName("Flo2")}>
+              {flo2Initials}
+            </span>
+          )}
+          {flo3Initials && (
+            <span className={getCleanerInitialsBadgeClassName("Flo3")}>
+              {flo3Initials}
+            </span>
+          )}
+          <span>can help</span>
+          <span className={getCleanerInitialsBadgeClassName("San")}>
+            {sanInitials || "—"}
+          </span>
+          <span>sanitize, or</span>
+          <span className={getCleanerInitialsBadgeClassName("SW")}>
+            {swInitials || "—"}
+          </span>
+          <span>sweep, or anything else to help.</span>
+        </span>
+      </p>
     </article>
   );
 };

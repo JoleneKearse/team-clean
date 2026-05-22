@@ -753,12 +753,16 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
                   <span className={getCleanerInitialsBadgeClassName("San")}>
                     {sanInitials || "—"}
                   </span>
+                  <span>sanitize,</span>
                   <span className={getCleanerInitialsBadgeClassName("SW")}>
                     {swInitials || "—"}
                   </span>
+                  <span>sweep,</span>
+                  <span>{flo3Initials ? "and" : "or"}</span>
                   <span className={getCleanerInitialsBadgeClassName("Bath")}>
                     {bathInitials || "—"}
                   </span>
+                  <span>do the bathrooms in the new extension.</span>
                 </p>
               </div>
             )}
