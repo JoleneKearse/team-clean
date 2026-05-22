@@ -1,4 +1,4 @@
-import { JOBS, getNecessaryJobStyle } from "../constants/consts";
+import { JOBS } from "../constants/consts";
 import { useSchedule } from "../context/ScheduleContext";
 
 import {
@@ -56,7 +56,7 @@ const BandOffice = () => {
   const bathIndex = JOBS.indexOf("Bath");
   const bathInitials = bathIndex >= 0 ? (dayAssignments[bathIndex] ?? "") : "";
   const notices = getBandOfficeNotices(peopleIn, bathInitials);
-  const bathBadgeStyle = getNecessaryJobStyle("Bath");
+  const bathBadgeClassName = getCleanerInitialsBadgeClassName("Bath");
 
   const assignments = BAND_OFFICE_JOBS.map((jobId) => {
     const index = JOBS.indexOf(jobId);
@@ -117,16 +117,7 @@ const BandOffice = () => {
 
               return (
                 <li key={notice} className="font-normal text-pink-700">
-                  <span
-                    className={[
-                      "inline-block rounded px-1 font-medium",
-                      bathBadgeStyle ? bathBadgeStyle.badgeClass : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                  >
-                    {prefix}
-                  </span>
+                  <span className={bathBadgeClassName}>{prefix}</span>
                   {BATHROOM_NOTICE_SUFFIX}
                 </li>
               );
