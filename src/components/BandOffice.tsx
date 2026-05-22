@@ -56,6 +56,12 @@ const BandOffice = () => {
   const bathIndex = JOBS.indexOf("Bath");
   const bathInitials = bathIndex >= 0 ? (dayAssignments[bathIndex] ?? "") : "";
   const notices = getBandOfficeNotices(peopleIn, bathInitials);
+  const topNotices = notices.filter(
+    (notice) => !notice.endsWith(BATHROOM_NOTICE_SUFFIX),
+  );
+  const bathroomNoticePrefix = notices
+    .find((notice) => notice.endsWith(BATHROOM_NOTICE_SUFFIX))
+    ?.slice(0, -BATHROOM_NOTICE_SUFFIX.length);
   const bathBadgeClassName = getCleanerInitialsBadgeClassName("Bath");
 
   const assignments = BAND_OFFICE_JOBS.map((jobId) => {
@@ -100,32 +106,23 @@ const BandOffice = () => {
         {showLowStaffingAlert && (
           <h3 className="font-semibold text-pink-700">{lowStaffingAlert}</h3>
         )}
-        {notices.length > 0 && (
+        {topNotices.length > 0 && (
           <ul className="mt-3 space-y-1">
-            {notices.map((notice) => {
-              const hasBathroomSuffix = notice.endsWith(BATHROOM_NOTICE_SUFFIX);
-
-              if (!hasBathroomSuffix) {
-                return (
-                  <li key={notice} className="font-normal text-pink-700">
-                    {notice}
-                  </li>
-                );
-              }
-
-              const prefix = notice.slice(0, -BATHROOM_NOTICE_SUFFIX.length);
-
-              return (
-                <li key={notice} className="font-normal text-pink-700">
-                  <span className={bathBadgeClassName}>{prefix}</span>
-                  {BATHROOM_NOTICE_SUFFIX}
-                </li>
-              );
-            })}
+            {topNotices.map((notice) => (
+              <li key={notice} className="font-normal text-pink-700">
+                {notice}
+              </li>
+            ))}
           </ul>
         )}
 
         <ul className="mt-3 space-y-1">
+          {bathroomNoticePrefix && (
+            <li className="font-normal text-pink-700">
+              <span className={bathBadgeClassName}>{bathroomNoticePrefix}</span>
+              {BATHROOM_NOTICE_SUFFIX}
+            </li>
+          )}
           {assignments
             .filter((assignment) => assignment.initials !== "")
             .map((assignment) => {
