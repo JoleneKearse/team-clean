@@ -97,12 +97,12 @@ interface ScheduleContextType {
 
 const STORAGE_KEY = "team-clean:schedule-state";
 const CLOSED_ITEMS_DEFAULTS_VERSION = 7;
-const STAFF_CLEANERS_DEFAULTS_VERSION = 2;
+const STAFF_CLEANERS_DEFAULTS_VERSION = 3;
 const FIRESTORE_SAVE_TIMEOUT_MS = 15000;
 const FIREBASE_NOT_CONFIGURED_MESSAGE =
   "Firebase is not configured. For local development, add the required VITE_FIREBASE_* values to .env and restart the app. For hosted builds, configure the same variables in your deployment environment and redeploy.";
 
-const STAFF_CLEANERS_ADDED_IN_V2 = new Set<CleanerId>(["AN", "RB"]);
+const STAFF_CLEANERS_ADDED_IN_V3 = new Set<CleanerId>(["AN", "RB", "JK"]);
 const CALL_IN_CLEANER_SET = new Set<CleanerId>(CALL_IN_CLEANERS);
 const STAFF_CLEANER_SET = new Set<CleanerId>(STAFF_CLEANERS);
 
@@ -410,7 +410,7 @@ function normalizeCleanersForDay(
   );
 
   if (backfillMissingStaffCleaners) {
-    STAFF_CLEANERS_ADDED_IN_V2.forEach((cleaner) => {
+    STAFF_CLEANERS_ADDED_IN_V3.forEach((cleaner) => {
       selected.add(cleaner);
     });
   }
