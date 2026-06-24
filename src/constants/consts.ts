@@ -89,7 +89,7 @@ export const STAFF_CLEANERS = [
   "AN",
   "RB",
   "D",
-  "SN",
+  "JK",
   "TW",
 ] as const;
 
