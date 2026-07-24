@@ -53,6 +53,8 @@ interface ScheduleContextType {
   toggleClosedItem: (closureId: ClosureId) => void;
   presentCleaners: CleanerId[];
   setPresentCleaners: React.Dispatch<React.SetStateAction<CleanerId[]>>;
+  weeklyLeaveCleaners: CleanerId[];
+  setWeeklyLeaveCleaner: (cleaner: CleanerId, isOnLeave: boolean) => void;
   callInReplacements: Partial<Record<CleanerId, CleanerId>>;
   setCallInReplacementForDay: (
     day: DayKey,
@@ -189,6 +191,7 @@ interface PersistedScheduleState {
   staffCleanersDefaultsVersion: number;
   currentDay: DayKey;
   presentCleanersByDay: PresentCleanersByDay;
+  weeklyLeaveCleaners: CleanerId[];
   callInReplacementsByDay: CallInReplacementsByDay;
   swapOperationsByDay: SwapOperationsByDay;
   buildingMoveOperationsByDay: BuildingMoveOperationsByDay;
@@ -202,6 +205,7 @@ interface PersistedScheduleState {
 interface ScheduleSnapshot {
   currentDay: DayKey;
   presentCleanersByDay: PresentCleanersByDay;
+  weeklyLeaveCleaners: CleanerId[];
   callInReplacementsByDay: CallInReplacementsByDay;
   swapOperationsByDay: SwapOperationsByDay;
   buildingMoveOperationsByDay: BuildingMoveOperationsByDay;
@@ -375,6 +379,7 @@ function getDefaultScheduleSnapshot(currentDay: DayKey): ScheduleSnapshot {
   return {
     currentDay,
     presentCleanersByDay: getDefaultPresentCleanersByDay(),
+    weeklyLeaveCleaners: [],
     callInReplacementsByDay: getDefaultCallInReplacementsByDay(),
     swapOperationsByDay: getDefaultSwapOperationsByDay(),
     buildingMoveOperationsByDay: getDefaultBuildingMoveOperationsByDay(),
@@ -383,6 +388,46 @@ function getDefaultScheduleSnapshot(currentDay: DayKey): ScheduleSnapshot {
     daycareMoveOperationsByDay: getDefaultDaycareMoveOperationsByDay(),
     closedItemsByDay: getDefaultClosedItemsByDay(),
     sectionOrderByDay: getDefaultSectionOrderByDay(),
+  };
+}
+
+function normalizeWeeklyLeaveCleaners(value: unknown): CleanerId[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const selected = new Set<CleanerId>();
+
+  value.forEach((cleaner) => {
+    if (
+      typeof cleaner === "string" &&
+      STAFF_CLEANER_SET.has(cleaner as CleanerId)
+    ) {
+      selected.add(cleaner as CleanerId);
+    }
+  });
+
+  return STAFF_CLEANERS.filter((cleaner) => selected.has(cleaner));
+}
+
+function applyWeeklyLeaveToPresentCleanersByDay(
+  presentCleanersByDay: PresentCleanersByDay,
+  weeklyLeaveCleaners: readonly CleanerId[],
+): PresentCleanersByDay {
+  if (weeklyLeaveCleaners.length === 0) {
+    return presentCleanersByDay;
+  }
+
+  const weeklyLeaveSet = new Set(weeklyLeaveCleaners);
+  const filterDay = (day: DayKey) =>
+    presentCleanersByDay[day].filter((cleaner) => !weeklyLeaveSet.has(cleaner));
+
+  return {
+    mon: filterDay("mon"),
+    tue: filterDay("tue"),
+    wed: filterDay("wed"),
+    thu: filterDay("thu"),
+    fri: filterDay("fri"),
   };
 }
 
@@ -692,18 +737,35 @@ function getPresentCleanerCountForDay(value: unknown): number {
 
 function getPresentCleanerCountsByDay(
   value: unknown,
+  weeklyLeaveCleaners: readonly CleanerId[] = [],
 ): PresentCleanerCountsByDay {
   const source =
     value && typeof value === "object"
       ? (value as Partial<Record<DayKey, unknown>>)
       : {};
 
+  if (weeklyLeaveCleaners.length === 0) {
+    return {
+      mon: getPresentCleanerCountForDay(source.mon),
+      tue: getPresentCleanerCountForDay(source.tue),
+      wed: getPresentCleanerCountForDay(source.wed),
+      thu: getPresentCleanerCountForDay(source.thu),
+      fri: getPresentCleanerCountForDay(source.fri),
+    };
+  }
+
+  const weeklyLeaveSet = new Set(weeklyLeaveCleaners);
+  const getCountForDay = (day: DayKey) => {
+    const dayCleaners = normalizeCleanersForDay(source[day], false);
+    return dayCleaners.filter((cleaner) => !weeklyLeaveSet.has(cleaner)).length;
+  };
+
   return {
-    mon: getPresentCleanerCountForDay(source.mon),
-    tue: getPresentCleanerCountForDay(source.tue),
-    wed: getPresentCleanerCountForDay(source.wed),
-    thu: getPresentCleanerCountForDay(source.thu),
-    fri: getPresentCleanerCountForDay(source.fri),
+    mon: getCountForDay("mon"),
+    tue: getCountForDay("tue"),
+    wed: getCountForDay("wed"),
+    thu: getCountForDay("thu"),
+    fri: getCountForDay("fri"),
   };
 }
 
@@ -768,6 +830,7 @@ function loadPersistedScheduleState(
   PersistedScheduleState,
   | "currentDay"
   | "presentCleanersByDay"
+  | "weeklyLeaveCleaners"
   | "callInReplacementsByDay"
   | "swapOperationsByDay"
   | "buildingMoveOperationsByDay"
@@ -803,6 +866,9 @@ function loadPersistedScheduleState(
       presentCleanersByDay: normalizePresentCleanersByDay(
         parsed.presentCleanersByDay,
         backfillMissingStaffCleaners,
+      ),
+      weeklyLeaveCleaners: normalizeWeeklyLeaveCleaners(
+        parsed.weeklyLeaveCleaners,
       ),
       callInReplacementsByDay: normalizeCallInReplacementsByDay(
         parsed.callInReplacementsByDay,
@@ -864,6 +930,9 @@ function getScheduleSnapshotFromFirestoreData(
       source.presentCleanersByDay,
       backfillMissingStaffCleaners,
     ),
+    weeklyLeaveCleaners: normalizeWeeklyLeaveCleaners(
+      source.weeklyLeaveCleaners,
+    ),
     callInReplacementsByDay: normalizeCallInReplacementsByDay(
       source.callInReplacementsByDay,
     ),
@@ -902,7 +971,10 @@ function getScheduleSnapshotFromFirestoreData(
         )
       : undefined,
     presentCleanerCountsByDay: preserveHistoricalAssignments
-      ? getPresentCleanerCountsByDay(source.presentCleanersByDay)
+      ? getPresentCleanerCountsByDay(
+          source.presentCleanersByDay,
+          normalizeWeeklyLeaveCleaners(source.weeklyLeaveCleaners),
+        )
       : undefined,
   };
 }
@@ -958,6 +1030,9 @@ export const ScheduleProvider = ({
       persistedScheduleState?.callInReplacementsByDay ??
         getDefaultCallInReplacementsByDay(),
     );
+  const [weeklyLeaveCleaners, setWeeklyLeaveCleaners] = useState<CleanerId[]>(
+    persistedScheduleState?.weeklyLeaveCleaners ?? [],
+  );
   const [swapOperationsByDay, setSwapOperationsByDay] =
     useState<SwapOperationsByDay>(
       persistedScheduleState?.swapOperationsByDay ??
@@ -1048,15 +1123,48 @@ export const ScheduleProvider = ({
     if (isViewingPastDate) return;
 
     setPresentCleanersByDay((current) => {
+      const weeklyLeaveSet = new Set(weeklyLeaveCleaners);
+      const rawCurrentForDay = current[currentDay];
+      const effectiveCurrentForDay = rawCurrentForDay.filter(
+        (cleaner) => !weeklyLeaveSet.has(cleaner),
+      );
       const nextForCurrentDay =
         typeof valueOrUpdater === "function"
-          ? valueOrUpdater(current[currentDay])
+          ? valueOrUpdater(effectiveCurrentForDay)
           : valueOrUpdater;
+
+      const preservedWeeklyLeaveSelections = rawCurrentForDay.filter(
+        (cleaner) => weeklyLeaveSet.has(cleaner),
+      );
+      const mergedSelection = new Set<CleanerId>([
+        ...nextForCurrentDay,
+        ...preservedWeeklyLeaveSelections,
+      ]);
+      const nextRawForCurrentDay = CLEANERS.filter((cleaner) =>
+        mergedSelection.has(cleaner),
+      );
 
       return {
         ...current,
-        [currentDay]: nextForCurrentDay,
+        [currentDay]: nextRawForCurrentDay,
       };
+    });
+  };
+
+  const setWeeklyLeaveCleaner = (cleaner: CleanerId, isOnLeave: boolean) => {
+    if (isViewingPastDate) return;
+    if (!STAFF_CLEANER_SET.has(cleaner)) return;
+
+    setWeeklyLeaveCleaners((current) => {
+      const next = new Set<CleanerId>(current);
+
+      if (isOnLeave) {
+        next.add(cleaner);
+      } else {
+        next.delete(cleaner);
+      }
+
+      return STAFF_CLEANERS.filter((staffCleaner) => next.has(staffCleaner));
     });
   };
 
@@ -1125,11 +1233,17 @@ export const ScheduleProvider = ({
     snapshot: ScheduleSnapshot,
     referenceDate: Date,
   ) => {
+    const effectivePresentCleanersByDay =
+      applyWeeklyLeaveToPresentCleanersByDay(
+        snapshot.presentCleanersByDay,
+        snapshot.weeklyLeaveCleaners,
+      );
+
     const generatedWeeklyAssignments = generateWeeklyAssignments(
       STAFF_CLEANERS,
       referenceDate,
       JOBS.length,
-      snapshot.presentCleanersByDay,
+      effectivePresentCleanersByDay,
       JOBS,
       CALL_IN_CLEANERS,
       snapshot.callInReplacementsByDay as CallInReplacementMapByDay,
@@ -1321,6 +1435,7 @@ export const ScheduleProvider = ({
     () => ({
       currentDay,
       presentCleanersByDay,
+      weeklyLeaveCleaners,
       callInReplacementsByDay,
       swapOperationsByDay,
       buildingMoveOperationsByDay,
@@ -1339,6 +1454,7 @@ export const ScheduleProvider = ({
       fridayizedByDay,
       flo1AtAnnexByDay,
       presentCleanersByDay,
+      weeklyLeaveCleaners,
       sectionOrderByDay,
       swapOperationsByDay,
     ],
@@ -1363,6 +1479,16 @@ export const ScheduleProvider = ({
   const activeSnapshot = isViewingPastDate
     ? historicalSnapshot
     : editableSnapshot;
+
+  const effectivePresentCleanersByDay = useMemo(
+    () =>
+      applyWeeklyLeaveToPresentCleanersByDay(
+        activeSnapshot.presentCleanersByDay,
+        activeSnapshot.weeklyLeaveCleaners,
+      ),
+    [activeSnapshot.presentCleanersByDay, activeSnapshot.weeklyLeaveCleaners],
+  );
+
   const activeDerivedAssignments = isViewingPastDate
     ? historicalDerivedAssignments
     : editableDerivedAssignments;
@@ -1396,7 +1522,7 @@ export const ScheduleProvider = ({
   const daycareReassignmentFlags =
     activeDerivedAssignments.snapshotDaycareReassignmentFlags;
 
-  const presentCleaners = activeSnapshot.presentCleanersByDay[currentDay];
+  const presentCleaners = effectivePresentCleanersByDay[currentDay];
   const callInReplacements = activeSnapshot.callInReplacementsByDay[currentDay];
   const closedItems = activeSnapshot.closedItemsByDay[currentDay];
   const isFridayized = activeSnapshot.fridayizedByDay[currentDay];
@@ -1580,6 +1706,7 @@ export const ScheduleProvider = ({
           todayDayKey,
           currentDay: snapshot.currentDay,
           presentCleanersByDay: snapshot.presentCleanersByDay,
+          weeklyLeaveCleaners: snapshot.weeklyLeaveCleaners,
           callInReplacementsByDay: snapshot.callInReplacementsByDay,
           swapOperationsByDay: snapshot.swapOperationsByDay,
           buildingMoveOperationsByDay: snapshot.buildingMoveOperationsByDay,
@@ -1632,6 +1759,7 @@ export const ScheduleProvider = ({
     await persistScheduleSnapshotToFirestore({
       currentDay,
       presentCleanersByDay,
+      weeklyLeaveCleaners,
       callInReplacementsByDay,
       swapOperationsByDay,
       buildingMoveOperationsByDay,
@@ -1649,6 +1777,7 @@ export const ScheduleProvider = ({
     const snapshot: ScheduleSnapshot = {
       currentDay: todayDayKey,
       presentCleanersByDay: getDefaultPresentCleanersByDay(),
+      weeklyLeaveCleaners: [],
       callInReplacementsByDay: getDefaultCallInReplacementsByDay(),
       swapOperationsByDay: getDefaultSwapOperationsByDay(),
       buildingMoveOperationsByDay: getDefaultBuildingMoveOperationsByDay(),
@@ -1661,6 +1790,7 @@ export const ScheduleProvider = ({
 
     setSelectedDateToToday();
     setPresentCleanersByDay(snapshot.presentCleanersByDay);
+    setWeeklyLeaveCleaners(snapshot.weeklyLeaveCleaners);
     setCallInReplacementsByDay(snapshot.callInReplacementsByDay);
     setSwapOperationsByDay(snapshot.swapOperationsByDay);
     setBuildingMoveOperationsByDay(snapshot.buildingMoveOperationsByDay);
@@ -1701,6 +1831,7 @@ export const ScheduleProvider = ({
         if (!syncedSnapshot) return;
 
         setPresentCleanersByDay(syncedSnapshot.presentCleanersByDay);
+        setWeeklyLeaveCleaners(syncedSnapshot.weeklyLeaveCleaners);
         setCallInReplacementsByDay(syncedSnapshot.callInReplacementsByDay);
         setSwapOperationsByDay(syncedSnapshot.swapOperationsByDay);
         setBuildingMoveOperationsByDay(
@@ -1745,6 +1876,7 @@ export const ScheduleProvider = ({
       staffCleanersDefaultsVersion: STAFF_CLEANERS_DEFAULTS_VERSION,
       currentDay,
       presentCleanersByDay,
+      weeklyLeaveCleaners,
       callInReplacementsByDay,
       swapOperationsByDay,
       buildingMoveOperationsByDay,
@@ -1765,6 +1897,7 @@ export const ScheduleProvider = ({
     daycareMoveOperationsByDay,
     sectionOrderByDay,
     presentCleanersByDay,
+    weeklyLeaveCleaners,
     currentDay,
     isViewingPastDate,
     swapOperationsByDay,
@@ -1792,6 +1925,8 @@ export const ScheduleProvider = ({
         toggleClosedItem,
         presentCleaners,
         setPresentCleaners,
+        weeklyLeaveCleaners,
+        setWeeklyLeaveCleaner,
         callInReplacements,
         setCallInReplacementForDay,
         peopleIn,

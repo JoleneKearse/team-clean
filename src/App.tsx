@@ -342,6 +342,8 @@ function App() {
     weeklyAssignments,
     referenceWeeklyAssignments,
     setPresentCleaners,
+    weeklyLeaveCleaners,
+    setWeeklyLeaveCleaner,
     callInReplacements,
     setCallInReplacementForDay,
     sectionOrder,
@@ -434,6 +436,7 @@ function App() {
   const isFridayHoliday = Boolean(
     weeklyPublicHolidays.fri ?? weeklyExtraHolidays.fri,
   );
+  const showWeeklyLeaveEditor = effectiveIsEditMode && !isViewingPastDate;
   const showFridayizeButton =
     effectiveIsEditMode && isThursday && isFridayHoliday && !isViewingPastDate;
   const isFridayizedThursday = isThursday && isFridayHoliday && isFridayized;
@@ -841,6 +844,11 @@ function App() {
     return CALL_IN_CLEANERS.filter((cleaner) => presentCleanerSet.has(cleaner));
   }, [presentCleaners]);
 
+  const weeklyLeaveCleanerSet = useMemo(
+    () => new Set(weeklyLeaveCleaners),
+    [weeklyLeaveCleaners],
+  );
+
   const outCleanerAssignments = useMemo(() => {
     if (peopleIn >= 8) {
       return [] as OutCleanerAssignment[];
@@ -999,6 +1007,8 @@ function App() {
                 {CLEANERS.map((cleaner) => {
                   const checked = presentCleaners.includes(cleaner);
                   const isCallInCleaner = CALL_IN_CLEANER_SET.has(cleaner);
+                  const isWeeklyLeaveCleaner =
+                    weeklyLeaveCleanerSet.has(cleaner);
 
                   return (
                     <label
@@ -1008,10 +1018,19 @@ function App() {
                       <input
                         type="checkbox"
                         checked={checked}
-                        disabled={isViewingPastDate}
+                        disabled={isViewingPastDate || isWeeklyLeaveCleaner}
                         onChange={() => toggleCleaner(cleaner)}
                       />
-                      <span className={isCallInCleaner ? "text-gray-600" : ""}>
+                      <span
+                        className={[
+                          isCallInCleaner ? "text-gray-600" : "",
+                          isWeeklyLeaveCleaner
+                            ? "text-gray-500 line-through decoration-2"
+                            : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                      >
                         {cleaner}
                       </span>
                     </label>
@@ -1101,6 +1120,46 @@ function App() {
                     </div>
                   </div>
                 )}
+
+              {showWeeklyLeaveEditor && (
+                <div className="mt-3 rounded-lg border border-gray-300 bg-white/60 p-3">
+                  <p className="text-sm font-semibold text-gray-800">
+                    Weekly leave (staff)
+                  </p>
+                  <p className="text-xs text-gray-600">
+                    Mark staff out for the full work week. This applies to
+                    CalendarWeekly and all building assignments.
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-3">
+                    {STAFF_CLEANERS.map((cleaner) => {
+                      const checked = weeklyLeaveCleanerSet.has(cleaner);
+
+                      return (
+                        <label
+                          key={cleaner}
+                          className="inline-flex items-center gap-2 text-sm text-gray-800"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={isViewingPastDate}
+                            onChange={(event) => {
+                              setIsEditMode(true);
+                              setWeeklyLeaveCleaner(
+                                cleaner,
+                                event.target.checked,
+                              );
+                            }}
+                          />
+                          <span className={checked ? "line-through" : ""}>
+                            {cleaner}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {showFridayizeButton && (
                 <div className="mt-3 flex justify-center">
