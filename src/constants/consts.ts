@@ -95,6 +95,7 @@ export const STAFF_CLEANERS = [
 
 export const CALL_IN_CLEANERS = [
   "HA",
+  "SW",
   "KR",
   "MB",
   "EB",
