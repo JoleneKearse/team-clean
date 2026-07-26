@@ -252,6 +252,23 @@ type OutCleanerAssignmentsListProps = {
   assignments: readonly OutCleanerAssignment[];
 };
 
+function formatPlannedAbsencesSummary(cleaners: readonly CleanerId[]) {
+  if (cleaners.length === 0) {
+    return null;
+  }
+
+  const cleanerText =
+    cleaners.length === 1
+      ? cleaners[0]
+      : cleaners.length === 2
+        ? `${cleaners[0]} & ${cleaners[1]}`
+        : `${cleaners.slice(0, -1).join(", ")} & ${cleaners[cleaners.length - 1]}`;
+
+  const verb = cleaners.length === 1 ? "is" : "are";
+
+  return `${cleanerText} ${verb} away and taken out of the weekly job rotation.`;
+}
+
 function OutCleanerAssignmentsList({
   assignments,
 }: OutCleanerAssignmentsListProps) {
@@ -274,35 +291,19 @@ function OutCleanerAssignmentsList({
             replacementInitials &&
             (hasReassignedReplacement || isCallInReplacement) ? (
               <>
-                {replacementJobId || jobId ? (
-                  <span
-                    className={getCleanerInitialsBadgeClassName(
-                      replacementJobId ?? jobId,
-                    )}
-                  >
-                    {replacementInitials}
-                  </span>
-                ) : (
-                  <span className="font-semibold">{replacementInitials}</span>
-                )}
-                {replacementJobId && replacementJobId !== jobId ? (
-                  <span>
-                    ( <span className="font-semibold">{replacementJobId}</span>{" "}
-                    ) {isCallInReplacement ? "is in for" : "replaces"}
-                  </span>
-                ) : (
-                  <span>{isCallInReplacement ? "is in for" : "replaces"}</span>
-                )}
                 <span
                   className={getCleanerInitialsBadgeClassName(
-                    jobId,
-                    "line-through decoration-2",
+                    replacementJobId ?? jobId,
                   )}
                 >
-                  {initials}
+                  {replacementInitials}
                 </span>
                 <span>
-                  as <span className="font-semibold">{jobId}</span>.
+                  was (
+                  <span className="font-semibold">
+                    {replacementJobId ?? jobId}
+                  </span>
+                  ), but moves to <span className="font-semibold">{jobId}</span>.
                 </span>
               </>
             ) : jobId ? (
@@ -848,6 +849,10 @@ function App() {
     () => new Set(weeklyLeaveCleaners),
     [weeklyLeaveCleaners],
   );
+  const plannedAbsencesSummary = useMemo(
+    () => formatPlannedAbsencesSummary(weeklyLeaveCleaners),
+    [weeklyLeaveCleaners],
+  );
 
   const outCleanerAssignments = useMemo(() => {
     if (peopleIn >= 8) {
@@ -1124,7 +1129,7 @@ function App() {
               {showWeeklyLeaveEditor && (
                 <div className="mt-3 rounded-lg border border-gray-300 bg-white/60 p-3">
                   <p className="text-sm font-semibold text-gray-800">
-                    Planned absenses
+                    Planned absences
                   </p>
                   <p className="text-xs text-gray-600">
                     Mark staff out for the full work week (either for leave or vacation). This will remove them from the schedule rotation.
@@ -1341,9 +1346,10 @@ function App() {
         {calendarView === "weekly" && !isEditUiActive && peopleIn < 8 && (
           <article className="w-full overflow-hidden rounded-xl border border-gray-500 bg-gray-200 shadow-lg">
             <div className="p-3 text-pink-800">
-              <p className="pb-2 font-semibold">
-                Assignment changes for today:
-              </p>
+              <p className="font-semibold">Assignment changes for today</p>
+              {plannedAbsencesSummary && (
+                <p className="pb-2 text-sm">{plannedAbsencesSummary}</p>
+              )}
               <OutCleanerAssignmentsList assignments={outCleanerAssignments} />
             </div>
           </article>
