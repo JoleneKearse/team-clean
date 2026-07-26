@@ -1124,11 +1124,10 @@ function App() {
               {showWeeklyLeaveEditor && (
                 <div className="mt-3 rounded-lg border border-gray-300 bg-white/60 p-3">
                   <p className="text-sm font-semibold text-gray-800">
-                    Weekly leave (staff)
+                    Planned absenses
                   </p>
                   <p className="text-xs text-gray-600">
-                    Mark staff out for the full work week. This applies to
-                    CalendarWeekly and all building assignments.
+                    Mark staff out for the full work week (either for leave or vacation). This will remove them from the schedule rotation.
                   </p>
                   <div className="mt-2 flex flex-wrap gap-3">
                     {STAFF_CLEANERS.map((cleaner) => {
