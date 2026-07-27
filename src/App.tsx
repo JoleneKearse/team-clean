@@ -230,6 +230,8 @@ function getTimeBasedSectionVisibility(referenceDate: Date) {
   const { minutesSinceMidnight } = getEasternTimeParts(referenceDate);
 
   return {
+    showSeniors: minutesSinceMidnight < 17 * 60,
+    showEducation: minutesSinceMidnight < 17 * 60 + 30,
     showBuildings: minutesSinceMidnight < 18 * 60,
     showDaycare: minutesSinceMidnight < 20 * 60 + 30,
     showBandOffice: minutesSinceMidnight < 21 * 60 + 45,
@@ -303,7 +305,8 @@ function OutCleanerAssignmentsList({
                   <span className="font-semibold">
                     {replacementJobId ?? jobId}
                   </span>
-                  ), but moves to <span className="font-semibold">{jobId}</span>.
+                  ), but moves to <span className="font-semibold">{jobId}</span>
+                  .
                 </span>
               </>
             ) : jobId ? (
@@ -420,6 +423,10 @@ function App() {
     [closedItems],
   );
   const shouldApplyTimeVisibility = isMondayToThursdayDay && hasDefaultClosures;
+  const isPastSeniorsVisibilityTime =
+    shouldApplyTimeVisibility && !timeBasedVisibility.showSeniors;
+  const isPastEducationVisibilityTime =
+    shouldApplyTimeVisibility && !timeBasedVisibility.showEducation;
   const isPastBuildingsVisibilityTime =
     shouldApplyTimeVisibility && !timeBasedVisibility.showBuildings;
   const isPastDaycareVisibilityTime =
@@ -444,12 +451,11 @@ function App() {
   const isFridayOrMarchBreak =
     isFriday || isMarchBreakReducedScheduleDay || isFridayizedThursday;
   const isBuildingsComponentEnabled = !isFridayOrMarchBreak;
-  const isSeniorsComponentEnabled = isFridayOrMarchBreak;
   const isGrade1ComponentEnabled =
     (isFriday || isFridayizedThursday) && !isMarchBreakReducedScheduleDay;
   const isGrade2ComponentEnabled =
     (isFriday || isFridayizedThursday) && !isMarchBreakReducedScheduleDay;
-  const isEducationComponentEnabled = isFridayOrMarchBreak;
+  const isEducationComponentEnabled = true;
   const isFieldhouseComponentEnabled = isFridayOrMarchBreak;
   const isSocialComponentEnabled = isFridayOrMarchBreak;
   const isAnnexComponentEnabled = isFridayOrMarchBreak;
@@ -458,8 +464,7 @@ function App() {
   const showBandOfficeSection = !closedItemSet.has("Band Office");
   const showHealthCenterSection = !closedItemSet.has("Health Center");
   const showCommunityCenterSection = !closedItemSet.has("Community Center");
-  const showSeniorsSection =
-    isSeniorsComponentEnabled && !closedItemSet.has("Seniors");
+  const showSeniorsSection = !closedItemSet.has("Seniors");
   const showGrade1Section =
     isGrade1ComponentEnabled && !closedItemSet.has("Grade 1");
   const showGrade2Section =
@@ -493,23 +498,31 @@ function App() {
     const sections: Partial<Record<EditableSectionId, EditableSectionEntry>> =
       {};
 
-    if (!isCurrentDayHoliday && showSeniorsSection) {
-      sections.seniors = createEditableSectionEntry("seniors", <Seniors />);
-    }
-
     if (!isCurrentDayHoliday && showGrade1Section) {
       sections.grade1 = createEditableSectionEntry("grade1", <Grade1 />);
     }
 
-    if (!isCurrentDayHoliday && showGrade2Section) {
-      sections.grade2 = createEditableSectionEntry("grade2", <Grade2 />);
+    if (
+      !isCurrentDayHoliday &&
+      showSeniorsSection &&
+      !isPastSeniorsVisibilityTime
+    ) {
+      sections.seniors = createEditableSectionEntry("seniors", <Seniors />);
     }
 
-    if (!isCurrentDayHoliday && showEducationSection) {
+    if (
+      !isCurrentDayHoliday &&
+      showEducationSection &&
+      !isPastEducationVisibilityTime
+    ) {
       sections.education = createEditableSectionEntry(
         "education",
         <Education />,
       );
+    }
+
+    if (!isCurrentDayHoliday && showGrade2Section) {
+      sections.grade2 = createEditableSectionEntry("grade2", <Grade2 />);
     }
 
     if (!isCurrentDayHoliday && showFieldhouseSection) {
@@ -582,6 +595,8 @@ function App() {
     isPastBandOfficeVisibilityTime,
     isPastBuildingsVisibilityTime,
     isPastDaycareVisibilityTime,
+    isPastEducationVisibilityTime,
+    isPastSeniorsVisibilityTime,
     showAnnexSection,
     showBandOfficeSection,
     showBuildingsSection,
@@ -592,13 +607,31 @@ function App() {
     showGrade1Section,
     showGrade2Section,
     showHealthCenterSection,
-    showSeniorsSection,
     showSocialSection,
   ]);
 
   const deferredSectionsById = useMemo(() => {
     const sections: Partial<Record<EditableSectionId, EditableSectionEntry>> =
       {};
+
+    if (
+      !isCurrentDayHoliday &&
+      showSeniorsSection &&
+      isPastSeniorsVisibilityTime
+    ) {
+      sections.seniors = createEditableSectionEntry("seniors", <Seniors />);
+    }
+
+    if (
+      !isCurrentDayHoliday &&
+      showEducationSection &&
+      isPastEducationVisibilityTime
+    ) {
+      sections.education = createEditableSectionEntry(
+        "education",
+        <Education />,
+      );
+    }
 
     if (
       !isCurrentDayHoliday &&
@@ -644,9 +677,13 @@ function App() {
     isPastBandOfficeVisibilityTime,
     isPastBuildingsVisibilityTime,
     isPastDaycareVisibilityTime,
+    isPastEducationVisibilityTime,
+    isPastSeniorsVisibilityTime,
     showBandOfficeSection,
     showBuildingsSection,
     showDaycareSection,
+    showEducationSection,
+    showSeniorsSection,
   ]);
 
   const orderedPreSignOffSections = useMemo(() => {
@@ -1132,7 +1169,8 @@ function App() {
                     Planned absences
                   </p>
                   <p className="text-xs text-gray-600">
-                    Mark staff out for the full work week (either for leave or vacation). This will remove them from the schedule rotation.
+                    Mark staff out for the full work week (either for leave or
+                    vacation). This will remove them from the schedule rotation.
                   </p>
                   <div className="mt-2 flex flex-wrap gap-3">
                     {STAFF_CLEANERS.map((cleaner) => {
@@ -1342,7 +1380,6 @@ function App() {
           isEditMode={effectiveIsEditMode}
           onToggleCalendarView={handleToggleCalendarView}
         />
-        <MopAlert />
         {calendarView === "weekly" && !isEditUiActive && peopleIn < 8 && (
           <article className="w-full overflow-hidden rounded-xl border border-gray-500 bg-gray-200 shadow-lg">
             <div className="p-3 text-pink-800">
@@ -1354,6 +1391,7 @@ function App() {
             </div>
           </article>
         )}
+        <MopAlert />
         {(calendarView === "monthly" || isCurrentDayHoliday) && (
           <DailyAssignments />
         )}

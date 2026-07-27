@@ -15,7 +15,6 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 import { useSchedule } from "../context/ScheduleContext";
-import { getCleanerInitialsBadgeClassName } from "../utils/cleanerBadgeUtils";
 import {
   JOBS,
   getClosureLabelById,
@@ -228,7 +227,7 @@ const ITALIC_BUILDING_SEGMENT_IDS = new Set<ClosureId>(["Education"]);
 
 type BuildingSection = {
   key: string;
-  phase: 1 | 3;
+  phase: 3;
   readOnly?: boolean;
   closureSegmentIds: readonly ClosureId[];
   slotDefinitions: readonly {
@@ -240,36 +239,6 @@ type BuildingSection = {
 };
 
 const BUILDING_SECTIONS: readonly BuildingSection[] = [
-  {
-    key: "seniors_fieldhouse",
-    phase: 1,
-    closureSegmentIds: ["Seniors", "Fieldhouse"],
-    slotDefinitions: [
-      { slotId: "seniors-sw", job: "SW", label: "SW" },
-      { slotId: "seniors-san", job: "San", label: "San" },
-      { slotId: "seniors-flo3", job: "Flo3", label: "Flo3" },
-    ],
-  },
-  {
-    key: "grade1",
-    phase: 1,
-    closureSegmentIds: ["Grade 1"],
-    slotDefinitions: [
-      { slotId: "grade1-bath", job: "Bath", label: "Bath" },
-      { slotId: "grade1-flo2", job: "Flo2", label: "Flo2" },
-      { slotId: "grade1-flo1", job: "Flo1", label: "Flo1" },
-    ],
-  },
-  {
-    key: "grade2",
-    phase: 1,
-    closureSegmentIds: ["Grade 2"],
-    slotDefinitions: [
-      { slotId: "grade2-vac", job: "Vac", label: "Vac" },
-      { slotId: "grade2-gar", job: "Gar", label: "Gar" },
-    ],
-    containerClassName: "w-2/3 min-w-52",
-  },
   {
     key: "social",
     phase: 3,
@@ -294,7 +263,7 @@ const BUILDING_SECTIONS: readonly BuildingSection[] = [
     key: "fieldhouse_dropin_final",
     phase: 3,
     readOnly: true,
-    closureSegmentIds: ["Drop-in Center"],
+    closureSegmentIds: ["Fieldhouse", "Drop-in Center"],
     slotDefinitions: [
       { slotId: "seniors-sw", job: "SW", label: "SW" },
       { slotId: "seniors-san", job: "San", label: "San" },
@@ -340,8 +309,6 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
     isMarchBreakReducedScheduleDay,
   } = useSchedule();
   const mopLocations = getMopLocationsForDay(currentDay);
-  const isMoppingDay = mopLocations.length > 0;
-  const isMoppingSeniors = mopLocations.includes("seniors");
   const isMoppingBackBuildings = mopLocations.includes("backBuildings");
   const [activeInitials, setActiveInitials] = useState("");
   const flo1JobIndex = JOBS.indexOf("Flo1");
@@ -349,19 +316,9 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
     flo1JobIndex >= 0
       ? (buildingWeeklyAssignments[currentDay][flo1JobIndex] ?? "")
       : "";
-  const flo2JobIndex = JOBS.indexOf("Flo2");
-  const flo2Initials =
-    flo2JobIndex >= 0
-      ? (buildingWeeklyAssignments[currentDay][flo2JobIndex] ?? "")
-      : "";
-  const flo3JobIndex = JOBS.indexOf("Flo3");
-  const flo3Initials =
-    flo3JobIndex >= 0
-      ? (buildingWeeklyAssignments[currentDay][flo3JobIndex] ?? "")
-      : "";
   const closedSet = new Set(closedItems);
   const marchBreakHiddenSegmentIds = isMarchBreakReducedScheduleDay
-    ? new Set<ClosureId>(["Grade 1", "Grade 2"])
+    ? new Set<ClosureId>([])
     : new Set<ClosureId>();
   const visibleSections = BUILDING_SECTIONS.flatMap((section) => {
     const visibleSegmentIds = section.closureSegmentIds.filter(
@@ -376,26 +333,6 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
     return [{ section, visibleSegmentIds }];
   });
 
-  const isEducationVisible = !closedSet.has("Education");
-  const sanJobIndex = JOBS.indexOf("San");
-  const swJobIndex = JOBS.indexOf("SW");
-  const bathJobIndex = JOBS.indexOf("Bath");
-  const sanInitials =
-    sanJobIndex >= 0
-      ? (buildingWeeklyAssignments[currentDay][sanJobIndex] ?? "")
-      : "";
-  const swInitials =
-    swJobIndex >= 0
-      ? (buildingWeeklyAssignments[currentDay][swJobIndex] ?? "")
-      : "";
-  const bathInitials =
-    bathJobIndex >= 0
-      ? (buildingWeeklyAssignments[currentDay][bathJobIndex] ?? "")
-      : "";
-
-  const phase1Sections = visibleSections.filter(
-    ({ section }) => section.phase === 1,
-  );
   const phase3Sections = visibleSections.filter(
     ({ section }) => section.phase === 3,
   );
@@ -412,11 +349,7 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
     }),
   );
 
-  if (
-    phase1Sections.length === 0 &&
-    !isEducationVisible &&
-    phase3Sections.length === 0
-  ) {
+  if (phase3Sections.length === 0) {
     return null;
   }
 
@@ -516,10 +449,10 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
           {renderBuildingLabel(visibleSegmentIds, {
             hasOnlyOneAssignedCleaner,
           })}
-          {(isMoppingSeniors && section.key === "seniors_fieldhouse") ||
-          (isMoppingBackBuildings &&
-            section.key !== "seniors_fieldhouse" &&
-            !section.readOnly) ? (
+          {isMoppingBackBuildings &&
+          (section.key === "social" ||
+            section.key === "annex" ||
+            section.key === "fieldhouse_dropin_final") ? (
             <img
               src={mopIcon}
               alt="mop"
@@ -672,7 +605,7 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
               className="pointer-events-none absolute -left-3 top-7 h-18 w-18 -translate-y-1/2 rounded-full border-2 border-gray-700 object-cover"
             />
             Buildings{" "}
-            {isMoppingDay ? (
+            {isMoppingBackBuildings ? (
               <img
                 src={mopIcon}
                 alt="mop"
@@ -683,110 +616,18 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
               ""
             )}
           </h2>
-          {isMoppingDay && (
+          {isMoppingBackBuildings && (
             <p className="border-b border-gray-300 px-4 py-2 text-center font-semibold text-sky-800">
-              {isMoppingSeniors && isMoppingBackBuildings
-                ? "Mop the Seniors and back buildings today."
-                : isMoppingSeniors
-                  ? "Mop the Seniors today."
-                  : "Mop the back buildings today."}
+              Mop the back buildings today.
             </p>
           )}
+          <p className="px-4 pt-2 text-center text-sm text-gray-500">
+            Split into 3 groups.
+          </p>
 
           <div className="space-y-2 p-4">
-            {/* Phase 1: Start in Groups */}
-            {phase1Sections.length > 0 && (
-              <div className="rounded-xl border border-gray-300 bg-white p-3">
-                <div className="mb-3 flex items-center gap-3">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sky-700 text-sm font-bold text-white">
-                    1
-                  </span>
-                  <div>
-                    <p className="font-bold text-gray-900">Start in Groups</p>
-                    <p className="text-sm text-gray-500">
-                      Split into 3 groups.
-                    </p>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  {phase1Sections.map(({ section, visibleSegmentIds }) =>
-                    renderSectionContent(section, visibleSegmentIds),
-                  )}
-                </div>
-              </div>
-            )}
-
-            {phase1Sections.length > 0 && isEducationVisible && (
-              <div className="pointer-events-none relative z-10 -mt-5 -mb-0.5 flex justify-center text-4xl font-black leading-none text-sky-700">
-                ↓
-              </div>
-            )}
-
-            {/* Phase 2: Education All Together */}
-            {isEducationVisible && (
-              <div className="rounded-xl border border-gray-300 bg-white p-3">
-                <div className="mb-3 flex items-center gap-3">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sky-700 text-sm font-bold text-white">
-                    2
-                  </span>
-                  <p className="font-bold text-gray-900">
-                    Education All Together
-                  </p>
-                </div>
-                <p className="flex flex-wrap items-center gap-1.5 text-sm text-gray-700">
-                  {flo1Initials && (
-                    <span className={getCleanerInitialsBadgeClassName("Flo1")}>
-                      {flo1Initials}
-                    </span>
-                  )}
-                  {flo2Initials && (
-                    <span className={getCleanerInitialsBadgeClassName("Flo2")}>
-                      {flo2Initials}
-                    </span>
-                  )}
-                  {flo3Initials && (
-                    <span className={getCleanerInitialsBadgeClassName("Flo3")}>
-                      {flo3Initials}
-                    </span>
-                  )}
-                  <span>can help</span>
-                  <span className={getCleanerInitialsBadgeClassName("San")}>
-                    {sanInitials || "—"}
-                  </span>
-                  <span>sanitize,</span>
-                  <span className={getCleanerInitialsBadgeClassName("SW")}>
-                    {swInitials || "—"}
-                  </span>
-                  <span>sweep,</span>
-                  <span>{flo3Initials ? "and" : "or"}</span>
-                  <span className={getCleanerInitialsBadgeClassName("Bath")}>
-                    {bathInitials || "—"}
-                  </span>
-                  <span>do the bathrooms in the new extension.</span>
-                </p>
-              </div>
-            )}
-
-            {isEducationVisible && phase3Sections.length > 0 && (
-              <div className="pointer-events-none relative z-10 -mt-5 -mb-0.5 flex justify-center text-4xl font-black leading-none text-sky-700">
-                ↓
-              </div>
-            )}
-
-            {/* Phase 3: Final Groups */}
             {phase3Sections.length > 0 && (
               <div className="rounded-xl border border-gray-300 bg-white p-3">
-                <div className="mb-3 flex items-center gap-3">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sky-700 text-sm font-bold text-white">
-                    3
-                  </span>
-                  <div>
-                    <p className="font-bold text-gray-900">Final Groups</p>
-                    <p className="text-sm text-gray-500">
-                      Split into 3 groups again.
-                    </p>
-                  </div>
-                </div>
                 <div className="space-y-2">
                   {phase3Sections.map(({ section, visibleSegmentIds }) =>
                     renderSectionContent(section, visibleSegmentIds),

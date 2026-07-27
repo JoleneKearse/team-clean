@@ -6,7 +6,7 @@ import { JOBS } from "../constants/consts";
 import { getCleanerInitialsBadgeClassName } from "../utils/cleanerBadgeUtils";
 
 const Education = () => {
-  const { currentDay, buildingWeeklyAssignments } = useSchedule();
+  const { currentDay, buildingWeeklyAssignments, peopleIn } = useSchedule();
   const isMoppingDay =
     getMopLocationsForDay(currentDay).includes("backBuildings");
   const flo1JobIndex = JOBS.indexOf("Flo1");
@@ -68,39 +68,98 @@ const Education = () => {
           It's a mop day!
         </p>
       )}
-      <p className="border-t border-gray-300 px-4 py-3 text-center text-sm text-gray-700">
-        <span className="flex flex-wrap items-center justify-center gap-1.5">
+      {peopleIn === 8 ? (
+        <div className="border-t border-gray-300 px-4 py-3 text-sm text-gray-700 space-y-2">
           {flo1Initials && (
-            <span className={getCleanerInitialsBadgeClassName("Flo1")}>
-              {flo1Initials}
-            </span>
+            <p className="flex flex-wrap items-center justify-center gap-1.5 text-center">
+              <span className={getCleanerInitialsBadgeClassName("Flo1")}>
+                {flo1Initials}
+              </span>
+              <span>
+                will <strong>sanitize</strong> the <strong>extension</strong>.
+              </span>
+            </p>
           )}
           {flo2Initials && (
-            <span className={getCleanerInitialsBadgeClassName("Flo2")}>
-              {flo2Initials}
-            </span>
+            <p className="flex flex-wrap items-center justify-center gap-1.5 text-center">
+              <span className={getCleanerInitialsBadgeClassName("Flo2")}>
+                {flo2Initials}
+              </span>
+              <span>
+                will <strong>sweep</strong> the <strong>extension</strong>.
+              </span>
+            </p>
           )}
           {flo3Initials && (
-            <span className={getCleanerInitialsBadgeClassName("Flo3")}>
-              {flo3Initials}
-            </span>
+            <p className="flex flex-wrap items-center justify-center gap-1.5 text-center">
+              <span className={getCleanerInitialsBadgeClassName("Flo3")}>
+                {flo3Initials}
+              </span>
+              <span>
+                will clean the <strong>extension bathrooms</strong>.
+              </span>
+            </p>
           )}
-          <span>can help</span>
-          <span className={getCleanerInitialsBadgeClassName("San")}>
-            {sanInitials || "—"}
+        </div>
+      ) : peopleIn === 7 ? (
+        <div className="border-t border-gray-300 px-4 py-3 text-sm text-gray-700 space-y-2">
+          {flo1Initials && (
+            <p className="flex flex-wrap items-center justify-center gap-1.5 text-center">
+              <span className={getCleanerInitialsBadgeClassName("Flo1")}>
+                {flo1Initials}
+              </span>
+              <span>
+                will <strong>sanitize</strong> and <strong>sweep</strong> the
+                <strong> extension</strong>.
+              </span>
+            </p>
+          )}
+          {flo2Initials && (
+            <p className="flex flex-wrap items-center justify-center gap-1.5 text-center">
+              <span className={getCleanerInitialsBadgeClassName("Flo2")}>
+                {flo2Initials}
+              </span>
+              <span>
+                will clean the <strong>extension bathrooms</strong>.
+              </span>
+            </p>
+          )}
+        </div>
+      ) : (
+        <p className="border-t border-gray-300 px-4 py-3 text-center text-sm text-gray-700">
+          <span className="flex flex-wrap items-center justify-center gap-1.5">
+            {flo1Initials && (
+              <span className={getCleanerInitialsBadgeClassName("Flo1")}>
+                {flo1Initials}
+              </span>
+            )}
+            {flo2Initials && (
+              <span className={getCleanerInitialsBadgeClassName("Flo2")}>
+                {flo2Initials}
+              </span>
+            )}
+            {flo3Initials && (
+              <span className={getCleanerInitialsBadgeClassName("Flo3")}>
+                {flo3Initials}
+              </span>
+            )}
+            <span>can help</span>
+            <span className={getCleanerInitialsBadgeClassName("San")}>
+              {sanInitials || "—"}
+            </span>
+            <span>sanitize,</span>
+            <span className={getCleanerInitialsBadgeClassName("SW")}>
+              {swInitials || "—"}
+            </span>
+            <span>sweep,</span>
+            <span>{flo3Initials ? "and" : "or"}</span>
+            <span className={getCleanerInitialsBadgeClassName("Bath")}>
+              {bathInitials || "—"}
+            </span>
+            <span>do the bathrooms in the new extension.</span>
           </span>
-          <span>sanitize,</span>
-          <span className={getCleanerInitialsBadgeClassName("SW")}>
-            {swInitials || "—"}
-          </span>
-          <span>sweep,</span>
-          <span>{flo3Initials ? "and" : "or"}</span>
-          <span className={getCleanerInitialsBadgeClassName("Bath")}>
-            {bathInitials || "—"}
-          </span>
-          <span>do the bathrooms in the new extension.</span>
-        </span>
-      </p>
+        </p>
+      )}
     </article>
   );
 };

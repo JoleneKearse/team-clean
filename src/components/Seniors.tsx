@@ -9,9 +9,6 @@ const Seniors = () => {
   const isMoppingDay = getMopLocationsForDay(currentDay).includes("seniors");
   const flo1JobIndex = JOBS.indexOf("Flo1");
   const flo2JobIndex = JOBS.indexOf("Flo2");
-  const flo3JobIndex = JOBS.indexOf("Flo3");
-  const sanJobIndex = JOBS.indexOf("San");
-  const swJobIndex = JOBS.indexOf("SW");
   const flo1Initials =
     flo1JobIndex >= 0
       ? (buildingWeeklyAssignments[currentDay][flo1JobIndex] ?? "")
@@ -19,18 +16,6 @@ const Seniors = () => {
   const flo2Initials =
     flo2JobIndex >= 0
       ? (buildingWeeklyAssignments[currentDay][flo2JobIndex] ?? "")
-      : "";
-  const flo3Initials =
-    flo3JobIndex >= 0
-      ? (buildingWeeklyAssignments[currentDay][flo3JobIndex] ?? "")
-      : "";
-  const sanInitials =
-    sanJobIndex >= 0
-      ? (buildingWeeklyAssignments[currentDay][sanJobIndex] ?? "")
-      : "";
-  const swInitials =
-    swJobIndex >= 0
-      ? (buildingWeeklyAssignments[currentDay][swJobIndex] ?? "")
       : "";
 
   return (
@@ -61,34 +46,30 @@ const Seniors = () => {
           It's a mop day!
         </p>
       )}
-      <p className="border-t border-gray-300 px-4 py-3 text-center text-sm text-gray-700">
-        <span className="flex flex-wrap items-center justify-center gap-1.5">
-          {flo1Initials && (
+      <div className="border-t border-gray-300 px-4 py-3 text-sm text-gray-700">
+        {flo1Initials && (
+          <p className="flex flex-wrap items-center justify-center gap-1.5 text-center">
             <span className={getCleanerInitialsBadgeClassName("Flo1")}>
               {flo1Initials}
             </span>
-          )}
-          {flo2Initials && (
+            <span>
+              sanitizes, sweeps, and collects the garbage from the{" "}
+              <strong>lounge</strong>.
+            </span>
+          </p>
+        )}
+        {flo2Initials && (
+          <p className="mt-2 flex flex-wrap items-center justify-center gap-1.5 text-center">
             <span className={getCleanerInitialsBadgeClassName("Flo2")}>
               {flo2Initials}
             </span>
-          )}
-          {flo3Initials && (
-            <span className={getCleanerInitialsBadgeClassName("Flo3")}>
-              {flo3Initials}
+            <span>
+              checks the activity room. If used, santize, sweep and get the
+              garbage, or see the lead for assignment.
             </span>
-          )}
-          <span>can help</span>
-          <span className={getCleanerInitialsBadgeClassName("San")}>
-            {sanInitials || "—"}
-          </span>
-          <span>sanitize, or</span>
-          <span className={getCleanerInitialsBadgeClassName("SW")}>
-            {swInitials || "—"}
-          </span>
-          <span>sweep, or anything else to help.</span>
-        </span>
-      </p>
+          </p>
+        )}
+      </div>
     </article>
   );
 };
