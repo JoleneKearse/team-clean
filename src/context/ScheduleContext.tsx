@@ -191,7 +191,6 @@ interface PersistedScheduleState {
   staffCleanersDefaultsVersion: number;
   currentDay: DayKey;
   presentCleanersByDay: PresentCleanersByDay;
-  weeklyLeaveCleaners: CleanerId[];
   callInReplacementsByDay: CallInReplacementsByDay;
   swapOperationsByDay: SwapOperationsByDay;
   buildingMoveOperationsByDay: BuildingMoveOperationsByDay;
@@ -375,6 +374,28 @@ function getDateKeyForDayInDisplayedWeek(
   return getLocalDateKey(date);
 }
 
+function getWeekStartDateKey(referenceDate: Date): string {
+  return getLocalDateKey(getDisplayedWeekStart(referenceDate));
+}
+
+const WEEKLY_LEAVE_STORAGE_KEY_PREFIX = "team-clean:weekly-leave-state";
+
+function getWeeklyLeaveStorageKey(referenceDate: Date): string {
+  return `${WEEKLY_LEAVE_STORAGE_KEY_PREFIX}:${getWeekStartDateKey(referenceDate)}`;
+}
+
+const WORK_DAY_KEYS: readonly DayKey[] = ["mon", "tue", "wed", "thu", "fri"];
+
+function getWorkWeekDateKeys(referenceDate: Date): string[] {
+  const weekStart = getDisplayedWeekStart(referenceDate);
+
+  return WORK_DAY_KEYS.map((dayKey) => {
+    const date = new Date(weekStart);
+    date.setDate(weekStart.getDate() + DAY_OFFSET_BY_KEY[dayKey]);
+    return getLocalDateKey(date);
+  });
+}
+
 function getDefaultScheduleSnapshot(currentDay: DayKey): ScheduleSnapshot {
   return {
     currentDay,
@@ -389,6 +410,36 @@ function getDefaultScheduleSnapshot(currentDay: DayKey): ScheduleSnapshot {
     closedItemsByDay: getDefaultClosedItemsByDay(),
     sectionOrderByDay: getDefaultSectionOrderByDay(),
   };
+}
+
+function loadPersistedWeeklyLeaveCleaners(referenceDate: Date): CleanerId[] {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  const raw = window.localStorage.getItem(
+    getWeeklyLeaveStorageKey(referenceDate),
+  );
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<{
+      weekStartDateKey: string;
+      weeklyLeaveCleaners: unknown;
+    }>;
+
+    if (parsed.weekStartDateKey !== getWeekStartDateKey(referenceDate)) {
+      window.localStorage.removeItem(getWeeklyLeaveStorageKey(referenceDate));
+      return [];
+    }
+
+    return normalizeWeeklyLeaveCleaners(parsed.weeklyLeaveCleaners);
+  } catch {
+    window.localStorage.removeItem(getWeeklyLeaveStorageKey(referenceDate));
+    return [];
+  }
 }
 
 function normalizeWeeklyLeaveCleaners(value: unknown): CleanerId[] {
@@ -830,7 +881,6 @@ function loadPersistedScheduleState(
   PersistedScheduleState,
   | "currentDay"
   | "presentCleanersByDay"
-  | "weeklyLeaveCleaners"
   | "callInReplacementsByDay"
   | "swapOperationsByDay"
   | "buildingMoveOperationsByDay"
@@ -866,9 +916,6 @@ function loadPersistedScheduleState(
       presentCleanersByDay: normalizePresentCleanersByDay(
         parsed.presentCleanersByDay,
         backfillMissingStaffCleaners,
-      ),
-      weeklyLeaveCleaners: normalizeWeeklyLeaveCleaners(
-        parsed.weeklyLeaveCleaners,
       ),
       callInReplacementsByDay: normalizeCallInReplacementsByDay(
         parsed.callInReplacementsByDay,
@@ -1031,7 +1078,7 @@ export const ScheduleProvider = ({
         getDefaultCallInReplacementsByDay(),
     );
   const [weeklyLeaveCleaners, setWeeklyLeaveCleaners] = useState<CleanerId[]>(
-    persistedScheduleState?.weeklyLeaveCleaners ?? [],
+    () => loadPersistedWeeklyLeaveCleaners(today),
   );
   const [swapOperationsByDay, setSwapOperationsByDay] =
     useState<SwapOperationsByDay>(
@@ -1723,6 +1770,21 @@ export const ScheduleProvider = ({
         { merge: true },
       );
 
+      const weekReplicationPromise = Promise.all(
+        getWorkWeekDateKeys(today)
+          .filter((dateKey) => dateKey !== todayDateKey)
+          .map((dateKey) =>
+            setDoc(
+              doc(db!, "dailySchedules", dateKey),
+              {
+                weeklyLeaveCleaners: snapshot.weeklyLeaveCleaners,
+                weeklyLeaveWeekStartDateKey: getWeekStartDateKey(today),
+              },
+              { merge: true },
+            ),
+          ),
+      );
+
       const timeoutPromise = new Promise<never>((_, reject) => {
         timeoutId = setTimeout(() => {
           reject(
@@ -1733,7 +1795,10 @@ export const ScheduleProvider = ({
         }, FIRESTORE_SAVE_TIMEOUT_MS);
       });
 
-      await Promise.race([savePromise, timeoutPromise]);
+      await Promise.race([
+        Promise.all([savePromise, weekReplicationPromise]),
+        timeoutPromise,
+      ]);
 
       setLastSavedToCloudAt(new Date().toISOString());
     } catch (error) {
@@ -1802,6 +1867,7 @@ export const ScheduleProvider = ({
 
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(STORAGE_KEY);
+      window.localStorage.removeItem(getWeeklyLeaveStorageKey(today));
     }
 
     await persistScheduleSnapshotToFirestore(snapshot);
@@ -1831,7 +1897,9 @@ export const ScheduleProvider = ({
         if (!syncedSnapshot) return;
 
         setPresentCleanersByDay(syncedSnapshot.presentCleanersByDay);
-        setWeeklyLeaveCleaners(syncedSnapshot.weeklyLeaveCleaners);
+        if (Object.prototype.hasOwnProperty.call(data, "weeklyLeaveCleaners")) {
+          setWeeklyLeaveCleaners(syncedSnapshot.weeklyLeaveCleaners);
+        }
         setCallInReplacementsByDay(syncedSnapshot.callInReplacementsByDay);
         setSwapOperationsByDay(syncedSnapshot.swapOperationsByDay);
         setBuildingMoveOperationsByDay(
@@ -1876,7 +1944,6 @@ export const ScheduleProvider = ({
       staffCleanersDefaultsVersion: STAFF_CLEANERS_DEFAULTS_VERSION,
       currentDay,
       presentCleanersByDay,
-      weeklyLeaveCleaners,
       callInReplacementsByDay,
       swapOperationsByDay,
       buildingMoveOperationsByDay,
@@ -1897,12 +1964,30 @@ export const ScheduleProvider = ({
     daycareMoveOperationsByDay,
     sectionOrderByDay,
     presentCleanersByDay,
-    weeklyLeaveCleaners,
     currentDay,
     isViewingPastDate,
     swapOperationsByDay,
     todayDateKey,
   ]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const storageKey = getWeeklyLeaveStorageKey(today);
+
+    if (weeklyLeaveCleaners.length === 0) {
+      window.localStorage.removeItem(storageKey);
+      return;
+    }
+
+    window.localStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        weekStartDateKey: getWeekStartDateKey(today),
+        weeklyLeaveCleaners,
+      }),
+    );
+  }, [today, weeklyLeaveCleaners]);
 
   return (
     <ScheduleContext.Provider
