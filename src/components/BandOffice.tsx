@@ -17,6 +17,7 @@ const BATHROOM_NOTICE_SUFFIX = " needs to do all the bathrooms.";
 function getBandOfficeNotices(
   peopleIn: number,
   bathInitials: string,
+  flo2Label: string,
 ): string[] {
   if (peopleIn <= 5) {
     return ["All jobs do both floors."];
@@ -31,7 +32,9 @@ function getBandOfficeNotices(
 
     return [
       "There may be only one person cleaning the basement, so check it.",
-      `${bathNoticePrefix} needs to do all the bathrooms.`,
+      flo2Label === "Downstairs bathrooms"
+        ? ""
+        : `${bathNoticePrefix} needs to do all the bathrooms.`,
     ];
   }
 
@@ -55,7 +58,12 @@ const BandOffice = () => {
   const dayAssignments = weeklyAssignments[currentDay];
   const bathIndex = JOBS.indexOf("Bath");
   const bathInitials = bathIndex >= 0 ? (dayAssignments[bathIndex] ?? "") : "";
-  const notices = getBandOfficeNotices(peopleIn, bathInitials);
+  const flo2Label = getBandOfficeAssignmentsForDay("Flo2", peopleIn);
+  const notices = getBandOfficeNotices(
+    peopleIn,
+    bathInitials,
+    flo2Label,
+  ).filter(Boolean);
   const topNotices = notices.filter(
     (notice) => !notice.endsWith(BATHROOM_NOTICE_SUFFIX),
   );
@@ -71,7 +79,7 @@ const BandOffice = () => {
       jobId,
       index,
       initials: index >= 0 ? (dayAssignments[index] ?? "") : "",
-      label: getBandOfficeAssignmentsForDay(jobId),
+      label: getBandOfficeAssignmentsForDay(jobId, peopleIn),
     };
   });
 
