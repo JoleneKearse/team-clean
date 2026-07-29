@@ -14,6 +14,15 @@ function buildMopMessage(locations: readonly MopLocation[]): string | null {
     return "Mop the Seniors and back buildings today.";
   }
 
+  if (
+    locations.includes("seniors") &&
+    locations.includes("backBuildings") &&
+    locations.includes("bandOffice") &&
+    locations.length === 3
+  ) {
+    return "Mop the Seniors, Back Buildings, and Band Office today.";
+  }
+
   const parts: string[] = [];
 
   if (locations.includes("seniors")) parts.push("the Seniors");

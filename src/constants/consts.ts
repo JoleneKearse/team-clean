@@ -178,7 +178,7 @@ export type MopLocation =
 export const MOP_SCHEDULE: Partial<Record<string, readonly MopLocation[]>> = {
   mon: ["seniors"],
   tue: ["bandOffice"],
-  wed: ["seniors", "backBuildings"],
+  wed: ["seniors", "backBuildings", "bandOffice"],
   thu: ["healthCenter"],
   fri: ["seniors"],
 } as const;
