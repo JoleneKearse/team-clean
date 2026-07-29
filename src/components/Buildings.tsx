@@ -292,7 +292,7 @@ function renderBuildingLabel(
           .filter(Boolean)
           .join(" ")}
       >
-        {getClosureLabelById(segmentId)}
+        {getClosureLabelById(segmentId).trim()}
       </span>
     </span>
   ));
@@ -435,33 +435,33 @@ const Buildings = ({ isEditMode, closedItems }: BuildingsProps) => {
         .filter((initials) => initials !== ""),
     );
     const hasOnlyOneAssignedCleaner = uniqueAssignedCleaners.size === 1;
+    const shouldShowAnnexAlert =
+      section.key === "annex" && hasOnlyOneAssignedCleaner;
 
     return (
       <section key={section.key}>
-        <h3
-          className={[
-            "font-semibold text-gray-900",
-            hasOnlyOneAssignedCleaner ? "text-pink-700" : "",
-          ]
-            .filter(Boolean)
-            .join(" ")}
-        >
-          {renderBuildingLabel(visibleSegmentIds, {
-            hasOnlyOneAssignedCleaner,
-          })}
-          {isMoppingBackBuildings &&
-          (section.key === "social" ||
-            section.key === "annex" ||
-            section.key === "fieldhouse_dropin_final") ? (
-            <img
-              src={mopIcon}
-              alt="mop"
-              aria-hidden="true"
-              className="inline-block h-4 w-4 align-middle"
-            />
-          ) : null}
-          {hasOnlyOneAssignedCleaner ? " needs another cleaner" : ""}
-        </h3>
+        {shouldShowAnnexAlert ? (
+          <p className="font-semibold text-pink-700">
+            Annex needs another cleaner.
+          </p>
+        ) : (
+          <h3 className="font-semibold text-gray-900">
+            {renderBuildingLabel(visibleSegmentIds, {
+              hasOnlyOneAssignedCleaner,
+            })}
+            {isMoppingBackBuildings &&
+            (section.key === "social" ||
+              section.key === "annex" ||
+              section.key === "fieldhouse_dropin_final") ? (
+              <img
+                src={mopIcon}
+                alt="mop"
+                aria-hidden="true"
+                className="inline-block h-4 w-4 align-middle"
+              />
+            ) : null}
+          </h3>
+        )}
         <div
           className={[
             "mt-1 rounded-xl overflow-hidden border",
