@@ -13,8 +13,8 @@ export const JOBS = [
   "Flo2",
   "Vac",
   "San",
-  "Flo3",
   "Gar",
+  "Flo3",
 ] as const;
 
 export const NECESSARY_JOBS = ["Bath", "SW", "Vac", "San", "Gar"] as const;
@@ -82,29 +82,33 @@ export function getNecessaryJobStyle(jobId: string) {
   return NECESSARY_JOB_STYLES[jobId];
 }
 
-export const STAFF_CLEANERS = [
-  "PW",
-  "JA",
-  "BM",
-  "AN",
-  "RB",
-  "D",
-  "JK",
-  "TW",
-] as const;
+export const STAFF_CLEANERS = ["PW", "JA", "BM", "AN", "RB", "D"] as const;
 
 export const CALL_IN_CLEANERS = [
   "HA",
   "SW",
+  "JK",
+  "AP",
   "KR",
   "MB",
   "EB",
-  "AP",
-  "KK",
   "new",
 ] as const;
 
-export const CLEANERS = [...STAFF_CLEANERS, ...CALL_IN_CLEANERS] as const;
+export const CLEANER_ORDER = [
+  "SW",
+  "IB",
+  "BM",
+  "AN",
+  "HA",
+  "D",
+  "JK",
+  "JA",
+] as const;
+
+export const CLEANERS = [
+  ...new Set([...CLEANER_ORDER, ...STAFF_CLEANERS, ...CALL_IN_CLEANERS]),
+] as const;
 
 export const CLOSURE_OPTIONS = [
   { id: "Seniors", label: "Seniors", colorClass: "bg-blue-300" },
@@ -167,7 +171,7 @@ export const BUILDINGS = [
   },
 ] as const;
 
-export const ANCHOR_MONDAY = "2026-02-23" as const;
+export const ANCHOR_MONDAY = "2026-11-02" as const;
 
 export type MopLocation =
   | "seniors"

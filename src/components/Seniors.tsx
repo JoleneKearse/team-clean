@@ -1,14 +1,21 @@
-import { getMopLocationsForDay } from "../constants/consts";
-import { JOBS } from "../constants/consts";
+import {
+  getMopLocationsForDay,
+  getNecessaryJobStyle,
+  JOBS,
+} from "../constants/consts";
 import { useSchedule } from "../context/ScheduleContext";
 import mopIcon from "../assets/mop.svg";
 import { getCleanerInitialsBadgeClassName } from "../utils/cleanerBadgeUtils";
 
 const Seniors = () => {
   const { currentDay, buildingWeeklyAssignments } = useSchedule();
+  const isFriday = currentDay === "fri";
   const isMoppingDay = getMopLocationsForDay(currentDay).includes("seniors");
   const flo1JobIndex = JOBS.indexOf("Flo1");
   const flo2JobIndex = JOBS.indexOf("Flo2");
+  const swJobIndex = JOBS.indexOf("SW");
+  const sanJobIndex = JOBS.indexOf("San");
+  const flo3JobIndex = JOBS.indexOf("Flo3");
   const flo1Initials =
     flo1JobIndex >= 0
       ? (buildingWeeklyAssignments[currentDay][flo1JobIndex] ?? "")
@@ -17,6 +24,11 @@ const Seniors = () => {
     flo2JobIndex >= 0
       ? (buildingWeeklyAssignments[currentDay][flo2JobIndex] ?? "")
       : "";
+  const chartAssignments = [
+    { job: "SW", initials: swJobIndex >= 0 ? (buildingWeeklyAssignments[currentDay][swJobIndex] ?? "") : "" },
+    { job: "San", initials: sanJobIndex >= 0 ? (buildingWeeklyAssignments[currentDay][sanJobIndex] ?? "") : "" },
+    { job: "Flo3", initials: flo3JobIndex >= 0 ? (buildingWeeklyAssignments[currentDay][flo3JobIndex] ?? "") : "" },
+  ];
 
   return (
     <article className="w-full border border-gray-500 rounded-xl shadow-lg bg-gray-200">
@@ -47,7 +59,7 @@ const Seniors = () => {
         </p>
       )}
       <div className="border-t border-gray-300 px-4 py-3 text-sm text-gray-700">
-        {flo1Initials && (
+        {isFriday && flo1Initials && (
           <p className="flex flex-wrap items-center justify-center gap-1.5 text-center">
             <span className={getCleanerInitialsBadgeClassName("Flo1")}>
               {flo1Initials}
@@ -58,7 +70,7 @@ const Seniors = () => {
             </span>
           </p>
         )}
-        {flo2Initials && (
+        {isFriday && flo2Initials && (
           <p className="mt-2 flex flex-wrap items-center justify-center gap-1.5 text-center">
             <span className={getCleanerInitialsBadgeClassName("Flo2")}>
               {flo2Initials}
@@ -69,6 +81,58 @@ const Seniors = () => {
             </span>
           </p>
         )}
+
+        <div className="mt-4 overflow-hidden rounded-xl border border-gray-400 bg-white">
+          <table className="w-full table-fixed border-collapse text-center">
+            <tbody>
+              <tr>
+                {chartAssignments.map(({ job }) => {
+                  const necessaryJobStyle = getNecessaryJobStyle(job);
+
+                  return (
+                    <td
+                      key={`${job}-label`}
+                      className={[
+                        "border border-gray-400 px-2 py-1 font-normal italic",
+                        necessaryJobStyle
+                          ? necessaryJobStyle.solidClass
+                          : "bg-white text-gray-900",
+                        necessaryJobStyle ? necessaryJobStyle.textClass : "text-gray-900",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    >
+                      {job}
+                    </td>
+                  );
+                })}
+              </tr>
+              <tr>
+                {chartAssignments.map(({ job, initials }) => {
+                  const necessaryJobStyle = getNecessaryJobStyle(job);
+
+                  return (
+                    <td
+                      key={`${job}-initials`}
+                      className={[
+                        "border border-gray-400 px-2 py-1 font-normal",
+                        initials !== ""
+                          ? necessaryJobStyle
+                            ? necessaryJobStyle.lineBgClass
+                            : "bg-gray-100 text-gray-900"
+                          : "bg-gray-100 text-gray-500",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    >
+                      {initials}
+                    </td>
+                  );
+                })}
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </article>
   );

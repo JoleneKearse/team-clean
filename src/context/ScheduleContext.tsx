@@ -4,8 +4,10 @@ import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 import {
   enforceNecessaryJobsBeforeFlo,
   generateWeeklyAssignments,
-  getWeeklyReassignmentFlags,
   getDayKeyFromDate,
+  getWeeklyReassignmentFlags,
+  hasLegacyCleanerRotation,
+  sanitizePresentCleanersByDay,
   type CallInReplacementMapByDay,
   type WeeklyReassignmentFlags,
 } from "../utils/scheduleUtils";
@@ -19,6 +21,7 @@ import {
 
 import {
   CALL_IN_CLEANERS,
+  CLEANER_ORDER,
   CLEANERS,
   CLOSURE_OPTIONS,
   JOBS,
@@ -221,11 +224,11 @@ interface ScheduleSnapshot {
 
 function getDefaultPresentCleanersByDay(): PresentCleanersByDay {
   return {
-    mon: [...STAFF_CLEANERS],
-    tue: [...STAFF_CLEANERS],
-    wed: [...STAFF_CLEANERS],
-    thu: [...STAFF_CLEANERS],
-    fri: [...STAFF_CLEANERS],
+    mon: [...CLEANER_ORDER],
+    tue: [...CLEANER_ORDER],
+    wed: [...CLEANER_ORDER],
+    thu: [...CLEANER_ORDER],
+    fri: [...CLEANER_ORDER],
   };
 }
 
@@ -496,7 +499,7 @@ function normalizeCleanersForDay(
   value: unknown,
   backfillMissingStaffCleaners: boolean,
 ): CleanerId[] {
-  if (!Array.isArray(value)) return [...STAFF_CLEANERS];
+  if (!Array.isArray(value)) return [...CLEANER_ORDER];
 
   const selected = new Set(
     value.filter(
@@ -907,6 +910,18 @@ function loadPersistedScheduleState(
       return null;
     }
 
+    const legacyRoster = parsed.presentCleanersByDay;
+    if (
+      legacyRoster &&
+      typeof legacyRoster === "object" &&
+      (Object.values(legacyRoster) as unknown[]).some((dayRoster) =>
+        hasLegacyCleanerRotation(dayRoster as readonly string[]),
+      )
+    ) {
+      window.localStorage.removeItem(STORAGE_KEY);
+      return null;
+    }
+
     const currentDay = isDayKey(parsed.currentDay) ? parsed.currentDay : null;
 
     if (!currentDay) return null;
@@ -962,6 +977,17 @@ function getScheduleSnapshotFromFirestoreData(
 
   const preserveHistoricalAssignments =
     options?.preserveHistoricalAssignments === true;
+
+  const legacyRoster = source.presentCleanersByDay;
+  if (
+    legacyRoster &&
+    typeof legacyRoster === "object" &&
+    (Object.values(legacyRoster) as unknown[]).some((dayRoster) =>
+      hasLegacyCleanerRotation(dayRoster as readonly string[]),
+    )
+  ) {
+    return null;
+  }
 
   const backfillDefaultWhenEmpty =
     source.closedItemsDefaultsVersion !== CLOSED_ITEMS_DEFAULTS_VERSION;
@@ -1179,21 +1205,15 @@ export const ScheduleProvider = ({
         typeof valueOrUpdater === "function"
           ? valueOrUpdater(effectiveCurrentForDay)
           : valueOrUpdater;
-
-      const preservedWeeklyLeaveSelections = rawCurrentForDay.filter(
-        (cleaner) => weeklyLeaveSet.has(cleaner),
-      );
-      const mergedSelection = new Set<CleanerId>([
-        ...nextForCurrentDay,
-        ...preservedWeeklyLeaveSelections,
-      ]);
-      const nextRawForCurrentDay = CLEANERS.filter((cleaner) =>
-        mergedSelection.has(cleaner),
+      const sanitizedNextForCurrentDay = nextForCurrentDay.filter(
+        (cleaner) => !weeklyLeaveSet.has(cleaner),
       );
 
       return {
         ...current,
-        [currentDay]: nextRawForCurrentDay,
+        [currentDay]: CLEANERS.filter((cleaner) =>
+          sanitizedNextForCurrentDay.includes(cleaner),
+        ),
       };
     });
   };
@@ -1211,7 +1231,19 @@ export const ScheduleProvider = ({
         next.delete(cleaner);
       }
 
-      return STAFF_CLEANERS.filter((staffCleaner) => next.has(staffCleaner));
+      const nextWeeklyLeaveCleaners = STAFF_CLEANERS.filter((staffCleaner) =>
+        next.has(staffCleaner),
+      );
+
+      setPresentCleanersByDay((currentPresent) =>
+        sanitizePresentCleanersByDay({
+          presentCleanersByDay: currentPresent,
+          weeklyLeaveCleaners: nextWeeklyLeaveCleaners,
+          allCleaners: CLEANERS,
+        }),
+      );
+
+      return nextWeeklyLeaveCleaners;
     });
   };
 
@@ -1287,7 +1319,7 @@ export const ScheduleProvider = ({
       );
 
     const generatedWeeklyAssignments = generateWeeklyAssignments(
-      STAFF_CLEANERS,
+      CLEANER_ORDER,
       referenceDate,
       JOBS.length,
       effectivePresentCleanersByDay,
@@ -1392,7 +1424,7 @@ export const ScheduleProvider = ({
       computedDaycareWeeklyAssignments;
 
     const baselineWeeklyAssignments = generateWeeklyAssignments(
-      STAFF_CLEANERS,
+      CLEANER_ORDER,
       referenceDate,
       JOBS.length,
       undefined,

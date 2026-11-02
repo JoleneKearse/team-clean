@@ -250,6 +250,7 @@ function hasDefaultOrderClosures(closedItems: readonly ClosureId[]) {
 
 type OutCleanerAssignmentsListProps = {
   assignments: readonly OutCleanerAssignment[];
+  plannedAbsenceCleaners: ReadonlySet<CleanerId>;
 };
 
 function formatPlannedAbsencesSummary(cleaners: readonly CleanerId[]) {
@@ -271,6 +272,7 @@ function formatPlannedAbsencesSummary(cleaners: readonly CleanerId[]) {
 
 function OutCleanerAssignmentsList({
   assignments,
+  plannedAbsenceCleaners,
 }: OutCleanerAssignmentsListProps) {
   return (
     <div className="space-y-2">
@@ -282,50 +284,63 @@ function OutCleanerAssignmentsList({
           replacementJobId,
           hasReassignedReplacement,
           isCallInReplacement,
-        }) => (
-          <p
-            key={initials}
-            className="flex flex-wrap items-center gap-2 border-b-2 border-gray-100/60 pb-2 last:border-b-0 last:pb-0"
-          >
-            {jobId &&
-            replacementInitials &&
-            (hasReassignedReplacement || isCallInReplacement) ? (
-              <>
-                <span
-                  className={getCleanerInitialsBadgeClassName(
-                    replacementJobId ?? jobId,
-                  )}
-                >
-                  {replacementInitials}
-                </span>
-                <span>
-                  was (
-                  <span className="font-semibold">
-                    {replacementJobId ?? jobId}
+        }) => {
+          const isPlannedAbsence = plannedAbsenceCleaners.has(initials);
+
+          if (
+            isPlannedAbsence &&
+            !replacementInitials &&
+            !hasReassignedReplacement &&
+            !isCallInReplacement
+          ) {
+            return null;
+          }
+
+          return (
+            <p
+              key={initials}
+              className="flex flex-wrap items-center gap-2 border-b-2 border-gray-100/60 pb-2 last:border-b-0 last:pb-0"
+            >
+              {jobId &&
+              replacementInitials &&
+              (hasReassignedReplacement || isCallInReplacement) ? (
+                <>
+                  <span
+                    className={getCleanerInitialsBadgeClassName(
+                      replacementJobId ?? jobId,
+                    )}
+                  >
+                    {replacementInitials}
                   </span>
-                  ), but moves to <span className="font-semibold">{jobId}</span>
-                  .
-                </span>
-              </>
-            ) : jobId ? (
-              <>
-                <span
-                  className={getCleanerInitialsBadgeClassName(
-                    jobId,
-                    "line-through decoration-2",
-                  )}
-                >
-                  {initials}
-                </span>
-                <span>
-                  is out as <span className="font-semibold">{jobId}</span>.
-                </span>
-              </>
-            ) : (
-              <span className="font-semibold">{initials} is out.</span>
-            )}
-          </p>
-        ),
+                  <span>
+                    was (
+                    <span className="font-semibold">
+                      {replacementJobId ?? jobId}
+                    </span>
+                    ), but moves to <span className="font-semibold">{jobId}</span>
+                    .
+                  </span>
+                </>
+              ) : jobId ? (
+                <>
+                  <span
+                    className={getCleanerInitialsBadgeClassName(
+                      jobId,
+                      "line-through decoration-2",
+                    )}
+                  >
+                    {initials}
+                  </span>
+                  <span>
+                    is out as <span className="font-semibold">{jobId}</span>.
+                  </span>
+                </>
+              ) : (
+                <span className="font-semibold">{initials} is out.</span>
+              )}
+            </p>
+          );
+        },
       )}
     </div>
   );
@@ -444,13 +459,13 @@ function App() {
   const isFridayizedThursday = isThursday && isFridayHoliday && isFridayized;
   const isFridayOrMarchBreak =
     isFriday || isMarchBreakReducedScheduleDay || isFridayizedThursday;
+  const isRegularSchoolDay =
+    !isCurrentDayHoliday && !isMarchBreakReducedScheduleDay;
   const isBuildingsComponentEnabled = !isFridayOrMarchBreak;
-  const isSeniorsComponentEnabled = isFridayOrMarchBreak;
-  const isGrade1ComponentEnabled =
-    (isFriday || isFridayizedThursday) && !isMarchBreakReducedScheduleDay;
-  const isGrade2ComponentEnabled =
-    (isFriday || isFridayizedThursday) && !isMarchBreakReducedScheduleDay;
-  const isEducationComponentEnabled = isFridayOrMarchBreak;
+  const isSeniorsComponentEnabled = isRegularSchoolDay;
+  const isGrade1ComponentEnabled = isRegularSchoolDay;
+  const isGrade2ComponentEnabled = isRegularSchoolDay;
+  const isEducationComponentEnabled = isRegularSchoolDay;
   const isFieldhouseComponentEnabled = isFridayOrMarchBreak;
   const isSocialComponentEnabled = isFridayOrMarchBreak;
   const isAnnexComponentEnabled = isFridayOrMarchBreak;
@@ -1048,6 +1063,7 @@ function App() {
                 <div className="mt-3 rounded-lg border border-gray-300 bg-gray-300/60 p-3 text-pink-800">
                   <OutCleanerAssignmentsList
                     assignments={outCleanerAssignments}
+                    plannedAbsenceCleaners={weeklyLeaveCleanerSet}
                   />
                 </div>
               )}
@@ -1352,7 +1368,10 @@ function App() {
               {plannedAbsencesSummary && (
                 <p className="pb-2 text-sm">{plannedAbsencesSummary}</p>
               )}
-              <OutCleanerAssignmentsList assignments={outCleanerAssignments} />
+              <OutCleanerAssignmentsList
+                assignments={outCleanerAssignments}
+                plannedAbsenceCleaners={weeklyLeaveCleanerSet}
+              />
             </div>
           </article>
         )}

@@ -5,34 +5,20 @@ import type { JobId } from "../types/types";
 import gradeTwoImage from "../assets/grade-two.webp";
 
 const GRADE_2_JOBS: readonly JobId[] = ["Vac", "Gar"];
-const TOTAL_COLUMNS = 4;
 
 const Grade2 = () => {
-  const {
-    currentDay,
-    buildingWeeklyAssignments,
-    weeklyReassignmentFlags,
-    buildingReassignmentFlags,
-  } = useSchedule();
+  const { currentDay, buildingWeeklyAssignments } = useSchedule();
   const grade2Assignments = getBuildingAssignmentsForDay({
     day: currentDay,
     jobs: JOBS,
     weeklyAssignments: buildingWeeklyAssignments,
     buildingJobs: GRADE_2_JOBS,
   });
-  const tableCells = [
-    ...grade2Assignments.map((assignment) => ({
-      job: assignment.job,
-      initials: assignment.initials,
-    })),
-    ...Array.from(
-      { length: Math.max(0, TOTAL_COLUMNS - grade2Assignments.length) },
-      () => ({
-        job: null,
-        initials: "",
-      }),
-    ),
-  ];
+
+  const tableCells = grade2Assignments.map((assignment) => ({
+    job: assignment.job,
+    initials: assignment.initials,
+  }));
 
   return (
     <article className="w-full border border-gray-500 rounded-xl shadow-lg bg-gray-200">
@@ -51,35 +37,42 @@ const Grade2 = () => {
       </h2>
 
       <div className="rounded-b-xl p-4">
-        <div className="rounded-xl overflow-hidden border border-gray-400">
-          <table className="w-full table-fixed text-center border-collapse">
+        <div className="overflow-hidden rounded-xl border border-gray-400 bg-white">
+          <table className="w-full table-fixed border-collapse text-center">
             <tbody>
               <tr>
                 {tableCells.map((cell, index) => {
                   const necessaryJobStyle = cell.job
                     ? getNecessaryJobStyle(cell.job)
                     : null;
-                  const jobIndex = cell.job ? JOBS.indexOf(cell.job) : -1;
-                  const isReassigned =
-                    jobIndex >= 0 &&
-                    Boolean(
-                      weeklyReassignmentFlags[currentDay]?.[jobIndex] ||
-                      buildingReassignmentFlags[currentDay]?.[jobIndex],
-                    );
 
                   return (
                     <td
-                      key={`grade2-cell-${index}`}
+                      key={`grade2-job-${index}`}
                       className={[
-                        "min-w-20 border border-gray-400 px-2 py-1",
-                        isReassigned
-                          ? "text-pink-700 pink-change-contrast"
-                          : "",
-                        cell.initials !== ""
-                          ? necessaryJobStyle
-                            ? necessaryJobStyle.solidClass
-                            : "bg-gray-300 text-gray-900"
-                          : "bg-gray-100 text-gray-500",
+                        "min-w-20 border border-gray-400 px-2 py-1 font-normal italic text-gray-900",
+                        necessaryJobStyle ? necessaryJobStyle.solidClass : "bg-gray-100",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    >
+                      {cell.job}
+                    </td>
+                  );
+                })}
+              </tr>
+              <tr>
+                {tableCells.map((cell, index) => {
+                  const necessaryJobStyle = cell.job
+                    ? getNecessaryJobStyle(cell.job)
+                    : null;
+
+                  return (
+                    <td
+                      key={`grade2-initials-${index}`}
+                      className={[
+                        "min-w-20 border border-gray-400 px-2 py-1 font-normal text-gray-900",
+                        necessaryJobStyle ? necessaryJobStyle.lineBgClass : "bg-gray-100",
                       ]
                         .filter(Boolean)
                         .join(" ")}

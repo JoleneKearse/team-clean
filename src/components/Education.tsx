@@ -76,7 +76,7 @@ const Education = () => {
                 {flo1Initials}
               </span>
               <span>
-                will <strong>sanitize</strong> the <strong>extension</strong>.
+                has the <strong>extension</strong>.
               </span>
             </p>
           )}
@@ -86,7 +86,7 @@ const Education = () => {
                 {flo2Initials}
               </span>
               <span>
-                will <strong>sweep</strong> the <strong>extension</strong>.
+                has the <strong>extension bathrooms</strong>.
               </span>
             </p>
           )}
@@ -96,7 +96,7 @@ const Education = () => {
                 {flo3Initials}
               </span>
               <span>
-                will clean the <strong>extension bathrooms</strong>.
+                has the <strong>old classroom</strong>.
               </span>
             </p>
           )}

@@ -1,5 +1,9 @@
 import type { CleanerId, DayKey, JobId } from "../types/types";
-import { ANCHOR_MONDAY, isNecessaryJob } from "../constants/consts";
+import {
+  ANCHOR_MONDAY,
+  CLEANER_ORDER,
+  isNecessaryJob,
+} from "../constants/consts";
 import {
   getExtraHolidayOnDate,
   getOntarioPublicHolidayOnDate,
@@ -24,6 +28,70 @@ export type CallInReplacementMapByDay = Partial<
 
 function normalizePeopleIn(peopleIn: number): number {
   return Math.max(0, Math.min(8, peopleIn));
+}
+
+export function reconcilePresentCleanersForDay({
+  nextCleaners,
+  weeklyLeaveCleaners,
+  allCleaners,
+}: {
+  nextCleaners: readonly string[];
+  weeklyLeaveCleaners: readonly CleanerId[];
+  allCleaners: readonly CleanerId[];
+}): CleanerId[] {
+  const weeklyLeaveSet = new Set<CleanerId>(weeklyLeaveCleaners);
+  const selectedSet = new Set<CleanerId>();
+
+  nextCleaners.forEach((cleaner) => {
+    if (typeof cleaner !== "string") {
+      return;
+    }
+
+    const normalizedCleaner = cleaner as CleanerId;
+    if (!weeklyLeaveSet.has(normalizedCleaner)) {
+      selectedSet.add(normalizedCleaner);
+    }
+  });
+
+  return allCleaners.filter((cleaner) => selectedSet.has(cleaner));
+}
+
+export function sanitizePresentCleanersByDay({
+  presentCleanersByDay,
+  weeklyLeaveCleaners,
+  allCleaners,
+}: {
+  presentCleanersByDay: Partial<Record<DayKey, readonly CleanerId[]>>;
+  weeklyLeaveCleaners: readonly CleanerId[];
+  allCleaners: readonly CleanerId[];
+}): Record<DayKey, CleanerId[]> {
+  return {
+    mon: reconcilePresentCleanersForDay({
+      nextCleaners: presentCleanersByDay.mon ?? allCleaners,
+      weeklyLeaveCleaners,
+      allCleaners,
+    }),
+    tue: reconcilePresentCleanersForDay({
+      nextCleaners: presentCleanersByDay.tue ?? allCleaners,
+      weeklyLeaveCleaners,
+      allCleaners,
+    }),
+    wed: reconcilePresentCleanersForDay({
+      nextCleaners: presentCleanersByDay.wed ?? allCleaners,
+      weeklyLeaveCleaners,
+      allCleaners,
+    }),
+    thu: reconcilePresentCleanersForDay({
+      nextCleaners: presentCleanersByDay.thu ?? allCleaners,
+      weeklyLeaveCleaners,
+      allCleaners,
+    }),
+    fri: reconcilePresentCleanersForDay({
+      nextCleaners: presentCleanersByDay.fri ?? allCleaners,
+      weeklyLeaveCleaners,
+      allCleaners,
+    }),
+  };
 }
 
 export function getLowStaffingSkippedJobs(peopleIn: number): JobId[] {
@@ -63,16 +131,16 @@ export function getDaycareJobLabel(
       case "SW":
         return "P2";
       case "San":
-        return "Toddler and P2 lockers";
+        return "Toddler Room";
       case "Gar":
         return staffing <= 5 ? "Fill & all outside" : "Fill & Front outside";
       case "Flo1":
         return "Back outside";
       case "Flo2":
-        if (staffing >= 7) return "Toddler Room & P2 lockers";
+        if (staffing >= 7) return "Toddler Room";
         return "Flo2";
       case "Flo3":
-        if (staffing >= 7) return "Back outside & P1 lockers";
+        if (staffing >= 7) return "Back outside";
         return "Flo3";
       default:
         return jobId;
@@ -91,15 +159,15 @@ export function getDaycareJobLabel(
     case "Gar":
       return staffing <= 6 ? "Fill & all outside" : "Fill & front outside";
     case "Flo1":
-      if (staffing >= 8) return "Baby Room & Kindergarten lockers";
+      if (staffing >= 8) return "Baby Room";
       if (staffing <= 7) return "Baby & Toddler";
       return "Flo1";
     case "Flo2":
-      if (staffing >= 8) return "Toddler Room & P2 lockers";
+      if (staffing >= 8) return "Toddler Room";
       if (staffing === 7) return "Back outside";
       return "Flo2";
     case "Flo3":
-      if (staffing >= 8) return "Back outside & P1 lockers";
+      if (staffing >= 8) return "Back outside";
       return "Flo3";
     default:
       return jobId;
@@ -663,6 +731,29 @@ export function generateWeeklyAssignments(
 type WeeklyAssignments = Record<DayKey, string[]>;
 
 export type WeeklyReassignmentFlags = Record<DayKey, boolean[]>;
+
+export function hasLegacyCleanerRotation(
+  cleaners: readonly string[],
+  canonicalOrder: readonly string[] = CLEANER_ORDER,
+): boolean {
+  if (cleaners.length !== canonicalOrder.length) {
+    return false;
+  }
+
+  const uniqueCleaners = new Set(cleaners);
+  if (uniqueCleaners.size !== canonicalOrder.length) {
+    return false;
+  }
+
+  const matchesCanonicalSet = canonicalOrder.every((cleaner) =>
+    cleaners.includes(cleaner),
+  );
+
+  return (
+    matchesCanonicalSet &&
+    !cleaners.every((cleaner, index) => cleaner === canonicalOrder[index])
+  );
+}
 
 export function getWeeklyReassignmentFlags(params: {
   baseAssignments: WeeklyAssignments;
