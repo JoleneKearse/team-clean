@@ -58,7 +58,7 @@ const BandOffice = () => {
   const dayAssignments = weeklyAssignments[currentDay];
   const bathIndex = JOBS.indexOf("Bath");
   const bathInitials = bathIndex >= 0 ? (dayAssignments[bathIndex] ?? "") : "";
-  const flo2Label = getBandOfficeAssignmentsForDay("Flo2", peopleIn);
+  const flo2Label = getBandOfficeAssignmentsForDay("Flo2");
   const notices = getBandOfficeNotices(
     peopleIn,
     bathInitials,
@@ -79,7 +79,7 @@ const BandOffice = () => {
       jobId,
       index,
       initials: index >= 0 ? (dayAssignments[index] ?? "") : "",
-      label: getBandOfficeAssignmentsForDay(jobId, peopleIn),
+      label: getBandOfficeAssignmentsForDay(jobId),
     };
   });
 
