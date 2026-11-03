@@ -4,7 +4,7 @@ import { getBuildingAssignmentsForDay } from "../utils/scheduleUtils";
 import type { JobId } from "../types/types";
 import gradeTwoImage from "../assets/grade-two.webp";
 
-const GRADE_2_JOBS: readonly JobId[] = ["Vac", "Gar"];
+const GRADE_2_JOBS: readonly JobId[] = ["Vac", "Gar", "Flo1"];
 
 const Grade2 = () => {
   const { currentDay, buildingWeeklyAssignments } = useSchedule();
