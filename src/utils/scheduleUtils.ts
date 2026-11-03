@@ -176,15 +176,15 @@ export function getDaycareJobLabel(
 
 export function getBandOfficeAssignmentsForDay(
   jobId: JobId,
-  peopleIn: number,
+  peopleIn?: number,
 ): string {
   switch (jobId) {
     case "Flo1":
       return "Chambers or basement";
     case "Flo2":
-      return peopleIn === 7 ? "Downstairs bathrooms" : "Basement";
+      return "Downstairs bathrooms";
     case "Flo3":
-      return "Basement bathrooms";
+      return "Basement";
     default:
       return "Basement";
   }
