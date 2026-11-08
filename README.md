@@ -42,7 +42,6 @@ Team Clean solves this by providing a real-time shared weekly board that dynamic
 </p>
 
 
-
 ## How It Works
 Each day:
 1. The lead marks who is present
