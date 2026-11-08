@@ -1,7 +1,7 @@
 import { enforceNecessaryJobsBeforeFlo, generateWeeklyAssignments } from './src/utils/scheduleUtils';
 import { JOBS, CALL_IN_CLEANERS, CLEANER_ORDER, STAFF_CLEANERS } from './src/constants/consts';
 
-const BASE = ['PW', 'JA', 'BM', 'AN', 'RB', 'D', 'TW', 'JK'];
+const BASE = ['JA', 'BM', 'AN', 'IB', 'D', 'JK', 'HA'];
 const withEmpty = (slots: number[]) => BASE.map((initials, i) => (slots.includes(i) ? '' : initials));
 const resultByJob = (assignments: string[]) => Object.fromEntries(JOBS.map((jobId, i) => [jobId, assignments[i] ?? '']));
 
@@ -14,8 +14,8 @@ const weekly = generateWeeklyAssignments(CLEANER_ORDER, new Date(2026,10,2), JOB
 console.log('mon', JSON.stringify(weekly.mon));
 console.log('tue', JSON.stringify(weekly.tue));
 console.log('wed-callin', JSON.stringify(generateWeeklyAssignments(CLEANER_ORDER, new Date(2026,10,2), JOBS.length, {
-  wed: [...STAFF_CLEANERS.filter((cleaner) => cleaner !== 'PW' && cleaner !== 'D'), 'JK']
+  wed: [...STAFF_CLEANERS.filter((cleaner) => cleaner !== 'D'), 'JK']
 }, JOBS, CALL_IN_CLEANERS).wed));
 console.log('wed-callin-mapped', JSON.stringify(generateWeeklyAssignments(CLEANER_ORDER, new Date(2026,10,2), JOBS.length, {
-  wed: [...STAFF_CLEANERS.filter((cleaner) => cleaner !== 'PW' && cleaner !== 'D'), 'JK']
+  wed: [...STAFF_CLEANERS.filter((cleaner) => cleaner !== 'D'), 'JK']
 }, JOBS, CALL_IN_CLEANERS, { wed: { JK: 'D' } }).wed));

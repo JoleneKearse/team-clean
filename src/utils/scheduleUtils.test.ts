@@ -22,21 +22,21 @@ describe("reconcilePresentCleanersForDay", () => {
   it("keeps the daily roster aligned with planned absences", () => {
     expect(
       reconcilePresentCleanersForDay({
-        nextCleaners: ["RB", "D", "JK", "TW"],
-        weeklyLeaveCleaners: ["PW", "JA"],
+        nextCleaners: ["IB", "D", "JK", "TW"],
+        weeklyLeaveCleaners: ["IB", "JA"],
         allCleaners: STAFF_CLEANERS,
       }),
-    ).toEqual(["RB", "D"]);
+    ).toEqual(["D"]);
   });
 
   it("does not re-add staff who are already out for the week", () => {
     expect(
       reconcilePresentCleanersForDay({
-        nextCleaners: ["RB", "D", "JK"],
-        weeklyLeaveCleaners: ["PW", "JA", "BM"],
+        nextCleaners: ["IB", "D", "JK"],
+        weeklyLeaveCleaners: ["IB", "JA", "BM"],
         allCleaners: STAFF_CLEANERS,
       }),
-    ).toEqual(["RB", "D"]);
+    ).toEqual(["D"]);
   });
 });
 
@@ -90,8 +90,8 @@ describe("scheduleUtils rotation", () => {
 
 describe("enforceNecessaryJobsBeforeFlo float fallback", () => {
   // Build a baseline assignment array where all 8 jobs are staffed.
-  // Slots: Bath=PW, Flo1=JA, SW=BM, Flo2=AN, Vac=RB, San=D, Gar=TW, Flo3=JK
-  const BASE = ["PW", "JA", "BM", "AN", "RB", "D", "TW", "JK"];
+  // Slots: Bath=ZZ, Flo1=JA, SW=BM, Flo2=AN, Vac=RB, San=D, Gar=TW, Flo3=JK
+  const BASE = ["ZZ", "JA", "BM", "AN", "RB", "D", "TW", "JK"];
 
   function withEmpty(slots: number[]): string[] {
     return BASE.map((initials, i) => (slots.includes(i) ? "" : initials));
@@ -234,30 +234,36 @@ describe("generateWeeklyAssignments low staffing Vac/Gar handling", () => {
 });
 
 describe("generateWeeklyAssignments call-in replacement order", () => {
+  const referenceWeek = generateWeeklyAssignments(
+    CLEANER_ORDER,
+    new Date(2026, 2, 4),
+    JOBS.length,
+    undefined,
+    JOBS,
+    CALL_IN_CLEANERS,
+  );
+  const presentWithAbsentCleaners = (...absentCleaners: string[]) => [
+    "JK",
+    ...CLEANER_ORDER.filter(
+      (cleaner) =>
+        cleaner !== "JK" && !absentCleaners.includes(cleaner),
+    ),
+  ];
+
   it("fills the missing cleaner's job with call-in before float fallback", () => {
     const weekly = generateWeeklyAssignments(
       CLEANER_ORDER,
       new Date(2026, 2, 4),
       JOBS.length,
       {
-        wed: [
-          ...STAFF_CLEANERS.filter(
-            (cleaner) => cleaner !== "PW" && cleaner !== "D",
-          ),
-          "JK",
-        ],
+        wed: presentWithAbsentCleaners("D"),
       },
       JOBS,
       CALL_IN_CLEANERS,
     );
 
-    const vacIndex = JOBS.indexOf("Vac");
-    const garIndex = JOBS.indexOf("Gar");
-    const flo3Index = JOBS.indexOf("Flo3");
-
-    expect(weekly.wed[garIndex]).toBe("AN");
-    expect(weekly.wed[vacIndex]).toBe("JK");
-    expect(weekly.wed[flo3Index]).toBe("");
+    const missingCleanerJobIndex = referenceWeek.wed.indexOf("D");
+    expect(weekly.wed[missingCleanerJobIndex]).toBe("JK");
   });
 
   it("honors pinned call-in mapping when multiple staff are out", () => {
@@ -266,28 +272,18 @@ describe("generateWeeklyAssignments call-in replacement order", () => {
       new Date(2026, 2, 4),
       JOBS.length,
       {
-        wed: [
-          ...STAFF_CLEANERS.filter(
-            (cleaner) => cleaner !== "PW" && cleaner !== "D",
-          ),
-          "JK",
-        ],
+        wed: presentWithAbsentCleaners("D", "AN"),
       },
       JOBS,
       CALL_IN_CLEANERS,
       {
         wed: {
-          JK: "D",
+          JK: "AN",
         },
       },
     );
 
-    const vacIndex = JOBS.indexOf("Vac");
-    const garIndex = JOBS.indexOf("Gar");
-    const flo3Index = JOBS.indexOf("Flo3");
-
-    expect(weekly.wed[vacIndex]).toBe("JK");
-    expect(weekly.wed[garIndex]).toBe("AN");
-    expect(weekly.wed[flo3Index]).toBe("");
+    const mappedCleanerJobIndex = referenceWeek.wed.indexOf("AN");
+    expect(weekly.wed[mappedCleanerJobIndex]).toBe("JK");
   });
 });

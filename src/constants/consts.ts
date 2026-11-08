@@ -82,7 +82,7 @@ export function getNecessaryJobStyle(jobId: string) {
   return NECESSARY_JOB_STYLES[jobId];
 }
 
-export const STAFF_CLEANERS = ["PW", "JA", "BM", "AN", "RB", "D"] as const;
+export const STAFF_CLEANERS = ["JA", "BM", "AN", "D", "IB"] as const;
 
 export const CALL_IN_CLEANERS = [
   "HA",

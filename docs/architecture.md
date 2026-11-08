@@ -238,12 +238,12 @@ Primary areas:
 Assignments:
 
 - `Bath` → Bathrooms
-- `Flo1` → Baby Room & Kindergarten lockers
+- `Flo1` → Baby Room
 - `SW` → P2
-- `Flo2` → Toddler Room & P2 lockers
+- `Flo2` → Toddler Room
 - `Vac` → P1 & playground doorway
 - `San` → Kindergarten
-- `Flo3` → Back outside & P1 lockers
+- `Flo3` → Back outside
 - `Gar` → Fill & front outside
 
 ### Staffing = 7
