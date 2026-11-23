@@ -367,6 +367,9 @@ function App() {
     setSectionOrderForDay,
     isFridayized,
     setFridayizedForDay,
+    advanceRotation,
+    isAdvancingRotation,
+    rotationError,
     saveScheduleToFirestore,
     isSavingSchedule,
     saveScheduleError,
@@ -710,7 +713,7 @@ function App() {
       return;
     }
 
-    if (isSavingSchedule) {
+    if (isSavingSchedule || isAdvancingRotation) {
       return;
     }
 
@@ -729,8 +732,16 @@ function App() {
       });
   };
 
+  const handleAdvanceRotation = () => {
+    void advanceRotation()
+      .then(triggerSaveSuccessMessage)
+      .catch(() => {
+        // Error is already tracked in context and shown in the UI.
+      });
+  };
+
   const handleResetSchedule = () => {
-    if (isViewingPastDate) {
+    if (isViewingPastDate || isAdvancingRotation) {
       return;
     }
 
@@ -1197,6 +1208,22 @@ function App() {
           ) : null}
         </section>
 
+        <Calendar
+          calendarView={calendarView}
+          highlightedDayKey={currentDay}
+          isEditMode={effectiveIsEditMode}
+          onToggleCalendarView={handleToggleCalendarView}
+        />
+        {isEditUiActive && calendarView === "weekly" && (
+          <div>
+            <span className="font-bold text-red-800">Jobs not right? Click to update ➡️</span>
+            <Button
+              label="Update"
+              onClick={handleAdvanceRotation}
+              disabled={isSavingSchedule || isAdvancingRotation}
+            />
+          </div>
+        )}
         {isEditUiActive && (
           <div className="relative w-full">
             <div className="absolute -left-1 top-1/2 mt-1 -translate-y-1/2">
@@ -1249,7 +1276,9 @@ function App() {
               <Button
                 label={editButtonLabel}
                 onClick={handleEditSchedule}
-                disabled={isSavingSchedule || isViewingPastDate}
+                disabled={
+                  isSavingSchedule || isAdvancingRotation || isViewingPastDate
+                }
                 className={editButtonLabel === "Confirm" ? "text-pink-400" : ""}
                 icon={
                   isEditUiActive ? (
@@ -1288,7 +1317,9 @@ function App() {
               <Button
                 label="Reset"
                 onClick={handleResetSchedule}
-                disabled={isSavingSchedule || isViewingPastDate}
+                disabled={
+                  isSavingSchedule || isAdvancingRotation || isViewingPastDate
+                }
                 icon={
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -1308,6 +1339,11 @@ function App() {
               />
             </div>
           </div>
+        )}
+        {rotationError && (
+          <p role="alert" className="px-2 text-center font-semibold text-red-800">
+            Rotation sync failed: {rotationError}
+          </p>
         )}
         {saveScheduleError && (
           <p className="px-2 pb-1 text-center font-semibold text-pink-700">
@@ -1354,12 +1390,6 @@ function App() {
           </div>
         )}
 
-        <Calendar
-          calendarView={calendarView}
-          highlightedDayKey={currentDay}
-          isEditMode={effectiveIsEditMode}
-          onToggleCalendarView={handleToggleCalendarView}
-        />
         <MopAlert />
         {calendarView === "weekly" && !isEditUiActive && peopleIn < 8 && (
           <article className="w-full overflow-hidden rounded-xl border border-gray-500 bg-gray-200 shadow-lg">

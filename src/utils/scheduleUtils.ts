@@ -432,8 +432,8 @@ export function getDayKeyFromDate(referenceDate: Date): DayKey {
   return dayMap[referenceDate.getDay()] ?? "mon";
 }
 
-function parseAnchorMonday(anchorMonday: string): Date {
-  const [year, month, day] = anchorMonday
+function parseRotationDate(dateKey: string): Date {
+  const [year, month, day] = dateKey
     .split("-")
     .map((part) => Number(part));
 
@@ -595,6 +595,7 @@ export function generateWeeklyAssignments(
   ],
   callInCleaners: readonly string[] = [],
   callInReplacementsByDay?: CallInReplacementMapByDay,
+  rotationAdvancesByDate: Readonly<Record<string, number>> = {},
 ) {
   const totalSlots = Math.max(0, slotCount);
   const base =
@@ -605,7 +606,7 @@ export function generateWeeklyAssignments(
           (_, index) => cleaners[index % cleaners.length],
         );
 
-  const anchorMonday = parseAnchorMonday(ANCHOR_MONDAY);
+  const anchorMonday = parseRotationDate(ANCHOR_MONDAY);
   const rotationReferenceDate = getRotationReferenceDate(referenceDate);
   const weekStart = getStartOfWeekMonday(rotationReferenceDate);
   const weekOffset = getElapsedWorkdays(anchorMonday, weekStart);
@@ -703,6 +704,9 @@ export function generateWeeklyAssignments(
     fri: [...emptyAssignments],
   };
 
+  const rotationAdvances = Object.entries(rotationAdvancesByDate).map(
+    ([dateKey, days]) => ({ effectiveDate: parseRotationDate(dateKey), days }),
+  );
   let rotationDayOffset = 0;
 
   WEEK_DAY_KEYS.forEach((dayKey, dayOffset) => {
@@ -717,9 +721,14 @@ export function generateWeeklyAssignments(
       return;
     }
 
+    const rotationAdvance = rotationAdvances.reduce(
+      (total, { effectiveDate, days }) =>
+        effectiveDate <= dayDate ? total + days : total,
+      0,
+    );
     weekly[dayKey] = rebalanceForPresence(
       dayKey,
-      rotate(base, weekOffset + rotationDayOffset),
+      rotate(base, weekOffset + rotationDayOffset + rotationAdvance),
     );
     rotationDayOffset += 1;
   });

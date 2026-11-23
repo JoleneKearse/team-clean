@@ -62,6 +62,42 @@ describe("scheduleUtils rotation", () => {
     expect(weekly.tue).toEqual(rotateDownByOne(CLEANER_ORDER));
   });
 
+  it("advances only assignments on or after each effective date", () => {
+    const referenceDate = new Date(2026, 10, 23);
+    const baseline = generateWeeklyAssignments(CLEANER_ORDER, referenceDate);
+    const adjusted = generateWeeklyAssignments(
+      CLEANER_ORDER,
+      referenceDate,
+      JOBS.length,
+      undefined,
+      JOBS,
+      CALL_IN_CLEANERS,
+      undefined,
+      { "2026-11-25": 1, "2026-11-27": 1 },
+    );
+
+    expect(adjusted.tue).toEqual(baseline.tue);
+    expect(adjusted.wed).toEqual(baseline.thu);
+    expect(adjusted.thu).toEqual(baseline.fri);
+    expect(adjusted.fri).toEqual(
+      rotateDownByOne(rotateDownByOne(baseline.fri)),
+    );
+
+    const nextWeek = new Date(2026, 10, 30);
+    const nextBaseline = generateWeeklyAssignments(CLEANER_ORDER, nextWeek);
+    const nextAdjusted = generateWeeklyAssignments(
+      CLEANER_ORDER,
+      nextWeek,
+      JOBS.length,
+      undefined,
+      JOBS,
+      CALL_IN_CLEANERS,
+      undefined,
+      { "2026-11-25": 1, "2026-11-27": 1 },
+    );
+    expect(nextAdjusted.mon).toEqual(nextBaseline.wed);
+  });
+
   it("continues the rotation from Monday Nov 2 across the rest of the week", () => {
     const weekly = generateWeeklyAssignments(
       CLEANER_ORDER,

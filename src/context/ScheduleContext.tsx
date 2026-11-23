@@ -1,5 +1,12 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
+import {
+  doc,
+  increment,
+  onSnapshot,
+  runTransaction,
+  serverTimestamp,
+  setDoc,
+} from "firebase/firestore";
 
 import {
   enforceNecessaryJobsBeforeFlo,
@@ -93,6 +100,9 @@ interface ScheduleContextType {
     day: DayKey,
     order: readonly EditableSectionId[],
   ) => void;
+  advanceRotation: () => Promise<void>;
+  isAdvancingRotation: boolean;
+  rotationError: string | null;
   saveScheduleToFirestore: () => Promise<void>;
   isSavingSchedule: boolean;
   saveScheduleError: string | null;
@@ -100,6 +110,7 @@ interface ScheduleContextType {
   resetScheduleState: () => Promise<void>;
 }
 
+const ROTATION_DOCUMENT_ID = "rotationSettings";
 const STORAGE_KEY = "team-clean:schedule-state";
 const CLOSED_ITEMS_DEFAULTS_VERSION = 7;
 const STAFF_CLEANERS_DEFAULTS_VERSION = 3;
@@ -1133,6 +1144,16 @@ export const ScheduleProvider = ({
   const [sectionOrderByDay, setSectionOrderByDay] = useState<SectionOrderByDay>(
     persistedScheduleState?.sectionOrderByDay ?? getDefaultSectionOrderByDay(),
   );
+  const [rotationAdvancesByDate, setRotationAdvancesByDate] = useState<
+    Record<string, number>
+  >({});
+  const [isAdvancingRotation, setIsAdvancingRotation] = useState(false);
+  const [rotationReadError, setRotationReadError] = useState<string | null>(
+    null,
+  );
+  const [rotationWriteError, setRotationWriteError] = useState<string | null>(
+    null,
+  );
   const [isSavingSchedule, setIsSavingSchedule] = useState(false);
   const [saveScheduleError, setSaveScheduleError] = useState<string | null>(
     null,
@@ -1308,9 +1329,75 @@ export const ScheduleProvider = ({
     };
   }, [isViewingPastDate, selectedDateDayKey, selectedDateKey]);
 
+  useEffect(() => {
+    if (!db) return;
+
+    return onSnapshot(
+      doc(db, "dailySchedules", ROTATION_DOCUMENT_ID),
+      (snapshot) => {
+        const advances: unknown = snapshot.data()?.advancesByDate;
+        const entries =
+          advances && typeof advances === "object"
+            ? Object.entries(advances)
+            : [];
+        setRotationAdvancesByDate(
+          Object.fromEntries(
+            entries.filter(
+              ([dateKey, days]) =>
+                parseLocalDateKey(dateKey) &&
+                Number.isSafeInteger(days) &&
+                days > 0,
+            ),
+          ),
+        );
+        setRotationReadError(null);
+      },
+      (error) => {
+        setRotationReadError(error.message);
+      },
+    );
+  }, []);
+
+  const advanceRotation = async () => {
+    if (isViewingPastDate || isAdvancingRotation || isSavingSchedule) return;
+
+    if (!db) {
+      const message = firebaseConfigError ?? FIREBASE_NOT_CONFIGURED_MESSAGE;
+      setRotationWriteError(message);
+      throw new Error(message);
+    }
+
+    setIsAdvancingRotation(true);
+    setRotationWriteError(null);
+
+    const rotationRef = doc(db, "dailySchedules", ROTATION_DOCUMENT_ID);
+    const effectiveDateKey = getLocalDateKey(new Date());
+
+    try {
+      // Transactions require a server connection, so an offline tap fails
+      // instead of silently queuing a rotation change for later.
+      await runTransaction(db, async (transaction) => {
+        await transaction.get(rotationRef);
+        transaction.set(
+          rotationRef,
+          { advancesByDate: { [effectiveDateKey]: increment(1) } },
+          { merge: true },
+        );
+      });
+    } catch (error) {
+      setRotationWriteError(
+        error instanceof Error ? error.message : "Could not advance rotation.",
+      );
+      throw error;
+    } finally {
+      setIsAdvancingRotation(false);
+    }
+  };
+
   const getDerivedAssignmentsForSnapshot = (
     snapshot: ScheduleSnapshot,
     referenceDate: Date,
+    rotationAdvances: Readonly<Record<string, number>>,
   ) => {
     const effectivePresentCleanersByDay =
       applyWeeklyLeaveToPresentCleanersByDay(
@@ -1326,6 +1413,7 @@ export const ScheduleProvider = ({
       JOBS,
       CALL_IN_CLEANERS,
       snapshot.callInReplacementsByDay as CallInReplacementMapByDay,
+      rotationAdvances,
     );
 
     const computedWeeklyAssignments = {
@@ -1430,6 +1518,8 @@ export const ScheduleProvider = ({
       undefined,
       JOBS,
       CALL_IN_CLEANERS,
+      undefined,
+      rotationAdvances,
     );
 
     const snapshotReferenceWeeklyAssignments = {
@@ -1546,13 +1636,23 @@ export const ScheduleProvider = ({
   );
 
   const editableDerivedAssignments = useMemo(
-    () => getDerivedAssignmentsForSnapshot(editableSnapshot, selectedDate),
-    [editableSnapshot, selectedDate],
+    () =>
+      getDerivedAssignmentsForSnapshot(
+        editableSnapshot,
+        selectedDate,
+        rotationAdvancesByDate,
+      ),
+    [editableSnapshot, selectedDate, rotationAdvancesByDate],
   );
 
   const historicalDerivedAssignments = useMemo(
-    () => getDerivedAssignmentsForSnapshot(historicalSnapshot, selectedDate),
-    [historicalSnapshot, selectedDate],
+    () =>
+      getDerivedAssignmentsForSnapshot(
+        historicalSnapshot,
+        selectedDate,
+        rotationAdvancesByDate,
+      ),
+    [historicalSnapshot, selectedDate, rotationAdvancesByDate],
   );
 
   const activeSnapshot = isViewingPastDate
@@ -1771,7 +1871,7 @@ export const ScheduleProvider = ({
       snapshotWeeklyAssignments,
       snapshotBuildingWeeklyAssignments,
       snapshotDaycareWeeklyAssignments,
-    } = getDerivedAssignmentsForSnapshot(snapshot, today);
+    } = getDerivedAssignmentsForSnapshot(snapshot, today, rotationAdvancesByDate);
 
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
@@ -2060,6 +2160,9 @@ export const ScheduleProvider = ({
         moveDaycareAssignment,
         sectionOrder,
         setSectionOrderForDay,
+        advanceRotation,
+        isAdvancingRotation,
+        rotationError: rotationWriteError ?? rotationReadError,
         saveScheduleToFirestore,
         isSavingSchedule,
         saveScheduleError,
